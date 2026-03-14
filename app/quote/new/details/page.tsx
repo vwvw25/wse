@@ -350,7 +350,7 @@ function DetailsForm() {
             <BoolTile label="Client provides PA" active={!!form.client_provides_pa} onClick={() => toggleBool('client_provides_pa')} />
             <BoolTile label="Powerless PA" active={!!form.is_powerless} onClick={() => toggleBool('is_powerless')} />
             <BoolTile label="Venue limiter" active={!!form.has_limiter} onClick={() => toggleBool('has_limiter')} />
-            <BoolTile label="Acoustic" active={!!form.is_acoustic} onClick={() => toggleBool('is_acoustic')} />
+            <BoolTile label="Completely acoustic without amplification" active={!!form.is_acoustic} onClick={() => toggleBool('is_acoustic')} />
           </BoolGrid>
           {!form.client_provides_pa && (
             <div style={{ marginTop: 14 }}>

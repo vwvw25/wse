@@ -47,28 +47,28 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
     { label: 'Instrument carriage', amount: inputs.instrument_carriage_cost ?? 0, show: isInternational },
   ]
 
+  const hasBuyout = (inputs.selected_add_ons ?? []).some(a => a.name.toLowerCase().includes('buyout'))
+  const loadOutDiffersFromFinish = !!inputs.load_out_time && !!inputs.finish_time && inputs.load_out_time !== inputs.finish_time
+
   const inclusions: { text: string; show: boolean }[] = [
-    { text: 'All equipment for our use', show: true },
+    { text: 'All equipment for our use', show: !isInternational && !inputs.client_provides_pa },
     { text: 'Based on a finish of 11pm or earlier', show: !inputs.finish_time || inputs.finish_time <= '23:00' },
     { text: 'Music via iPad/PA during intervals', show: !(inputs.selected_add_ons ?? []).some(a => a.name === 'Roaming set') },
     { text: 'Arrival one hour before performance start (1.5hrs if full PA)', show: true },
-    { text: 'Quotes based on venue having parking', show: true },
-    { text: 'Travel and expenses included', show: isDomesticOvernight },
-    { text: 'If dancing and 40+ guests — book quartet or larger', show: inputs.booking_type === 'background' },
+    { text: 'Travel and expenses included', show: true },
+    { text: 'If dancing and 40+ guests — book quartet or larger', show: inputs.booking_type === 'dancing_over_40' || inputs.booking_type === 'wedding' },
   ]
 
   const requirements: { text: string; show: boolean }[] = [
-    { text: '2 × 13amp plug sockets', show: true },
-    { text: 'Food clause — same menu choices as guests, or £20 per musician buyout', show: true },
+    { text: '2 × 13amp plug sockets', show: !inputs.is_powerless && !inputs.is_acoustic },
+    { text: 'Food clause — same menu choices as guests, or £20 per musician buyout', show: !hasBuyout },
     { text: 'Lockable indoor exclusive green room', show: true },
     { text: 'Soft drinks and mineral water', show: true },
-    { text: 'Able to pack down at end of final set', show: true },
+    { text: 'Able to pack down at end of final set', show: !loadOutDiffersFromFinish },
     { text: 'Full loading information required 2 weeks in advance', show: true },
     { text: 'Please advise of any accessibility considerations at the venue', show: true },
-    { text: 'Client to hire drum kit locally', show: isInternational },
+    { text: 'Client to hire drum kit locally', show: isInternational && (inputs.drummer_fee ?? 0) > 0 },
     { text: 'Client to provide keyboard or piano on-site', show: (inputs.keys_fee ?? 0) > 0 && isInternational },
-    { text: 'Client to arrange transfers to/from performance location', show: isInternational && inputs.is_multi_day },
-    { text: 'Accommodation to include breakfast and dinner', show: isDomesticOvernight },
   ]
 
   const eventDate = inputs.event_date
