@@ -107,8 +107,10 @@ export interface QuoteInputs {
   // Venue
   venue_postcode: string | null
   venue_name: string | null
+  venue_name_tbc: boolean
   event_date: string | null
-  client_name: string | null
+  agency_name: string | null
+  agent_name: string | null
   client_email: string | null
 }
 

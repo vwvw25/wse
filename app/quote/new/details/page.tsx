@@ -39,6 +39,7 @@ function DetailsForm() {
   const bookingTypes = searchParams.getAll('bt') as BookingType[]
   const travelType = (searchParams.get('travel') ?? 'london') as TravelType
   const isMultiDay = searchParams.get('multiDay') === '1'
+  const eventDateParam = searchParams.get('date') ?? ''
 
   const [form, setForm] = useState<Partial<QuoteInputs>>({
     booking_type: bookingTypes[0] ?? null,
@@ -52,10 +53,14 @@ function DetailsForm() {
     client_provides_pa: false, is_powerless: false,
     has_limiter: false, is_acoustic: false, client_third_party_sound: false,
     is_prestige: false,
+    venue_name_tbc: false,
+    // Event info
+    agency_name: null, agent_name: null,
+    event_date: eventDateParam || null,
     // Numbers default 0
     pa_hours_before_midnight: 0, pa_hours_after_midnight: 0,
-    singer_fee: 0, guitarist_fee: 0, drummer_fee: 0, bass_fee: 0,
-    keys_fee: 0, sax_fee: 0, trombone_fee: 0, trumpet_fee: 0, singer_2_fee: 0,
+    singer_fee: 400, guitarist_fee: 300, drummer_fee: 300, bass_fee: 300,
+    keys_fee: 300, sax_fee: 300, trombone_fee: 300, trumpet_fee: 300, singer_2_fee: 300,
     petrol_train_cost: 0, accommodation_cost: 0, accommodation_nights: 1,
     per_diem_rate: 0, performance_days: 1, travel_day_rate: 0, travel_days: 0,
     off_day_rate: 0, off_days: 0, flight_cost: 0, baggage_fee: 0,
@@ -151,9 +156,11 @@ function DetailsForm() {
         ...(form as QuoteInputs),
         selected_add_ons: Array.from(selectedAddOns.values()),
         venue_postcode: venuePostcode || null,
-        venue_name: form.venue_name ?? null,
+        venue_name: form.venue_name_tbc ? 'TBC' : form.venue_name ?? null,
+        venue_name_tbc: form.venue_name_tbc ?? false,
         event_date: form.event_date ?? null,
-        client_name: form.client_name ?? null,
+        agency_name: form.agency_name ?? null,
+        agent_name: form.agent_name ?? null,
         client_email: form.client_email ?? null,
       }
       const res = await fetch('/api/quotes', {
@@ -187,17 +194,28 @@ function DetailsForm() {
         {/* Event info */}
         <Card label="Event">
           <Grid cols={3}>
-            <Field label="Client name">
-              <Input value={form.client_name ?? ''} onChange={v => set('client_name', v || null)} placeholder="e.g. The Smith Family" />
+            <Field label="Agency name">
+              <Input value={form.agency_name ?? ''} onChange={v => set('agency_name', v || null)} placeholder="e.g. Premier Talent" />
             </Field>
-            <Field label="Client email">
-              <Input value={form.client_email ?? ''} onChange={v => set('client_email', v || null)} placeholder="client@example.com" />
+            <Field label="Agent name">
+              <Input value={form.agent_name ?? ''} onChange={v => set('agent_name', v || null)} placeholder="e.g. Jane Smith" />
             </Field>
             <Field label="Event date">
               <Input type="date" value={form.event_date ?? ''} onChange={v => set('event_date', v || null)} />
             </Field>
             <Field label="Venue name">
-              <Input value={form.venue_name ?? ''} onChange={v => set('venue_name', v || null)} placeholder="e.g. The Savoy" />
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <Input
+                  value={form.venue_name_tbc ? 'TBC' : (form.venue_name ?? '')}
+                  onChange={v => set('venue_name', v || null)}
+                  placeholder="e.g. The Savoy"
+                  disabled={!!form.venue_name_tbc}
+                />
+                <BoolTile label="Venue TBC" active={!!form.venue_name_tbc} onClick={() => toggleBool('venue_name_tbc')} />
+              </div>
+            </Field>
+            <Field label="Client email">
+              <Input value={form.client_email ?? ''} onChange={v => set('client_email', v || null)} placeholder="client@example.com" />
             </Field>
           </Grid>
         </Card>
@@ -547,8 +565,8 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   )
 }
 
-function Input({ value, onChange, placeholder, type = 'text' }: {
-  value: string; onChange: (v: string) => void; placeholder?: string; type?: string
+function Input({ value, onChange, placeholder, type = 'text', disabled }: {
+  value: string; onChange: (v: string) => void; placeholder?: string; type?: string; disabled?: boolean
 }) {
   return (
     <input
@@ -556,11 +574,13 @@ function Input({ value, onChange, placeholder, type = 'text' }: {
       value={value}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
+      disabled={disabled}
       style={{
         width: '100%', height: 36, padding: '0 10px', fontSize: 13,
-        color: 'var(--text)', background: 'var(--bg)',
+        color: 'var(--text)', background: disabled ? 'var(--bg-secondary)' : 'var(--bg)',
         border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)',
         outline: 'none', fontFamily: 'var(--font)',
+        opacity: disabled ? 0.6 : 1,
       }}
     />
   )

@@ -21,8 +21,6 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
   const isInternational = inputs.travel_type === 'international'
   const isDomesticOvernight = inputs.travel_type === 'domestic_overnight' || isInternational
 
-  const finishBefore11 = !inputs.finish_time || inputs.finish_time <= '23:00'
-
   // Line items — conditionally rendered
   const lineItems: { label: string; amount: number; show: boolean }[] = [
     { label: 'PA + sound engineer', amount: calculated.pa_hire_cost, show: calculated.pa_hire_cost > 0 },
@@ -51,9 +49,9 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
 
   const inclusions: { text: string; show: boolean }[] = [
     { text: 'All equipment for our use', show: true },
-    { text: `Based on a finish of 11pm or earlier`, show: finishBefore11 },
+    { text: 'Based on a finish of 11pm or earlier', show: !inputs.finish_time || inputs.finish_time <= '23:00' },
     { text: 'Music via iPad/PA during intervals', show: !(inputs.selected_add_ons ?? []).some(a => a.name === 'Roaming set') },
-    { text: `Arrival one hour before performance start${!inputs.client_provides_pa && (inputs.band_size === 'quartet' || inputs.band_size === 'five_piece' || inputs.band_size === 'six_piece' || inputs.band_size === 'seven_piece' || inputs.band_size === 'eight_piece') ? ' (1.5hrs — full PA)' : ''}`, show: true },
+    { text: 'Arrival one hour before performance start (1.5hrs if full PA)', show: true },
     { text: 'Quotes based on venue having parking', show: true },
     { text: 'Travel and expenses included', show: isDomesticOvernight },
     { text: 'If dancing and 40+ guests — book quartet or larger', show: inputs.booking_type === 'background' },
@@ -68,6 +66,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
     { text: 'Full loading information required 2 weeks in advance', show: true },
     { text: 'Please advise of any accessibility considerations at the venue', show: true },
     { text: 'Client to hire drum kit locally', show: isInternational },
+    { text: 'Client to provide keyboard or piano on-site', show: (inputs.keys_fee ?? 0) > 0 && isInternational },
     { text: 'Client to arrange transfers to/from performance location', show: isInternational && inputs.is_multi_day },
     { text: 'Accommodation to include breakfast and dinner', show: isDomesticOvernight },
   ]
@@ -85,9 +84,10 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
               <h1 style={{ fontSize: 22, fontWeight: 500, letterSpacing: '-0.02em', color: 'var(--text)' }}>
-                {inputs.client_name ? `Quote for ${inputs.client_name}` : 'Quote'}
+                {inputs.agency_name ? `Quote for ${inputs.agency_name}` : 'Quote'}
               </h1>
               <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 3 }}>Ward Smith Entertainment</p>
+              {inputs.agent_name && <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Att: {inputs.agent_name}</p>}
               {eventDate && <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{eventDate}</p>}
               {inputs.venue_name && <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{inputs.venue_name}</p>}
             </div>
@@ -135,6 +135,21 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
           )}
         </Card>
 
+        {/* Booking details summary */}
+        <Card label="Booking details">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 24px' }}>
+            {inputs.agency_name && <Detail label="Agency" value={inputs.agency_name} />}
+            {inputs.agent_name && <Detail label="Agent" value={inputs.agent_name} />}
+            {inputs.booking_type && <Detail label="Booking type" value={inputs.booking_type.replace(/_/g, ' ')} />}
+            {inputs.band_size && <Detail label="Band size" value={inputs.band_size.replace(/_/g, ' ')} />}
+            {inputs.set_config && <Detail label="Set configuration" value={inputs.set_config} />}
+            {inputs.start_time && <Detail label="Start time" value={inputs.start_time} />}
+            {inputs.finish_time && <Detail label="Finish time" value={inputs.finish_time} />}
+            {inputs.travel_type && <Detail label="Travel" value={inputs.travel_type.replace(/_/g, ' ')} />}
+            {inputs.venue_postcode && <Detail label="Venue postcode" value={inputs.venue_postcode} />}
+          </div>
+        </Card>
+
         {/* What's included */}
         <Card label="What's included">
           <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -170,19 +185,6 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
               </li>
             ))}
           </ul>
-        </Card>
-
-        {/* Booking details summary */}
-        <Card label="Booking details">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 24px' }}>
-            {inputs.booking_type && <Detail label="Booking type" value={inputs.booking_type.replace(/_/g, ' ')} />}
-            {inputs.band_size && <Detail label="Band size" value={inputs.band_size.replace(/_/g, ' ')} />}
-            {inputs.set_config && <Detail label="Set configuration" value={inputs.set_config} />}
-            {inputs.start_time && <Detail label="Start time" value={inputs.start_time} />}
-            {inputs.finish_time && <Detail label="Finish time" value={inputs.finish_time} />}
-            {inputs.travel_type && <Detail label="Travel" value={inputs.travel_type.replace(/_/g, ' ')} />}
-            {inputs.venue_postcode && <Detail label="Venue postcode" value={inputs.venue_postcode} />}
-          </div>
         </Card>
 
         <p style={{ fontSize: 11, color: 'var(--text-tertiary)', textAlign: 'center', marginTop: '1.5rem' }}>

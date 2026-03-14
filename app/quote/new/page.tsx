@@ -9,6 +9,7 @@ export default function NewQuotePage() {
   const [bookingTypes, setBookingTypes] = useState<Set<BookingType>>(new Set())
   const [travel, setTravel] = useState<TravelType | null>(null)
   const [multiDay, setMultiDay] = useState<boolean | null>(null)
+  const [eventDate, setEventDate] = useState('')
 
   function toggleBookingType(type: BookingType) {
     setBookingTypes(prev => {
@@ -24,6 +25,7 @@ export default function NewQuotePage() {
     bookingTypes.forEach(t => params.append('bt', t))
     if (travel) params.set('travel', travel)
     if (multiDay !== null) params.set('multiDay', multiDay ? '1' : '0')
+    if (eventDate) params.set('date', eventDate)
     router.push(`/quote/new/details?${params.toString()}`)
   }
 
@@ -37,6 +39,21 @@ export default function NewQuotePage() {
           <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 3 }}>Ward Smith Entertainment</p>
           <p style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 2, letterSpacing: '0.02em' }}>Step 1 of 2 — booking details</p>
         </div>
+
+        {/* Event date */}
+        <Card label="Event date">
+          <input
+            type="date"
+            value={eventDate}
+            onChange={e => setEventDate(e.target.value)}
+            style={{
+              width: '100%', height: 36, padding: '0 10px', fontSize: 13,
+              color: 'var(--text)', background: 'var(--bg)',
+              border: '0.5px solid var(--border)', borderRadius: 'var(--radius-md)',
+              outline: 'none', fontFamily: 'var(--font)',
+            }}
+          />
+        </Card>
 
         {/* Booking type */}
         <Card label="Booking type">
