@@ -40,6 +40,7 @@ function DetailsForm() {
   const travelType = (searchParams.get('travel') ?? 'london') as TravelType
   const isMultiDay = searchParams.get('multiDay') === '1'
   const eventDateParam = searchParams.get('date') ?? ''
+  const clientType = searchParams.get('clientType') as 'direct' | 'agency' | null
 
   const [form, setForm] = useState<Partial<QuoteInputs>>({
     booking_type: bookingTypes[0] ?? null,
@@ -194,16 +195,24 @@ function DetailsForm() {
         {/* Event info */}
         <Card label="Event">
           <Grid cols={3}>
-            <Field label="Agency name">
-              <Input value={form.agency_name ?? ''} onChange={v => set('agency_name', v || null)} placeholder="e.g. Premier Talent" />
-            </Field>
-            <Field label="Agent name">
-              <Input value={form.agent_name ?? ''} onChange={v => set('agent_name', v || null)} placeholder="e.g. Jane Smith" />
-            </Field>
+            {clientType === 'agency' ? (
+              <>
+                <Field label="Agency name">
+                  <Input value={form.agency_name ?? ''} onChange={v => set('agency_name', v || null)} placeholder="e.g. Premier Talent" />
+                </Field>
+                <Field label="Agent name">
+                  <Input value={form.agent_name ?? ''} onChange={v => set('agent_name', v || null)} placeholder="e.g. Jane Smith" />
+                </Field>
+              </>
+            ) : (
+              <Field label="Client name">
+                <Input value={form.agency_name ?? ''} onChange={v => set('agency_name', v || null)} placeholder="e.g. Sarah Jones" />
+              </Field>
+            )}
             <Field label="Event date">
               <Input type="date" value={form.event_date ?? ''} onChange={v => set('event_date', v || null)} />
             </Field>
-            <Field label="Venue name">
+            <Field label="Venue name" style={{ gridColumn: '1 / -1' }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <Input
                   value={form.venue_name_tbc ? 'TBC' : (form.venue_name ?? '')}
@@ -211,7 +220,31 @@ function DetailsForm() {
                   placeholder="e.g. The Savoy"
                   disabled={!!form.venue_name_tbc}
                 />
-                <BoolTile label="Venue TBC" active={!!form.venue_name_tbc} onClick={() => toggleBool('venue_name_tbc')} />
+                <div
+                  onClick={() => toggleBool('venue_name_tbc')}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 7,
+                    padding: '0 10px', height: 36, flexShrink: 0,
+                    border: `0.5px solid ${form.venue_name_tbc ? 'var(--border-info)' : 'var(--border)'}`,
+                    borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                    background: form.venue_name_tbc ? 'var(--bg-info)' : 'var(--bg)',
+                    userSelect: 'none', transition: 'all 0.1s', whiteSpace: 'nowrap',
+                  }}
+                >
+                  <div style={{
+                    width: 14, height: 14,
+                    border: `1.5px solid ${form.venue_name_tbc ? 'var(--text-info)' : 'var(--border-hover)'}`,
+                    borderRadius: 3, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: form.venue_name_tbc ? 'var(--text-info)' : 'transparent',
+                  }}>
+                    {form.venue_name_tbc && (
+                      <svg width="8" height="6" viewBox="0 0 8 6" fill="none">
+                        <path d="M1 3L3 5L7 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </div>
+                  <span style={{ fontSize: 13, color: 'var(--text)' }}>TBC</span>
+                </div>
               </div>
             </Field>
             <Field label="Client email">
@@ -555,9 +588,9 @@ function Grid({ cols, children, style }: { cols: number; children: React.ReactNo
   )
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+function Field({ label, hint, children, style }: { label: string; hint?: string; children: React.ReactNode; style?: React.CSSProperties }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5, ...style }}>
       <label style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{label}</label>
       {children}
       {hint && <span style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 2 }}>{hint}</span>}

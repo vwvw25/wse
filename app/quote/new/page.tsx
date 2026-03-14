@@ -10,6 +10,7 @@ export default function NewQuotePage() {
   const [travel, setTravel] = useState<TravelType | null>(null)
   const [multiDay, setMultiDay] = useState<boolean | null>(null)
   const [eventDate, setEventDate] = useState('')
+  const [clientType, setClientType] = useState<'direct' | 'agency' | null>(null)
 
   function toggleBookingType(type: BookingType) {
     setBookingTypes(prev => {
@@ -26,10 +27,11 @@ export default function NewQuotePage() {
     if (travel) params.set('travel', travel)
     if (multiDay !== null) params.set('multiDay', multiDay ? '1' : '0')
     if (eventDate) params.set('date', eventDate)
+    if (clientType) params.set('clientType', clientType)
     router.push(`/quote/new/details?${params.toString()}`)
   }
 
-  const canContinue = bookingTypes.size > 0 && travel !== null && multiDay !== null
+  const canContinue = bookingTypes.size > 0 && travel !== null && multiDay !== null && clientType !== null
 
   return (
     <div style={{ padding: '2.5rem 1rem', display: 'flex', justifyContent: 'center' }}>
@@ -53,6 +55,24 @@ export default function NewQuotePage() {
               outline: 'none', fontFamily: 'var(--font)',
             }}
           />
+        </Card>
+
+        {/* Client type */}
+        <Card label="Client">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <OptionTile
+              label="Direct client"
+              desc="Booking made directly with the client"
+              active={clientType === 'direct'}
+              onClick={() => setClientType('direct')}
+            />
+            <OptionTile
+              label="Agency"
+              desc="Booking made through an agency"
+              active={clientType === 'agency'}
+              onClick={() => setClientType('agency')}
+            />
+          </div>
         </Card>
 
         {/* Booking type */}
