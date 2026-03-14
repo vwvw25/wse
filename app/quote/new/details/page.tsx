@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import type { QuoteInputs, BandSize, SetConfig, BookingType, TravelType } from '@/types/quote'
+import { createBrowserClient } from '@/lib/supabase'
+import type { QuoteInputs, BandSize, SetConfig, BookingType, TravelType, AddOn, SelectedAddOn } from '@/types/quote'
 
 const BAND_SIZES: { value: BandSize; label: string }[] = [
   { value: 'duo', label: 'Duo' },
@@ -32,6 +33,8 @@ function DetailsForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [submitting, setSubmitting] = useState(false)
+  const [addOns, setAddOns] = useState<AddOn[]>([])
+  const [selectedAddOns, setSelectedAddOns] = useState<Map<string, SelectedAddOn>>(new Map())
 
   const bookingTypes = searchParams.getAll('bt') as BookingType[]
   const travelType = (searchParams.get('travel') ?? 'london') as TravelType
@@ -48,9 +51,7 @@ function DetailsForm() {
     is_no_drive_zone: false, is_outdoor: false,
     client_provides_pa: false, is_powerless: false,
     has_limiter: false, is_acoustic: false, client_third_party_sound: false,
-    mic_hire_required: false, buyout_required: false, is_roaming: false,
-    is_move_between_sets: false, is_second_pa: false,
-    is_costume_upgrade: false, is_charity_jukebox: false, is_prestige: false,
+    is_prestige: false,
     // Numbers default 0
     pa_hours_before_midnight: 0, pa_hours_after_midnight: 0,
     singer_fee: 0, guitarist_fee: 0, drummer_fee: 0, bass_fee: 0,
@@ -62,8 +63,7 @@ function DetailsForm() {
     outgoing_dest_transfer_cost: 0, return_dest_transfer_cost: 0,
     return_uk_transfer_cost: 0, local_transport_cost: 0,
     visa_cost: 0, vaccinations_cost: 0, car_hire_cost: 0,
-    instrument_carriage_cost: 0, costume_upgrade_fee: 0,
-    charity_jukebox_fee: 0, move_between_sets_fee: 0, second_pa_fee: 0,
+    instrument_carriage_cost: 0,
     per_day_discount: 0,
   })
 
@@ -78,6 +78,19 @@ function DetailsForm() {
   const [venuePostcode, setVenuePostcode] = useState('')
   const [milesOutput, setMilesOutput] = useState('Enter postcode')
   const [activeBookingTypes, setActiveBookingTypes] = useState<Set<BookingType>>(new Set(bookingTypes))
+
+  // Fetch add-ons from Supabase
+  useEffect(() => {
+    async function fetchAddOns() {
+      const { data } = await createBrowserClient()
+        .from('add_ons')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order')
+      setAddOns(data ?? [])
+    }
+    fetchAddOns()
+  }, [])
 
   // Postcode distance calculation
   useEffect(() => {
@@ -102,11 +115,41 @@ function DetailsForm() {
     return () => clearTimeout(timer)
   }, [venuePostcode])
 
+  function toggleAddOn(addon: AddOn) {
+    setSelectedAddOns(prev => {
+      const next = new Map(prev)
+      if (next.has(addon.id)) {
+        next.delete(addon.id)
+      } else {
+        next.set(addon.id, {
+          id: addon.id,
+          name: addon.name,
+          pricing_type: addon.pricing_type,
+          price: addon.default_price,
+          line_item_label: addon.line_item_label,
+          inclusion_text: addon.inclusion_text,
+          requirement_text: addon.requirement_text,
+        })
+      }
+      return next
+    })
+  }
+
+  function updateAddOnPrice(id: string, price: number) {
+    setSelectedAddOns(prev => {
+      const next = new Map(prev)
+      const existing = next.get(id)
+      if (existing) next.set(id, { ...existing, price })
+      return next
+    })
+  }
+
   async function handleSubmit() {
     setSubmitting(true)
     try {
       const inputs: QuoteInputs = {
         ...(form as QuoteInputs),
+        selected_add_ons: Array.from(selectedAddOns.values()),
         venue_postcode: venuePostcode || null,
         venue_name: form.venue_name ?? null,
         event_date: form.event_date ?? null,
@@ -308,43 +351,28 @@ function DetailsForm() {
         {/* Add-ons */}
         <Card label="Add-ons">
           <BoolGrid>
-            <BoolTile label="Mic hire" active={!!form.mic_hire_required} onClick={() => toggleBool('mic_hire_required')} />
-            <BoolTile label="Buyout required" active={!!form.buyout_required} onClick={() => toggleBool('buyout_required')} />
-            <BoolTile label="Roaming set" active={!!form.is_roaming} onClick={() => toggleBool('is_roaming')} />
-            <BoolTile label="Move between sets" active={!!form.is_move_between_sets} onClick={() => toggleBool('is_move_between_sets')} />
-            <BoolTile label="Second PA" active={!!form.is_second_pa} onClick={() => toggleBool('is_second_pa')} />
-            <BoolTile label="Costume upgrade" active={!!form.is_costume_upgrade} onClick={() => toggleBool('is_costume_upgrade')} />
-            <BoolTile label="Charity Jukebox" active={!!form.is_charity_jukebox} onClick={() => toggleBool('is_charity_jukebox')} />
+            {addOns.filter(a => a.name !== 'Prestige / Luxe').map(addon => (
+              <BoolTile
+                key={addon.id}
+                label={addon.name}
+                active={selectedAddOns.has(addon.id)}
+                onClick={() => toggleAddOn(addon)}
+              />
+            ))}
             <BoolTile label="Prestige / Luxe" active={!!form.is_prestige} onClick={() => toggleBool('is_prestige')} />
           </BoolGrid>
-          {form.is_move_between_sets && (
-            <div style={{ marginTop: 12, maxWidth: 200 }}>
-              <Field label="Move between sets fee (£)">
-                <NumberInput value={form.move_between_sets_fee ?? 0} onChange={v => set('move_between_sets_fee', v)} prefix="£" />
+          {/* Price inputs for editable selected add-ons */}
+          {addOns.filter(a => a.price_editable && selectedAddOns.has(a.id)).map(addon => (
+            <div key={addon.id} style={{ marginTop: 12, maxWidth: 220 }}>
+              <Field label={`${addon.name} — ${addon.pricing_type === 'per_musician' ? 'fee per musician' : 'fee'} (£)`}>
+                <NumberInput
+                  value={selectedAddOns.get(addon.id)?.price ?? 0}
+                  onChange={v => updateAddOnPrice(addon.id, v)}
+                  prefix="£"
+                />
               </Field>
             </div>
-          )}
-          {form.is_second_pa && (
-            <div style={{ marginTop: 12, maxWidth: 200 }}>
-              <Field label="Second PA fee (£)">
-                <NumberInput value={form.second_pa_fee ?? 0} onChange={v => set('second_pa_fee', v)} prefix="£" />
-              </Field>
-            </div>
-          )}
-          {form.is_charity_jukebox && (
-            <div style={{ marginTop: 12, maxWidth: 200 }}>
-              <Field label="Charity Jukebox fee (£)">
-                <NumberInput value={form.charity_jukebox_fee ?? 0} onChange={v => set('charity_jukebox_fee', v)} prefix="£" />
-              </Field>
-            </div>
-          )}
-          {form.is_costume_upgrade && (
-            <div style={{ marginTop: 12, maxWidth: 200 }}>
-              <Field label="Costume upgrade fee per musician (£)">
-                <NumberInput value={form.costume_upgrade_fee ?? 0} onChange={v => set('costume_upgrade_fee', v)} prefix="£" />
-              </Field>
-            </div>
-          )}
+          ))}
         </Card>
 
         {/* Multi-day */}

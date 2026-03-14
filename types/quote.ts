@@ -2,6 +2,31 @@ export type BookingType = 'background' | 'dancing_under_40' | 'dancing_over_40' 
 export type TravelType = 'london' | 'uk_under_2h' | 'uk_over_2h' | 'domestic_overnight' | 'international'
 export type SetConfig = '2x45' | '3x45' | '4x45' | '5x45'
 export type BandSize = 'duo' | 'trio' | 'quartet' | 'five_piece' | 'six_piece' | 'seven_piece' | 'eight_piece'
+export type PricingType = 'fixed' | 'per_musician'
+
+export interface AddOn {
+  id: string
+  name: string
+  description: string | null
+  pricing_type: PricingType
+  default_price: number
+  price_editable: boolean
+  line_item_label: string
+  inclusion_text: string | null
+  requirement_text: string | null
+  sort_order: number
+  is_active: boolean
+}
+
+export interface SelectedAddOn {
+  id: string
+  name: string
+  pricing_type: PricingType
+  price: number
+  line_item_label: string
+  inclusion_text: string | null
+  requirement_text: string | null
+}
 
 export interface QuoteInputs {
   // Step 1
@@ -11,7 +36,7 @@ export interface QuoteInputs {
   number_of_days: number
 
   // Step 2 — Time
-  start_time: string | null       // "HH:MM"
+  start_time: string | null
   finish_time: string | null
   load_in_time: string | null
   load_out_time: string | null
@@ -38,18 +63,9 @@ export interface QuoteInputs {
   pa_hours_before_midnight: number
   pa_hours_after_midnight: number
 
-  // Step 2 — Add-ons
-  mic_hire_required: boolean
-  buyout_required: boolean
-  is_roaming: boolean
-  is_move_between_sets: boolean
-  move_between_sets_fee: number
-  is_second_pa: boolean
-  second_pa_fee: number
-  is_costume_upgrade: boolean
-  is_charity_jukebox: boolean
-  charity_jukebox_fee: number
-  is_prestige: boolean
+  // Add-ons (data-driven)
+  selected_add_ons: SelectedAddOn[]
+  is_prestige: boolean  // kept separate — affects rider text rendering
 
   // Musician fees
   singer_fee: number
@@ -84,7 +100,6 @@ export interface QuoteInputs {
   vaccinations_cost: number
   car_hire_cost: number
   instrument_carriage_cost: number
-  costume_upgrade_fee: number
 
   // Multi-day
   per_day_discount: number
@@ -92,7 +107,7 @@ export interface QuoteInputs {
   // Venue
   venue_postcode: string | null
   venue_name: string | null
-  event_date: string | null   // ISO date string
+  event_date: string | null
   client_name: string | null
   client_email: string | null
 }
@@ -103,8 +118,6 @@ export interface Settings {
   pa_deduction_rate: number
   pa_rate_before_midnight: number
   pa_rate_after_midnight: number
-  mic_hire_rate: number
-  buyout_rate: number
   waiting_time_rate_before_midnight: number
   waiting_time_rate_after_midnight: number
   band_after_midnight_rate: number
@@ -135,16 +148,11 @@ export interface QuoteCalculated {
   pa_deduction: number
   pa_hire_before_midnight_cost: number
   pa_hire_after_midnight_cost: number
-  mic_hire_cost: number
-  buyout_cost: number
+  add_ons_total: number
   waiting_time_cost_before_midnight: number
   waiting_time_cost_after_midnight: number
   waiting_time_cost: number
   band_hours_after_midnight_cost: number
-  roaming_set_cost: number
-  move_between_sets_cost: number
-  second_pa_cost: number
-  costume_upgrade_cost: number
   location_surcharge: number
   total_petrol_train_cost: number
   total_accommodation_cost: number

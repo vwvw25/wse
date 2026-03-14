@@ -40,6 +40,37 @@ create table if not exists quotes (
   status text not null default 'generated' -- 'draft' | 'generated'
 );
 
+-- Add-ons table (data-driven add-ons)
+create table if not exists add_ons (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  description text,
+  pricing_type text not null check (pricing_type in ('fixed', 'per_musician')),
+  default_price numeric not null default 0,
+  price_editable boolean not null default false,
+  line_item_label text not null,
+  inclusion_text text,
+  requirement_text text,
+  sort_order int not null default 0,
+  is_active boolean not null default true
+);
+
+-- Seed existing add-ons
+insert into add_ons (name, description, pricing_type, default_price, price_editable, line_item_label, sort_order) values
+  ('Mic hire', 'Handheld microphone for speeches', 'fixed', 50, false, 'Microphone hire', 10),
+  ('Buyout', 'Food not provided by client', 'per_musician', 20, false, 'Buyout', 20),
+  ('Roaming set', 'Acoustic roaming performance', 'fixed', 0, true, 'Roaming set', 30),
+  ('Move between sets', 'Band relocates between sets', 'fixed', 0, true, 'Move between sets', 40),
+  ('Second PA', 'Additional PA system', 'fixed', 0, true, 'Second PA', 50),
+  ('Costume upgrade', 'Premium costume option', 'per_musician', 0, true, 'Costume upgrade', 60),
+  ('Charity Jukebox', 'Charity Jukebox inclusion', 'fixed', 0, true, 'Charity Jukebox', 70),
+  ('Prestige / Luxe', 'Premium service tier', 'fixed', 0, false, 'Prestige / Luxe', 80);
+
+-- RLS
+alter table add_ons enable row level security;
+create policy "Add-ons are publicly readable" on add_ons for select using (true);
+create policy "Add-ons can be managed by authenticated users" on add_ons for all using (auth.role() = 'authenticated');
+
 -- Row Level Security: quotes are publicly readable (for shareable links)
 alter table quotes enable row level security;
 

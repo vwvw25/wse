@@ -29,16 +29,9 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
     { label: 'No PA deduction', amount: calculated.pa_deduction, show: calculated.pa_deduction < 0 },
     { label: 'PA hire — before midnight', amount: calculated.pa_hire_before_midnight_cost, show: inputs.pa_hours_before_midnight > 0 },
     { label: 'PA hire — after midnight', amount: calculated.pa_hire_after_midnight_cost, show: inputs.pa_hours_after_midnight > 0 },
-    { label: 'Microphone hire', amount: calculated.mic_hire_cost, show: inputs.mic_hire_required },
-    { label: 'Buyout', amount: calculated.buyout_cost, show: inputs.buyout_required },
     { label: 'Waiting time', amount: calculated.waiting_time_cost, show: calculated.waiting_time_cost > 0 },
     { label: 'Band hours after midnight', amount: calculated.band_hours_after_midnight_cost, show: calculated.band_hours_after_midnight_cost > 0 },
-    { label: 'Roaming set', amount: 0, show: inputs.is_roaming },
-    { label: 'Move between sets', amount: calculated.move_between_sets_cost, show: inputs.is_move_between_sets },
-    { label: 'Second PA', amount: calculated.second_pa_cost, show: inputs.is_second_pa },
-    { label: 'Costume upgrade', amount: calculated.costume_upgrade_cost, show: inputs.is_costume_upgrade },
     { label: 'Location surcharge', amount: calculated.location_surcharge, show: calculated.location_surcharge > 0 },
-    { label: 'Charity Jukebox', amount: inputs.charity_jukebox_fee ?? 0, show: inputs.is_charity_jukebox },
     { label: 'Petrol / train', amount: calculated.total_petrol_train_cost, show: isDomesticOvernight },
     { label: 'Accommodation', amount: calculated.total_accommodation_cost, show: isDomesticOvernight },
     { label: 'Per diem', amount: calculated.total_per_diem_cost, show: isDomesticOvernight },
@@ -59,7 +52,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
   const inclusions: { text: string; show: boolean }[] = [
     { text: 'All equipment for our use', show: true },
     { text: `Based on a finish of 11pm or earlier`, show: finishBefore11 },
-    { text: 'Music via iPad/PA during intervals', show: !inputs.is_roaming },
+    { text: 'Music via iPad/PA during intervals', show: !(inputs.selected_add_ons ?? []).some(a => a.name === 'Roaming set') },
     { text: `Arrival one hour before performance start${!inputs.client_provides_pa && (inputs.band_size === 'quartet' || inputs.band_size === 'five_piece' || inputs.band_size === 'six_piece' || inputs.band_size === 'seven_piece' || inputs.band_size === 'eight_piece') ? ' (1.5hrs — full PA)' : ''}`, show: true },
     { text: 'Quotes based on venue having parking', show: true },
     { text: 'Travel and expenses included', show: isDomesticOvernight },
@@ -113,9 +106,13 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
             {lineItems.filter(i => i.show && i.amount !== 0).map(item => (
               <LineItem key={item.label} label={item.label} value={fmt(item.amount)} muted={item.amount < 0} />
             ))}
-            {lineItems.filter(i => i.show && i.amount === 0 && i.label === 'Roaming set').map(item => (
-              <LineItem key={item.label} label={item.label} value="Included" muted />
-            ))}
+            {/* Dynamic add-ons */}
+            {(inputs.selected_add_ons ?? []).map(addon => {
+              const cost = addon.pricing_type === 'per_musician'
+                ? addon.price * calculated.musician_count
+                : addon.price
+              return <LineItem key={addon.id} label={addon.line_item_label} value={fmt(cost)} />
+            })}
           </div>
           <div style={{
             borderTop: '0.5px solid var(--border)', marginTop: 12, paddingTop: 12,
@@ -147,6 +144,13 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
                 <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{item.text}</span>
               </li>
             ))}
+            {/* Add-on inclusions */}
+            {(inputs.selected_add_ons ?? []).filter(a => a.inclusion_text).map(addon => (
+              <li key={addon.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                <span style={{ color: 'var(--text-info)', marginTop: 1, flexShrink: 0 }}>✓</span>
+                <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{addon.inclusion_text}</span>
+              </li>
+            ))}
           </ul>
         </Card>
 
@@ -157,6 +161,12 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
               <li key={item.text} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                 <span style={{ color: 'var(--text-secondary)', marginTop: 1, flexShrink: 0 }}>·</span>
                 <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{item.text}</span>
+              </li>
+            ))}
+            {(inputs.selected_add_ons ?? []).filter(a => a.requirement_text).map(addon => (
+              <li key={addon.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                <span style={{ color: 'var(--text-secondary)', marginTop: 1, flexShrink: 0 }}>·</span>
+                <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{addon.requirement_text}</span>
               </li>
             ))}
           </ul>
