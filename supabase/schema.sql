@@ -43,7 +43,7 @@ create table if not exists quotes (
 -- Add-ons table (data-driven add-ons)
 create table if not exists add_ons (
   id uuid primary key default gen_random_uuid(),
-  name text not null,
+  name text not null unique,
   description text,
   pricing_type text not null check (pricing_type in ('fixed', 'per_musician')),
   default_price numeric not null default 0,
@@ -64,10 +64,13 @@ insert into add_ons (name, description, pricing_type, default_price, price_edita
   ('Second PA', 'Additional PA system', 'fixed', 0, true, 'Second PA', 50),
   ('Costume upgrade', 'Premium costume option', 'per_musician', 0, true, 'Costume upgrade', 60),
   ('Charity Jukebox', 'Charity Jukebox inclusion', 'fixed', 0, true, 'Charity Jukebox', 70),
-  ('Prestige / Luxe', 'Premium service tier', 'fixed', 0, false, 'Prestige / Luxe', 80);
+  ('Prestige / Luxe', 'Premium service tier', 'fixed', 0, false, 'Prestige / Luxe', 80)
+on conflict (name) do nothing;
 
 -- RLS
 alter table add_ons enable row level security;
+drop policy if exists "Add-ons are publicly readable" on add_ons;
+drop policy if exists "Add-ons can be managed by authenticated users" on add_ons;
 create policy "Add-ons are publicly readable" on add_ons for select using (true);
 create policy "Add-ons can be managed by authenticated users" on add_ons for all using (auth.role() = 'authenticated');
 
