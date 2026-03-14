@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import type { BookingType, TravelType } from '@/types/quote'
 
@@ -11,6 +11,7 @@ export default function NewQuotePage() {
   const [multiDay, setMultiDay] = useState<boolean | null>(null)
   const [eventDate, setEventDate] = useState('')
   const [clientType, setClientType] = useState<'direct' | 'agency' | null>(null)
+  const dateInputRef = useRef<HTMLInputElement>(null)
 
   function toggleBookingType(type: BookingType) {
     setBookingTypes(prev => {
@@ -43,8 +44,9 @@ export default function NewQuotePage() {
         </div>
 
         {/* Event date */}
-        <Card label="Event date">
+        <Card label="Event date" onClick={() => dateInputRef.current?.showPicker()}>
           <input
+            ref={dateInputRef}
             type="date"
             value={eventDate}
             onChange={e => setEventDate(e.target.value)}
@@ -52,7 +54,7 @@ export default function NewQuotePage() {
               width: '100%', height: 36, padding: '0 10px', fontSize: 13,
               color: 'var(--text)', background: 'var(--bg)',
               border: '0.5px solid var(--border)', borderRadius: 'var(--radius-md)',
-              outline: 'none', fontFamily: 'var(--font)',
+              outline: 'none', fontFamily: 'var(--font)', cursor: 'pointer',
             }}
           />
         </Card>
@@ -177,14 +179,15 @@ export default function NewQuotePage() {
   )
 }
 
-function Card({ label, children }: { label: string; children: React.ReactNode }) {
+function Card({ label, children, onClick }: { label: string; children: React.ReactNode; onClick?: () => void }) {
   return (
-    <div style={{
+    <div onClick={onClick} style={{
       background: 'var(--bg)',
       border: '0.5px solid var(--border)',
       borderRadius: 'var(--radius-lg)',
       padding: '1.5rem',
       marginBottom: '1rem',
+      cursor: onClick ? 'pointer' : undefined,
     }}>
       <div style={{
         fontSize: 11, fontWeight: 500, color: 'var(--text-secondary)',

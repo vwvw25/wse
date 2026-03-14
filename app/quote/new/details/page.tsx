@@ -212,7 +212,7 @@ function DetailsForm() {
             <Field label="Event date">
               <Input type="date" value={form.event_date ?? ''} onChange={v => set('event_date', v || null)} />
             </Field>
-            <Field label="Venue name" style={{ gridColumn: '1 / -1' }}>
+            <Field label="Venue name" hint="Optional" style={{ gridColumn: '1 / -1' }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <Input
                   value={form.venue_name_tbc ? 'TBC' : (form.venue_name ?? '')}
@@ -246,9 +246,6 @@ function DetailsForm() {
                   <span style={{ fontSize: 13, color: 'var(--text)' }}>TBC</span>
                 </div>
               </div>
-            </Field>
-            <Field label="Client email">
-              <Input value={form.client_email ?? ''} onChange={v => set('client_email', v || null)} placeholder="client@example.com" />
             </Field>
           </Grid>
         </Card>
