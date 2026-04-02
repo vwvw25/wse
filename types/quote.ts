@@ -1,7 +1,8 @@
 export type BookingType = 'background' | 'dancing_under_40' | 'dancing_over_40' | 'wedding'
-export type TravelType = 'london' | 'uk_under_2h' | 'uk_over_2h' | 'domestic_overnight' | 'international'
+export type TravelType = 'london_based' | 'uk' | 'domestic_overnight' | 'international'
 export type SetConfig = '2x45' | '3x45' | '4x45' | '5x45'
 export type BandSize = 'duo' | 'trio' | 'quartet' | 'five_piece' | 'six_piece' | 'seven_piece' | 'eight_piece'
+export type BandType = 'electric' | 'acoustic' | 'roaming' | 'jazz_keys' | 'jazz_guitar'
 export type PricingType = 'fixed' | 'per_musician'
 
 export interface AddOn {
@@ -30,7 +31,8 @@ export interface SelectedAddOn {
 
 export interface QuoteInputs {
   // Step 1
-  booking_type: BookingType | null
+  booking_type: BookingType | null         // legacy single value
+  booking_types: BookingType[]             // multi-type (new)
   travel_type: TravelType | null
   is_multi_day: boolean
   number_of_days: number
@@ -38,12 +40,27 @@ export interface QuoteInputs {
   // Step 2 — Time
   start_time: string | null
   finish_time: string | null
-  load_in_time: string | null
+  arrival_time: string | null
   load_out_time: string | null
 
   // Step 2 — Band
   band_size: BandSize | null
   set_config: SetConfig | null
+  band_sizes: BandSize[]                   // legacy shared
+  set_configs: SetConfig[]                 // legacy shared
+  band_sizes_by_type: Partial<Record<BookingType, BandSize[]>>   // per-type (new)
+  set_configs_by_type: Partial<Record<BookingType, SetConfig[]>> // per-type (new)
+  band_types_by_type: Partial<Record<BookingType, BandType>>     // per-type (new)
+  band_type: BandType | null
+
+  // Event / request info (from email extraction or manual entry)
+  location: string | null
+  band_size_requested: string | null
+  sets_requested: string | null
+
+  // Checkbox states — saved so quote page can read them directly
+  is_custom_arrival_time: boolean
+  is_load_out_at_finish: boolean
 
   // Step 2 — Venue constraints
   is_boat: boolean
@@ -77,6 +94,9 @@ export interface QuoteInputs {
   trombone_fee: number
   trumpet_fee: number
   singer_2_fee: number
+
+  // Travel
+  travel_hours_from_london: number          // one-way hours; drives travel time fee when > 2h
 
   // Travel / accommodation costs (per person unless noted)
   petrol_train_cost: number
@@ -117,7 +137,8 @@ export interface QuoteInputs {
 export interface Settings {
   business_margin: number
   pa_sound_engineer_rate: number
-  pa_deduction_rate: number
+  pa_deduction_background_pa: number          // duo / trio — client provides PA (Background PA)
+  pa_deduction_extended_background_pa: number // quartet / five / six — client provides PA (Extended Background PA)
   pa_rate_before_midnight: number
   pa_rate_after_midnight: number
   waiting_time_rate_before_midnight: number
@@ -136,11 +157,28 @@ export interface Settings {
   set_multiplier_5x45: number
 }
 
+export interface PriceOption {
+  booking_type: BookingType
+  band_size: BandSize
+  set_config: SetConfig
+  musician_count: number
+  travel_person_count: number
+  has_extended_background_pa: boolean   // background + quartet/five/six — no extra cost to client
+  has_extended_pa_engineer: boolean     // dancing/wedding + quartet+ + client not providing PA — costs pa_sound_engineer_rate
+  sum_musician_fees: number
+  performance_fee: number
+  pa_cost: number
+  travel_cost: number
+  total_price: number
+  line_up: string
+}
+
 export interface QuoteCalculated {
   musician_count: number
   sum_musician_fees: number
   set_multiplier: number
   package_hours: number
+  pre_start_time: number
   total_hours: number
   waiting_time_hours_before_midnight: number
   waiting_time_hours_after_midnight: number
@@ -174,6 +212,38 @@ export interface QuoteCalculated {
   single_day_fee: number
   full_engagement_fee: number
   per_day_saving: number
+  price_options: PriceOption[]
+  fixed_costs_total: number
+}
+
+export interface RequestDetails {
+  special_requirements: string | null
+  sound_requirements: string | null
+  band_size_requested: string | null
+  sets_requested: string | null
+  notes: string | null
+}
+
+export interface EventRecord {
+  id: string
+  created_at: string
+  agency_name: string | null
+  agent_name: string | null
+  client_email: string | null
+  is_agency: boolean
+  event_date: string | null
+  venue_name: string | null
+  venue_postcode: string | null
+  venue_address: string | null
+  location: string | null
+  guests: number | null
+  arrival_time: string | null
+  start_time: string | null
+  finish_time: string | null
+  load_out_time: string | null
+  request_details: RequestDetails | null
+  raw_email: string | null
+  status: 'pending' | 'quoted' | 'confirmed' | 'cancelled'
 }
 
 export interface QuoteRecord {
@@ -182,4 +252,7 @@ export interface QuoteRecord {
   inputs: QuoteInputs
   calculated: QuoteCalculated
   settings_snapshot: Settings
+  is_draft?: boolean
+  request_details?: RequestDetails | null
+  event_id?: string | null
 }

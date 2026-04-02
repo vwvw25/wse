@@ -5,10 +5,10 @@ import type { QuoteInputs, Settings } from '@/types/quote'
 
 export async function POST(req: NextRequest) {
   try {
-    const { inputs }: { inputs: QuoteInputs } = await req.json()
+    const { inputs, event_id }: { inputs: QuoteInputs; event_id?: string } = await req.json()
     const supabase = createServiceClient()
 
-    // Fetch current settings (fall back to defaults if not in DB)
+    // Fetch current settings
     const { data: settingsRow } = await supabase
       .from('settings')
       .select('*')
@@ -23,11 +23,24 @@ export async function POST(req: NextRequest) {
     // Save quote
     const { data, error } = await supabase
       .from('quotes')
-      .insert({ inputs, calculated, settings_snapshot: settings })
+      .insert({
+        inputs,
+        calculated,
+        settings_snapshot: settings,
+        ...(event_id ? { event_id } : {}),
+      })
       .select('id')
       .single()
 
     if (error) throw error
+
+    // Update event status to 'quoted' if linked
+    if (event_id) {
+      await supabase
+        .from('events')
+        .update({ status: 'quoted' })
+        .eq('id', event_id)
+    }
 
     return NextResponse.json({ id: data.id })
   } catch (err) {

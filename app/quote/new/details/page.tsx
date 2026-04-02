@@ -1,26 +1,12 @@
 'use client'
 
-import { useState, useEffect, useCallback, Suspense } from 'react'
+import React, { useState, useEffect, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createBrowserClient } from '@/lib/supabase'
-import type { QuoteInputs, BandSize, SetConfig, BookingType, TravelType, AddOn, SelectedAddOn } from '@/types/quote'
-
-const BAND_SIZES: { value: BandSize; label: string }[] = [
-  { value: 'duo', label: 'Duo' },
-  { value: 'trio', label: 'Trio' },
-  { value: 'quartet', label: 'Quartet' },
-  { value: 'five_piece', label: 'Five piece' },
-  { value: 'six_piece', label: 'Six piece' },
-  { value: 'seven_piece', label: 'Seven piece' },
-  { value: 'eight_piece', label: 'Eight piece' },
-]
-
-const SET_CONFIGS: { value: SetConfig; label: string }[] = [
-  { value: '2x45', label: '2×45' },
-  { value: '3x45', label: '3×45' },
-  { value: '4x45', label: '4×45' },
-  { value: '5x45', label: '5×45' },
-]
+import type { QuoteInputs, BandSize, SetConfig, BookingType, TravelType, AddOn, SelectedAddOn, RequestDetails } from '@/types/quote'
+import RequestDetailsCard, { type EventCardData } from '../RequestDetailsCard'
+import { BAND_TYPE_LABELS, BAND_SIZES_ORDERED, BAND_SIZE_LABELS, LINE_UP_LABELS } from '@/lib/lineups'
+import type { BandType } from '@/lib/lineups'
 
 const BOOKING_TYPE_LABELS: Record<BookingType, string> = {
   background: 'Background',
@@ -37,10 +23,11 @@ function DetailsForm() {
   const [selectedAddOns, setSelectedAddOns] = useState<Map<string, SelectedAddOn>>(new Map())
 
   const bookingTypes = searchParams.getAll('bt') as BookingType[]
-  const travelType = (searchParams.get('travel') ?? 'london') as TravelType
+  const travelType = (searchParams.get('travel') ?? 'london_based') as TravelType
   const isMultiDay = searchParams.get('multiDay') === '1'
   const eventDateParam = searchParams.get('date') ?? ''
   const clientType = searchParams.get('clientType') as 'direct' | 'agency' | null
+  const eventId = searchParams.get('event')
 
   const [form, setForm] = useState<Partial<QuoteInputs>>({
     booking_type: bookingTypes[0] ?? null,
@@ -55,6 +42,8 @@ function DetailsForm() {
     has_limiter: false, is_acoustic: false, client_third_party_sound: false,
     is_prestige: false,
     venue_name_tbc: false,
+    location: null, band_size_requested: null, sets_requested: null,
+    is_custom_arrival_time: false, is_load_out_at_finish: true,
     // Event info
     agency_name: null, agent_name: null,
     event_date: eventDateParam || null,
@@ -62,6 +51,7 @@ function DetailsForm() {
     pa_hours_before_midnight: 0, pa_hours_after_midnight: 0,
     singer_fee: 400, guitarist_fee: 300, drummer_fee: 300, bass_fee: 300,
     keys_fee: 300, sax_fee: 300, trombone_fee: 300, trumpet_fee: 300, singer_2_fee: 300,
+    travel_hours_from_london: 0,
     petrol_train_cost: 0, accommodation_cost: 0, accommodation_nights: 1,
     per_diem_rate: 0, performance_days: 1, travel_day_rate: 0, travel_days: 0,
     off_day_rate: 0, off_days: 0, flight_cost: 0, baggage_fee: 0,
@@ -81,9 +71,48 @@ function DetailsForm() {
     setForm(f => ({ ...f, [key]: !f[key] }))
   }, [])
 
+  const [bandSizesByType, setBandSizesByType] = useState<Partial<Record<BookingType, Set<BandSize>>>>({})
+  const [setConfigsByType, setSetConfigsByType] = useState<Partial<Record<BookingType, Set<SetConfig>>>>({})
+  const [bandTypeByType, setBandTypeByType] = useState<Partial<Record<BookingType, BandType>>>({})
+
+  function getBandType(bt: BookingType): BandType {
+    return bandTypeByType[bt] ?? (bt === 'background' ? 'acoustic' : 'electric')
+  }
+
+  function toggleBandSize(bt: BookingType, size: BandSize) {
+    setBandSizesByType(prev => {
+      const next = { ...prev }
+      const s = new Set(prev[bt] ?? [])
+      if (s.has(size)) s.delete(size); else s.add(size)
+      next[bt] = s
+      return next
+    })
+  }
+
+  function toggleSetConfig(bt: BookingType, cfg: SetConfig) {
+    setSetConfigsByType(prev => {
+      const next = { ...prev }
+      const s = new Set(prev[bt] ?? [])
+      if (s.has(cfg)) s.delete(cfg); else s.add(cfg)
+      next[bt] = s
+      return next
+    })
+  }
+
+  const [customArrivalTime, setCustomArrivalTime] = useState(false)
+  const [loadOutAtFinish, setLoadOutAtFinish] = useState(true)
+
+  function computeAutoArrivalTime(startTime: string): string {
+    const [h, m] = startTime.split(':').map(Number)
+    const arrMins = h * 60 + m - 60
+    const normalized = ((arrMins % 1440) + 1440) % 1440
+    return `${String(Math.floor(normalized / 60)).padStart(2, '0')}:${String(normalized % 60).padStart(2, '0')}`
+  }
+
   const [venuePostcode, setVenuePostcode] = useState('')
   const [milesOutput, setMilesOutput] = useState('Enter postcode')
   const [activeBookingTypes, setActiveBookingTypes] = useState<Set<BookingType>>(new Set(bookingTypes))
+  const [eventCardData, setEventCardData] = useState<EventCardData | null>(null)
 
   // Fetch add-ons from Supabase
   useEffect(() => {
@@ -98,10 +127,137 @@ function DetailsForm() {
     fetchAddOns()
   }, [])
 
+  // Load from event (email-to-quote flow)
+  useEffect(() => {
+    if (!eventId) return
+    async function loadFromEvent() {
+      const { data } = await createBrowserClient()
+        .from('events')
+        .select('agency_name, agent_name, client_email, event_date, venue_name, venue_postcode, venue_address, location, guests, arrival_time, start_time, finish_time, load_out_time, request_details, is_agency')
+        .eq('id', eventId)
+        .single()
+      if (!data) return
+      const rd = data.request_details as RequestDetails | null
+      setEventCardData({
+        agency_name: data.agency_name,
+        agent_name: data.agent_name,
+        client_email: data.client_email,
+        event_date: data.event_date,
+        venue_name: data.venue_name,
+        venue_postcode: data.venue_postcode,
+        venue_address: data.venue_address,
+        location: data.location,
+        guests: data.guests,
+        arrival_time: data.arrival_time,
+        start_time: data.start_time,
+        finish_time: data.finish_time,
+        load_out_time: data.load_out_time,
+        band_size_requested: rd?.band_size_requested ?? null,
+        sets_requested: rd?.sets_requested ?? null,
+        special_requirements: rd?.special_requirements ?? null,
+        sound_requirements: rd?.sound_requirements ?? null,
+        notes: rd?.notes ?? null,
+      })
+      setForm(f => ({
+        ...f,
+        agency_name: data.agency_name ?? f.agency_name,
+        agent_name: data.agent_name ?? f.agent_name,
+        client_email: data.client_email ?? f.client_email,
+        event_date: data.event_date ?? f.event_date,
+        venue_name: data.venue_name ?? f.venue_name,
+        venue_postcode: data.venue_postcode ?? f.venue_postcode,
+        location: (data as { location?: string | null }).location ?? f.location,
+        band_size_requested: rd?.band_size_requested ?? f.band_size_requested,
+        sets_requested: rd?.sets_requested ?? f.sets_requested,
+        arrival_time: data.arrival_time ?? f.arrival_time,
+        start_time: data.start_time ?? f.start_time,
+        finish_time: data.finish_time ?? f.finish_time,
+        load_out_time: data.load_out_time ?? f.load_out_time,
+      }))
+      if (data.arrival_time) setCustomArrivalTime(true)
+      if (data.load_out_time && data.finish_time && data.load_out_time !== data.finish_time) {
+        setLoadOutAtFinish(false)
+      }
+    }
+    loadFromEvent()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventId])
+
+  // Prefill from existing quote (duplicate flow)
+  const prefillId = searchParams.get('prefill')
+  useEffect(() => {
+    if (!prefillId) return
+    async function prefill() {
+      const { data } = await createBrowserClient()
+        .from('quotes')
+        .select('inputs, request_details')
+        .eq('id', prefillId)
+        .single()
+      if (!data?.inputs) return
+      if (data.request_details) {
+        const rd = data.request_details as RequestDetails
+        const inp2 = data.inputs as QuoteInputs
+        setEventCardData({
+          agency_name: inp2.agency_name,
+          agent_name: inp2.agent_name,
+          client_email: inp2.client_email,
+          event_date: inp2.event_date,
+          arrival_time: inp2.arrival_time,
+          start_time: inp2.start_time,
+          finish_time: inp2.finish_time,
+          load_out_time: inp2.load_out_time,
+          band_size_requested: rd.band_size_requested,
+          sets_requested: rd.sets_requested,
+          special_requirements: rd.special_requirements,
+          sound_requirements: rd.sound_requirements,
+          notes: rd.notes,
+        })
+      }
+      const inp = data.inputs as QuoteInputs
+      setForm(f => ({ ...f, ...inp }))
+      const types = inp.booking_types?.length ? inp.booking_types : (inp.booking_type ? [inp.booking_type] : [])
+      if (types.length) setActiveBookingTypes(new Set(types))
+      if (inp.band_sizes_by_type && Object.keys(inp.band_sizes_by_type).length) {
+        setBandSizesByType(Object.fromEntries(
+          Object.entries(inp.band_sizes_by_type).map(([k, v]) => [k, new Set(v)])
+        ))
+      } else if (inp.band_sizes?.length && types[0]) {
+        setBandSizesByType({ [types[0]]: new Set(inp.band_sizes) })
+      }
+      if (inp.set_configs_by_type && Object.keys(inp.set_configs_by_type).length) {
+        setSetConfigsByType(Object.fromEntries(
+          Object.entries(inp.set_configs_by_type).map(([k, v]) => [k, new Set(v)])
+        ))
+      } else if (inp.set_configs?.length && types[0]) {
+        setSetConfigsByType({ [types[0]]: new Set(inp.set_configs) })
+      }
+      if (inp.band_types_by_type && Object.keys(inp.band_types_by_type).length) {
+        setBandTypeByType(inp.band_types_by_type)
+      } else if (inp.band_type && types[0]) {
+        setBandTypeByType({ [types[0]]: inp.band_type })
+      }
+      if (inp.venue_postcode) setVenuePostcode(inp.venue_postcode)
+      // Restore arrival / load-out checkbox state from saved inputs
+      const legacyArrivalTime = (inp as unknown as Record<string, unknown>).load_in_time as string | null | undefined
+      const hasCustomArrival = !!(inp.arrival_time ?? legacyArrivalTime)
+      setCustomArrivalTime(hasCustomArrival)
+      if (inp.load_out_time && inp.finish_time && inp.load_out_time !== inp.finish_time) {
+        setLoadOutAtFinish(false)
+      }
+      if (inp.selected_add_ons?.length) {
+        const map = new Map<string, SelectedAddOn>()
+        inp.selected_add_ons.forEach(a => map.set(a.id, a))
+        setSelectedAddOns(map)
+      }
+    }
+    prefill()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefillId])
+
   // Postcode distance calculation
   useEffect(() => {
     const pc = venuePostcode.trim().replace(/\s/g, '')
-    if (pc.length < 5) { setMilesOutput('Enter postcode'); return }
+    if (pc.length < 5) { setMilesOutput('Enter postcode'); set('travel_hours_from_london', 0); return }
     setMilesOutput('Calculating...')
     const timer = setTimeout(async () => {
       try {
@@ -109,13 +265,15 @@ function DetailsForm() {
           fetch('https://api.postcodes.io/postcodes/WC2N5DU').then(r => r.json()),
           fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(pc)}`).then(r => r.json()),
         ])
-        if (r1.status !== 200 || r2.status !== 200) { setMilesOutput('Postcode not found'); return }
+        if (r1.status !== 200 || r2.status !== 200) { setMilesOutput('Postcode not found'); set('travel_hours_from_london', 0); return }
         const { latitude: lat1, longitude: lon1 } = r1.result
         const { latitude: lat2, longitude: lon2 } = r2.result
         const R = 3958.8, dLat = (lat2 - lat1) * Math.PI / 180, dLon = (lon2 - lon1) * Math.PI / 180
         const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2
         const miles = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
         setMilesOutput(`${Math.round(miles)} miles`)
+        // Estimate driving hours: straight-line miles ÷ 40 (accounts for roads being longer than crow-flies)
+        set('travel_hours_from_london', Math.round((miles / 40) * 10) / 10)
       } catch { setMilesOutput('Could not calculate') }
     }, 600)
     return () => clearTimeout(timer)
@@ -153,21 +311,37 @@ function DetailsForm() {
   async function handleSubmit() {
     setSubmitting(true)
     try {
+      const primaryType = [...activeBookingTypes][0] as BookingType | undefined
       const inputs: QuoteInputs = {
         ...(form as QuoteInputs),
         selected_add_ons: Array.from(selectedAddOns.values()),
         venue_postcode: venuePostcode || null,
         venue_name: form.venue_name_tbc ? 'TBC' : form.venue_name ?? null,
         venue_name_tbc: form.venue_name_tbc ?? false,
+        is_custom_arrival_time: customArrivalTime,
+        is_load_out_at_finish: loadOutAtFinish,
         event_date: form.event_date ?? null,
         agency_name: form.agency_name ?? null,
         agent_name: form.agent_name ?? null,
         client_email: form.client_email ?? null,
+        band_types_by_type: { ...bandTypeByType } as Partial<Record<BookingType, BandType>>,
+        band_type: (primaryType ? bandTypeByType[primaryType] : null) ?? 'electric',
+        booking_types: Array.from(activeBookingTypes),
+        booking_type: primaryType ?? null,
+        band_sizes_by_type: Object.fromEntries(
+          Object.entries(bandSizesByType).map(([k, v]) => [k, Array.from(v ?? [])])
+        ) as Partial<Record<BookingType, BandSize[]>>,
+        set_configs_by_type: Object.fromEntries(
+          Object.entries(setConfigsByType).map(([k, v]) => [k, Array.from(v ?? [])])
+        ) as Partial<Record<BookingType, SetConfig[]>>,
+        // Legacy fields — populated from primary type for backward compat
+        band_sizes: Array.from(primaryType ? (bandSizesByType[primaryType] ?? []) : []),
+        set_configs: Array.from(primaryType ? (setConfigsByType[primaryType] ?? []) : []),
       }
       const res = await fetch('/api/quotes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ inputs }),
+        body: JSON.stringify({ inputs, event_id: eventId ?? undefined }),
       })
       if (!res.ok) throw new Error('Failed to generate quote')
       const { id } = await res.json()
@@ -192,6 +366,9 @@ function DetailsForm() {
           <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>Ward Smith Entertainment — Step 2 of 2</p>
         </div>
 
+        {/* Request details card — shown when coming from event */}
+        {eventCardData && <RequestDetailsCard data={eventCardData} />}
+
         {/* Event info */}
         <Card label="Event">
           <Grid cols={3}>
@@ -210,7 +387,16 @@ function DetailsForm() {
               </Field>
             )}
             <Field label="Event date">
-              <Input type="date" value={form.event_date ?? ''} onChange={v => set('event_date', v || null)} />
+              <DateInput value={form.event_date ?? ''} onChange={v => set('event_date', v || null)} />
+            </Field>
+            <Field label="Location" hint="Optional">
+              <Input value={form.location ?? ''} onChange={v => set('location', v || null)} placeholder="e.g. Central London, Manchester" />
+            </Field>
+            <Field label="Band size requested" hint="Optional">
+              <Input value={form.band_size_requested ?? ''} onChange={v => set('band_size_requested', v || null)} placeholder="e.g. Duo or Trio" />
+            </Field>
+            <Field label="Sets requested" hint="Optional">
+              <Input value={form.sets_requested ?? ''} onChange={v => set('sets_requested', v || null)} placeholder="e.g. 2 × 45 min" />
             </Field>
             <Field label="Venue name" hint="Optional" style={{ gridColumn: '1 / -1' }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -286,41 +472,118 @@ function DetailsForm() {
 
         {/* Time */}
         <Card label="Time">
-          <Grid cols={4}>
-            <Field label="Start time" hint="Optional">
-              <Input type="time" value={form.start_time ?? ''} onChange={v => set('start_time', v || null)} />
+          <Grid cols={2}>
+            <Field label="Start time">
+              <Input type="time" value={form.start_time ?? ''} onChange={v => {
+                set('start_time', v || null)
+                if (!customArrivalTime) {
+                  set('arrival_time', v ? computeAutoArrivalTime(v) : null)
+                }
+              }} />
             </Field>
-            <Field label="Finish time" hint="Assumes before 11pm if blank">
-              <Input type="time" value={form.finish_time ?? ''} onChange={v => set('finish_time', v || null)} />
-            </Field>
-            <Field label="Load-in time" hint="Defaults to start −1hr (−1.5hrs if full PA)">
-              <Input type="time" value={form.load_in_time ?? ''} onChange={v => set('load_in_time', v || null)} />
-            </Field>
-            <Field label="Load-out time" hint="Defaults to finish time">
-              <Input type="time" value={form.load_out_time ?? ''} onChange={v => set('load_out_time', v || null)} />
+            <Field label="Finish time">
+              <Input type="time" value={form.finish_time ?? ''} onChange={v => {
+                set('finish_time', v || null)
+                if (loadOutAtFinish) set('load_out_time', v || null)
+              }} />
             </Field>
           </Grid>
+          <div style={{ marginTop: 12 }}>
+          <BoolGrid>
+            <BoolTile
+              label="Custom arrival time"
+              active={customArrivalTime}
+              onClick={() => {
+                const next = !customArrivalTime
+                setCustomArrivalTime(next)
+                if (!next && form.start_time) {
+                  set('arrival_time', computeAutoArrivalTime(form.start_time))
+                } else if (!next) {
+                  set('arrival_time', null)
+                }
+              }}
+            />
+            <BoolTile
+              label="Load out at finish"
+              active={loadOutAtFinish}
+              onClick={() => {
+                const next = !loadOutAtFinish
+                setLoadOutAtFinish(next)
+                if (next) set('load_out_time', form.finish_time ?? null)
+              }}
+            />
+          </BoolGrid>
+          </div>
+          {customArrivalTime && (
+            <Grid cols={2} style={{ marginTop: 12 }}>
+              <Field label="Arrival time">
+                <Input type="time" value={form.arrival_time ?? ''} onChange={v => set('arrival_time', v || null)} />
+              </Field>
+            </Grid>
+          )}
+          {!loadOutAtFinish && (
+            <Grid cols={2} style={{ marginTop: 12 }}>
+              <Field label="Load-out time">
+                <Input type="time" value={form.load_out_time ?? ''} onChange={v => set('load_out_time', v || null)} />
+              </Field>
+            </Grid>
+          )}
         </Card>
 
-        {/* Band */}
-        <Card label="Band">
-          <Grid cols={2}>
-            <Field label="Band size" hint="If set, quote returns options around selected size. If blank, full grid shown.">
-              <Select
-                value={form.band_size ?? ''}
-                onChange={v => set('band_size', v || null)}
-                options={[{ value: '', label: '— optional —' }, ...BAND_SIZES.map(b => ({ value: b.value, label: b.label }))]}
-              />
-            </Field>
-            <Field label="Set configuration" hint="If set, quote returns options around selected config. If blank, all configs shown.">
-              <Select
-                value={form.set_config ?? ''}
-                onChange={v => set('set_config', v || null)}
-                options={[{ value: '', label: '— optional —' }, ...SET_CONFIGS.map(s => ({ value: s.value, label: s.label }))]}
-              />
-            </Field>
-          </Grid>
-        </Card>
+        {/* Per-booking-type: band type, line-up, set configs */}
+        {Array.from(activeBookingTypes).map(bt => {
+          const isDancingOver40 = bt === 'dancing_over_40'
+          const currentBandType = getBandType(bt)
+          const availableSizes = BAND_SIZES_ORDERED
+            .filter(s => LINE_UP_LABELS[currentBandType]?.[s])
+            .filter(s => isDancingOver40 ? !['duo', 'trio'].includes(s) : true)
+          return (
+            <Card key={bt} label={BOOKING_TYPE_LABELS[bt]}>
+              {isDancingOver40 && (
+                <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: -6, marginBottom: 14 }}>
+                  {form.client_provides_pa
+                    ? 'Duo and trio excluded.'
+                    : 'PA + sound engineer automatically included. Duo and trio excluded.'}
+                </p>
+              )}
+              <Grid cols={1}>
+                <Field label="Band type">
+                  <Select
+                    value={currentBandType}
+                    onChange={v => setBandTypeByType(prev => ({ ...prev, [bt]: v as BandType }))}
+                    options={Object.entries(BAND_TYPE_LABELS).map(([v, l]) => ({ value: v, label: l }))}
+                  />
+                </Field>
+              </Grid>
+              <div style={{ marginTop: 14 }}>
+                <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Line-up</div>
+                <BoolGrid>
+                  {availableSizes.map(size => (
+                    <BoolTile
+                      key={size}
+                      label={BAND_SIZE_LABELS[size]}
+                      active={bandSizesByType[bt]?.has(size) ?? false}
+                      onClick={() => toggleBandSize(bt, size)}
+                    />
+                  ))}
+                </BoolGrid>
+              </div>
+              <div style={{ marginTop: 14 }}>
+                <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Number of sets</div>
+                <BoolGrid>
+                  {(['2x45', '3x45', '4x45', '5x45'] as SetConfig[]).map(cfg => (
+                    <BoolTile
+                      key={cfg}
+                      label={cfg === '3x45' ? '3×45 or 2×60' : cfg.replace('x', '×')}
+                      active={setConfigsByType[bt]?.has(cfg) ?? false}
+                      onClick={() => toggleSetConfig(bt, cfg)}
+                    />
+                  ))}
+                </BoolGrid>
+              </div>
+            </Card>
+          )
+        })}
 
         {/* Musician fees */}
         <Card label="Musician fees">
@@ -611,6 +874,72 @@ function Input({ value, onChange, placeholder, type = 'text', disabled }: {
         border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)',
         outline: 'none', fontFamily: 'var(--font)',
         opacity: disabled ? 0.6 : 1,
+      }}
+    />
+  )
+}
+
+// Accepts/displays DD/MM/YYYY, stores YYYY-MM-DD internally
+function DateInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  // Convert YYYY-MM-DD → DD/MM/YYYY for display
+  function toDisplay(iso: string) {
+    if (!iso) return ''
+    const [y, m, d] = iso.split('-')
+    return `${d}/${m}/${y}`
+  }
+  const [display, setDisplay] = React.useState(() => toDisplay(value))
+
+  // Sync display if value changes externally (e.g. prefill)
+  React.useEffect(() => { setDisplay(toDisplay(value)) }, [value])
+
+  function handleChange(raw: string) {
+    // Auto-insert slashes as user types
+    let v = raw.replace(/[^\d]/g, '')
+    if (v.length > 2) v = v.slice(0, 2) + '/' + v.slice(2)
+    if (v.length > 5) v = v.slice(0, 5) + '/' + v.slice(5)
+    if (v.length > 10) v = v.slice(0, 10)
+    setDisplay(v)
+
+    // Convert to ISO when complete
+    const match = v.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+    if (match) {
+      const [, d, m, y] = match
+      onChange(`${y}-${m}-${d}`)
+    } else if (!v) {
+      onChange('')
+    }
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    // Allow backspace to work naturally on the formatted string
+    if (e.key === 'Backspace') {
+      const cur = display
+      // If cursor is right after a slash, skip the slash too
+      const el = e.currentTarget
+      const pos = el.selectionStart ?? cur.length
+      if (pos > 0 && cur[pos - 1] === '/') {
+        e.preventDefault()
+        const next = cur.slice(0, pos - 2) + cur.slice(pos)
+        setDisplay(next)
+        setTimeout(() => el.setSelectionRange(pos - 2, pos - 2), 0)
+      }
+    }
+  }
+
+  return (
+    <input
+      type="text"
+      value={display}
+      onChange={e => handleChange(e.target.value)}
+      onKeyDown={handleKeyDown}
+      placeholder="DD/MM/YYYY"
+      maxLength={10}
+      inputMode="numeric"
+      style={{
+        width: '100%', height: 36, padding: '0 10px', fontSize: 13,
+        color: 'var(--text)', background: 'var(--bg)',
+        border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)',
+        outline: 'none', fontFamily: 'var(--font)',
       }}
     />
   )

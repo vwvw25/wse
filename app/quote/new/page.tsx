@@ -1,17 +1,61 @@
 'use client'
 
-import { useState, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useRef, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import type { BookingType, TravelType } from '@/types/quote'
+import { createBrowserClient } from '@/lib/supabase'
+import RequestDetailsCard, { type EventCardData } from './RequestDetailsCard'
 
-export default function NewQuotePage() {
+function NewQuoteForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const eventId = searchParams.get('event')
+
   const [bookingTypes, setBookingTypes] = useState<Set<BookingType>>(new Set())
   const [travel, setTravel] = useState<TravelType | null>(null)
   const [multiDay, setMultiDay] = useState<boolean | null>(null)
   const [eventDate, setEventDate] = useState('')
   const [clientType, setClientType] = useState<'direct' | 'agency' | null>(null)
+  const [eventCardData, setEventCardData] = useState<EventCardData | null>(null)
   const dateInputRef = useRef<HTMLInputElement>(null)
+
+  // Load event data if coming from email-to-quote
+  useEffect(() => {
+    if (!eventId) return
+    async function loadEvent() {
+      const { data } = await createBrowserClient()
+        .from('events')
+        .select('agency_name, agent_name, client_email, is_agency, event_date, venue_name, venue_postcode, venue_address, location, guests, arrival_time, start_time, finish_time, load_out_time, request_details')
+        .eq('id', eventId)
+        .single()
+      if (!data) return
+      const rd = data.request_details as { band_size_requested?: string | null; sets_requested?: string | null; special_requirements?: string | null; sound_requirements?: string | null; notes?: string | null } | null
+      setEventCardData({
+        agency_name: data.agency_name,
+        agent_name: data.agent_name,
+        client_email: data.client_email,
+        event_date: data.event_date,
+        venue_name: data.venue_name,
+        venue_postcode: data.venue_postcode,
+        venue_address: data.venue_address,
+        location: data.location,
+        guests: data.guests,
+        arrival_time: data.arrival_time,
+        start_time: data.start_time,
+        finish_time: data.finish_time,
+        load_out_time: data.load_out_time,
+        band_size_requested: rd?.band_size_requested ?? null,
+        sets_requested: rd?.sets_requested ?? null,
+        special_requirements: rd?.special_requirements ?? null,
+        sound_requirements: rd?.sound_requirements ?? null,
+        notes: rd?.notes ?? null,
+      })
+      if (data.event_date) setEventDate(data.event_date)
+      setClientType(data.is_agency ? 'agency' : 'direct')
+    }
+    loadEvent()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventId])
 
   function toggleBookingType(type: BookingType) {
     setBookingTypes(prev => {
@@ -29,6 +73,7 @@ export default function NewQuotePage() {
     if (multiDay !== null) params.set('multiDay', multiDay ? '1' : '0')
     if (eventDate) params.set('date', eventDate)
     if (clientType) params.set('clientType', clientType)
+    if (eventId) params.set('event', eventId)
     router.push(`/quote/new/details?${params.toString()}`)
   }
 
@@ -42,6 +87,9 @@ export default function NewQuotePage() {
           <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 3 }}>Ward Smith Entertainment</p>
           <p style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 2, letterSpacing: '0.02em' }}>Step 1 of 2 — booking details</p>
         </div>
+
+        {/* Request details card — shown when coming from email */}
+        {eventCardData && <RequestDetailsCard data={eventCardData} />}
 
         {/* Event date */}
         <Card label="Event date" onClick={() => dateInputRef.current?.showPicker()}>
@@ -111,20 +159,20 @@ export default function NewQuotePage() {
         <Card label="Travel">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <OptionTile
-              label="London / within 2 hours"
-              desc="No overnight required"
-              active={travel === 'london'}
-              onClick={() => setTravel('london')}
+              label="London based"
+              desc="Venue in or around London"
+              active={travel === 'london_based'}
+              onClick={() => setTravel('london_based')}
             />
             <OptionTile
-              label="UK over 2 hours"
-              desc="No overnight required"
-              active={travel === 'uk_over_2h'}
-              onClick={() => setTravel('uk_over_2h')}
+              label="UK"
+              desc="UK day trip, no overnight required"
+              active={travel === 'uk'}
+              onClick={() => setTravel('uk')}
             />
             <OptionTile
-              label="Domestic overnight"
-              desc="UK stay required"
+              label="UK overnight"
+              desc="Hotel stay required"
               active={travel === 'domestic_overnight'}
               onClick={() => setTravel('domestic_overnight')}
             />
@@ -176,6 +224,14 @@ export default function NewQuotePage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function NewQuotePage() {
+  return (
+    <Suspense>
+      <NewQuoteForm />
+    </Suspense>
   )
 }
 
