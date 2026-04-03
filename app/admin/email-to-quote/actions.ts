@@ -9,13 +9,14 @@ export interface ExtractedAutoFill {
   agency_name: string | null
   agent_name: string | null
   client_email: string | null
-  event_date: string | null      // YYYY-MM-DD
+  event_date: string | null
+  event_type: string | null
   venue_name: string | null
   venue_postcode: string | null
   venue_address: string | null
-  location: string | null        // free text when address/postcode not available
+  location: string | null
   guests: number | null
-  arrival_time: string | null    // HH:MM
+  arrival_time: string | null
   start_time: string | null
   finish_time: string | null
   load_out_time: string | null
@@ -28,40 +29,51 @@ export interface EmailExtractResult {
   request_details: RequestDetails
 }
 
-const SYSTEM_PROMPT = `You are extracting booking enquiry details from an email sent to a music entertainment agency. Return ONLY valid JSON — no explanation, no markdown.
+const SYSTEM_PROMPT = `You are extracting booking enquiry details from an email sent to a music entertainment agency. Return ONLY valid JSON — no explanation, no markdown, no code fences.
 
-Extract two groups of fields:
-
-AUTO_FILL — goes directly into the quote form:
-- is_agency: boolean (true if from an agent/agency, false if direct client enquiry)
+AUTO_FILL fields:
+- is_agency: boolean (true if from an agent/agency, false if direct client)
 - agency_name: string or null
 - agent_name: string or null
-- client_email: string or null (sender's email address if visible)
-- event_date: string or null — format YYYY-MM-DD
+- client_email: string or null (sender's email)
+- event_date: string or null — YYYY-MM-DD
+- event_type: string or null — e.g. "Corporate Event", "Charity Ball", "Wedding", "Summer Party", "Awards Ceremony", "Private Dinner", "Birthday Party"
 - venue_name: string or null — name of the venue
-- venue_postcode: string or null — postcode of the venue if given
+- venue_postcode: string or null
 - venue_address: string or null — full address if given
-- location: string or null — location description when address/postcode is not available (e.g. "Central London", "Manchester city centre", "Cotswolds")
-- guests: integer or null — number of guests attending
-- arrival_time: string or null — HH:MM 24hr (when band should arrive/load in)
-- start_time: string or null — HH:MM 24hr (when performance begins)
-- finish_time: string or null — HH:MM 24hr (when performance ends)
-- load_out_time: string or null — HH:MM 24hr (when band can load out — often same as finish)
-- booking_types: array — include all that apply from: "background" (background music, no dancing), "dancing_under_40" (dancing event, fewer than 40 guests), "dancing_over_40" (dancing event, 40+ guests), "wedding". Use dancing_under_40/over_40 based on guest count if mentioned, or dancing_over_40 as default for dance events without a count.
-- travel_type: one of "london_based" (London venue), "uk" (UK day trip outside London, home same night), "domestic_overnight" (UK requiring overnight stay), "international" (outside UK) — or null if genuinely unclear
+- location: string or null — area/city when no address (e.g. "Central London", "Essex", "Buckinghamshire")
+- guests: integer or null
+- arrival_time: string or null — HH:MM 24hr (load-in / set-up time)
+- start_time: string or null — HH:MM 24hr (performance start)
+- finish_time: string or null — HH:MM 24hr (performance end)
+- load_out_time: string or null — HH:MM 24hr (usually same as finish unless specified)
+- booking_types: array from: "background" (no dancing), "dancing_under_40" (dancing <40 guests), "dancing_over_40" (dancing 40+ guests), "wedding"
+- travel_type: "london_based" | "uk" | "domestic_overnight" | "international" | null
 
-REQUEST_DETAILS — shown to the user for reference while filling the form, not auto-filled:
-- special_requirements: string or null — venue quirks, access issues, load-in restrictions, outdoor/boat/rooftop/arena/stadium etc.
-- sound_requirements: string or null — db limiters, acoustic-only requirement, client providing PA, sound curfews
-- band_size_requested: string or null — e.g. "4 piece", "trio", "5-7 piece"
-- sets_requested: string or null — e.g. "2 x 45 min sets", "3 sets"
-- notes: string or null — anything else in the email relevant to quoting that doesn't fit the above fields
+REQUEST_DETAILS (shown for reference, not auto-filled):
+- special_requirements: string or null — rooftop, boat, outdoor, no lift, arena, stadium, access issues
+- sound_requirements: string or null — acoustic only, db limiter, client providing PA, sound curfew
+- band_size_requested: string or null — e.g. "acoustic duo", "trio", "4 piece", "3-5 artists"
+- sets_requested: string or null — e.g. "2 x 45 min", "3 sets of 45"
+- notes: string or null — anything else relevant (urgency, charity rate request, specific artist request, etc.)
 
-Return exactly this JSON shape:
-{
-  "auto_fill": { "is_agency": ..., "agency_name": ..., "agent_name": ..., "client_email": ..., "event_date": ..., "venue_name": ..., "venue_postcode": ..., "venue_address": ..., "location": ..., "guests": ..., "arrival_time": ..., "start_time": ..., "finish_time": ..., "load_out_time": ..., "booking_types": [...], "travel_type": ... },
-  "request_details": { "special_requirements": ..., "sound_requirements": ..., "band_size_requested": ..., "sets_requested": ..., "notes": ... }
-}`
+Return exactly:
+{"auto_fill":{...},"request_details":{...}}
+
+--- EXAMPLES ---
+
+Email: "Hi Victoria, new enquiry for acoustic duo please: Date: 12th Dec. Timings: 2-5pm (set up by 1pm). Location: The Gherkin. Guests: 90. Please provide small PA. Kind regards, Hettie Ralph, AOK Entertains"
+Output: {"auto_fill":{"is_agency":true,"agency_name":"AOK Entertains","agent_name":"Hettie Ralph","client_email":null,"event_date":null,"event_type":null,"venue_name":"The Gherkin","venue_postcode":null,"venue_address":null,"location":"London","guests":90,"arrival_time":"13:00","start_time":"14:00","finish_time":"17:00","load_out_time":"17:00","booking_types":["background"],"travel_type":"london_based"},"request_details":{"special_requirements":null,"sound_requirements":"Client requesting PA provided","band_size_requested":"acoustic duo","sets_requested":null,"notes":null}}
+
+Email: "Hi Victoria, Type of event: Great Gatsby Charity Ball. Date: 14th March. Venue: Orsett House, Essex. Event timings: 18:30-0:00. Entertainment timings: TBC. Would you be able to reduce your rate for this charity event? Tiger Cronk, AOK Entertains"
+Output: {"auto_fill":{"is_agency":true,"agency_name":"AOK Entertains","agent_name":"Tiger Cronk","client_email":"tiger@aokevents.com","event_date":null,"event_type":"Charity Ball","venue_name":"Orsett House","venue_postcode":null,"venue_address":null,"location":"Essex","guests":null,"arrival_time":null,"start_time":"18:30","finish_time":"00:00","load_out_time":"00:00","booking_types":["dancing_over_40"],"travel_type":"domestic_overnight"},"request_details":{"special_requirements":null,"sound_requirements":null,"band_size_requested":null,"sets_requested":null,"notes":"Charity event — client requesting reduced rate. Bowel Cancer UK charity."}}
+
+Email: "Hi Victoria, I've got an enquiry for your Trio for a private awards dinner at the Rosewood London on the 10th of April. Start time is roughly 20:00. We'd need you to bring your small PA set up. Let me know availability and pricing. Iain Alexander, Blank Canvas Entertainment"
+Output: {"auto_fill":{"is_agency":true,"agency_name":"Blank Canvas Entertainment","agent_name":"Iain Alexander","client_email":"Iain@blankcanvasentertainment.co.uk","event_date":null,"event_type":"Awards Dinner","venue_name":"Rosewood London","venue_postcode":null,"venue_address":null,"location":"London","guests":null,"arrival_time":null,"start_time":"20:00","finish_time":null,"load_out_time":null,"booking_types":["background"],"travel_type":"london_based"},"request_details":{"special_requirements":null,"sound_requirements":"Small PA required","band_size_requested":"trio","sets_requested":null,"notes":null}}
+
+Email: "Hi Victoria, Can you let me know if Harper and Bailey duo can do 22nd November at The Bradfield Centre, 184 Cambridge Science Park Rd, Milton, Cambridge CB4 0GA. Quote bringing PA, 150 guests, 3x45 mins over 3 hours, early evening. Laura Elliott, Sternberg Clarke"
+Output: {"auto_fill":{"is_agency":true,"agency_name":"Sternberg Clarke","agent_name":"Laura Elliott","client_email":"laura@sternbergclarke.co.uk","event_date":null,"event_type":null,"venue_name":"The Bradfield Centre","venue_postcode":"CB4 0GA","venue_address":"184 Cambridge Science Park Rd, Milton, Cambridge CB4 0GA","location":"Cambridge","guests":150,"arrival_time":null,"start_time":null,"finish_time":null,"load_out_time":null,"booking_types":["background"],"travel_type":"uk"},"request_details":{"special_requirements":null,"sound_requirements":"PA required","band_size_requested":"duo","sets_requested":"3 x 45 mins","notes":null}}
+`
 
 export async function extractFromEmail(emailText: string): Promise<EmailExtractResult> {
   const client = new Anthropic()
@@ -89,6 +101,7 @@ export async function saveEvent(result: EmailExtractResult, rawEmail: string): P
       client_email: af.client_email,
       is_agency: af.is_agency,
       event_date: af.event_date,
+      event_type: af.event_type,
       venue_name: af.venue_name,
       venue_postcode: af.venue_postcode,
       venue_address: af.venue_address,

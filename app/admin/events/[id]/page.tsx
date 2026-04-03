@@ -81,6 +81,17 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
             {st.label}
           </span>
           <a
+            href={`/admin/events/${event.id}/email`}
+            style={{
+              display: 'inline-block', padding: '8px 18px', fontSize: 13, fontWeight: 500,
+              background: 'var(--bg-secondary)', color: 'var(--text)',
+              border: '0.5px solid var(--border)',
+              borderRadius: 'var(--radius-sm)', textDecoration: 'none',
+            }}
+          >
+            Generate email
+          </a>
+          <a
             href={`/quote/new?event=${event.id}`}
             style={{
               display: 'inline-block', padding: '8px 18px', fontSize: 13, fontWeight: 500,

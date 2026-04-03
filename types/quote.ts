@@ -232,6 +232,7 @@ export interface EventRecord {
   client_email: string | null
   is_agency: boolean
   event_date: string | null
+  event_type: string | null
   venue_name: string | null
   venue_postcode: string | null
   venue_address: string | null
@@ -244,6 +245,15 @@ export interface EventRecord {
   request_details: RequestDetails | null
   raw_email: string | null
   status: 'pending' | 'quoted' | 'confirmed' | 'cancelled'
+}
+
+export interface EmailTemplate {
+  id: string
+  created_at: string
+  updated_at: string
+  name: string
+  subject: string | null
+  body: string
 }
 
 export interface QuoteRecord {
