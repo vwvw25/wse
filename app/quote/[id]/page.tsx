@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { createServiceClient } from '@/lib/supabase'
 import { calculate, DEFAULT_SETTINGS } from '@/lib/calculations'
 import type { QuoteRecord, PriceOption, BookingType, Settings } from '@/types/quote'
+import AuditButton from './AuditButton'
 import { BAND_SIZE_LABELS, BAND_TYPE_LABELS } from '@/lib/lineups'
 
 const BOOKING_TYPE_LABELS: Record<BookingType, string> = {
@@ -106,6 +107,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
                 <a href={`/quote/new/details?prefill=${id}`} style={headerBtnStyle}>Duplicate &amp; edit →</a>
                 <a href={`/quote/${id}/text`} style={headerBtnStyle}>Email version →</a>
                 <a href={`/quote/${id}/email`} style={{ ...headerBtnStyle, background: 'var(--accent)', color: '#fff', borderColor: 'var(--accent)' }}>Send email →</a>
+                <AuditButton calculated={calculated} />
               </div>
             </div>
           </div>
