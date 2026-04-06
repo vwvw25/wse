@@ -84,6 +84,24 @@ export default async function QuoteTextPage({ params }: { params: Promise<{ id: 
       {eventDate && <p style={p}>Date: {eventDate}</p>}
       {inputs.venue_name && <p style={p}>Venue: {inputs.venue_name}</p>}
 
+      {/* Booking details — only fields not already in the header */}
+      {(inputs.location || inputs.start_time || inputs.finish_time || inputs.band_size_requested || inputs.sets_requested || inputs.client_provides_pa) && (
+        <>
+          <div style={hr} />
+          <p style={{ ...p, fontWeight: 'bold' }}>Booking details</p>
+          <table style={{ ...tbl, margin: '8px 0 0' }}>
+            <tbody>
+              {inputs.client_provides_pa && <tr><td style={{ ...td, fontWeight: 500, width: 160 }}>PA</td><td style={td}>Client providing PA</td></tr>}
+              {inputs.location && <tr><td style={{ ...td, fontWeight: 500, width: 160 }}>Location</td><td style={td}>{inputs.location}</td></tr>}
+              {inputs.start_time && <tr><td style={{ ...td, fontWeight: 500 }}>Start time</td><td style={td}>{inputs.start_time}</td></tr>}
+              {inputs.finish_time && <tr><td style={{ ...td, fontWeight: 500 }}>Finish time</td><td style={td}>{inputs.finish_time}</td></tr>}
+              {inputs.band_size_requested && <tr><td style={{ ...td, fontWeight: 500 }}>Band size</td><td style={td}>{inputs.band_size_requested}</td></tr>}
+              {inputs.sets_requested && <tr><td style={{ ...td, fontWeight: 500 }}>Sets</td><td style={td}>{inputs.sets_requested}</td></tr>}
+            </tbody>
+          </table>
+        </>
+      )}
+
       <div style={hr} />
 
       {bookingTypes.map((bt, index) => {
@@ -93,11 +111,11 @@ export default async function QuoteTextPage({ params }: { params: Promise<{ id: 
         const hasExtendedPaEngineer = btOptions.some(o => o.has_extended_pa_engineer)
         const btBandType = (inputs.band_types_by_type as Record<string, string> | undefined)?.[bt] ?? inputs.band_type ?? 'electric'
         const isRoaming = btBandType === 'roaming'
-        const showIpadMusic = !inputs.is_acoustic && !isRoaming
+        const showIpadMusic = !inputs.is_acoustic && !isRoaming && !inputs.client_provides_pa
           && !(inputs.selected_add_ons ?? []).some(a => a.name === 'Roaming set')
 
         const inclusions: { text: string; show: boolean }[] = [
-          { text: 'Background PA', show: !hasExtendedPaEngineer },
+          { text: 'Background PA', show: !hasExtendedPaEngineer && !inputs.client_provides_pa && (bt === 'background' || bt === 'dancing_under_40') },
           { text: 'Extended PA + sound engineer', show: hasExtendedPaEngineer },
           { text: 'Based on a finish of 11pm or earlier', show: !inputs.finish_time },
           { text: 'Music via iPad/PA during intervals', show: showIpadMusic },
@@ -198,11 +216,7 @@ export default async function QuoteTextPage({ params }: { params: Promise<{ id: 
 
       <div style={hr} />
 
-      <p style={p}>If you need any changes or additional requests, just drop us an email so we can make arrangements to accommodate them. Any changes made during checking-off or contracts need to be agreed by email first.</p>
-
-      <p style={p}>If you&apos;d like to chat or have any questions please feel free to drop me a line, WhatsApp or text on 07734652303 or drop me an email.</p>
-
-      <p style={{ ...p, color: '#555', marginTop: 24 }}>This quote is valid for 30 days. Ward Smith Entertainment — wardsmithentertainment.com</p>
+      <p style={p}>If you need any changes or additional requests, just drop us an email so we can make arrangements to accommodate them. Any changes needed during checking-off or contracts stages must be agreed by email first. This quote is valid for 30 days.</p>
     </div>
   )
 }

@@ -140,11 +140,11 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
           const hasExtendedPaEngineer = btOptions.some(o => o.has_extended_pa_engineer)
           const btBandType = (inputs.band_types_by_type as Record<string, string> | undefined)?.[bt] ?? inputs.band_type ?? 'electric'
           const isRoaming = btBandType === 'roaming'
-          const showIpadMusic = !inputs.is_acoustic && !isRoaming
+          const showIpadMusic = !inputs.is_acoustic && !isRoaming && !inputs.client_provides_pa
             && !(inputs.selected_add_ons ?? []).some(a => a.name === 'Roaming set')
 
           const inclusions: { text: string; show: boolean }[] = [
-            { text: 'Background PA', show: !hasExtendedPaEngineer },
+            { text: 'Background PA', show: !hasExtendedPaEngineer && !inputs.client_provides_pa && (bt === 'background' || bt === 'dancing_under_40') },
             { text: 'Extended PA + sound engineer', show: hasExtendedPaEngineer },
             { text: 'Based on a finish of 11pm or earlier', show: !inputs.finish_time },
             { text: 'Music via iPad/PA during intervals', show: showIpadMusic },

@@ -61,6 +61,23 @@ export function generateQuoteHtml(quote: QuoteRecord): string {
   }
   if (eventDate) html += `<p style="margin:0 0 8px;">Date: ${eventDate}</p>`
   if (inputs.venue_name) html += `<p style="margin:0 0 8px;">Venue: ${inputs.venue_name}</p>`
+
+  // Booking details — only fields not already in the header
+  const hasBookingDetails = inputs.location || inputs.start_time || inputs.finish_time || inputs.band_size_requested || inputs.sets_requested || inputs.client_provides_pa
+  if (hasBookingDetails) {
+    html += HR
+    html += `<p style="margin:0 0 8px;font-weight:bold;">Booking details</p>`
+    html += `<table style="width:100%;border-collapse:collapse;margin:8px 0 0;">`
+    html += `<tbody>`
+    if (inputs.client_provides_pa) html += `<tr><td style="padding:4px 8px 4px 0;border-bottom:1px solid #ccc;font-weight:500;width:160px;">PA</td><td style="padding:4px 8px 4px 0;border-bottom:1px solid #ccc;">Client providing PA</td></tr>`
+    if (inputs.location) html += `<tr><td style="padding:4px 8px 4px 0;border-bottom:1px solid #ccc;font-weight:500;width:160px;">Location</td><td style="padding:4px 8px 4px 0;border-bottom:1px solid #ccc;">${inputs.location}</td></tr>`
+    if (inputs.start_time) html += `<tr><td style="padding:4px 8px 4px 0;border-bottom:1px solid #ccc;font-weight:500;">Start time</td><td style="padding:4px 8px 4px 0;border-bottom:1px solid #ccc;">${inputs.start_time}</td></tr>`
+    if (inputs.finish_time) html += `<tr><td style="padding:4px 8px 4px 0;border-bottom:1px solid #ccc;font-weight:500;">Finish time</td><td style="padding:4px 8px 4px 0;border-bottom:1px solid #ccc;">${inputs.finish_time}</td></tr>`
+    if (inputs.band_size_requested) html += `<tr><td style="padding:4px 8px 4px 0;border-bottom:1px solid #ccc;font-weight:500;">Band size</td><td style="padding:4px 8px 4px 0;border-bottom:1px solid #ccc;">${inputs.band_size_requested}</td></tr>`
+    if (inputs.sets_requested) html += `<tr><td style="padding:4px 0;border-bottom:1px solid #ccc;font-weight:500;">Sets</td><td style="padding:4px 0;border-bottom:1px solid #ccc;">${inputs.sets_requested}</td></tr>`
+    html += `</tbody></table>`
+  }
+
   html += HR
 
   for (let index = 0; index < bookingTypes.length; index++) {
@@ -71,7 +88,7 @@ export function generateQuoteHtml(quote: QuoteRecord): string {
     const hasExtendedPaEngineer = btOptions.some(o => o.has_extended_pa_engineer)
     const btBandType = (inputs.band_types_by_type as Record<string, string> | undefined)?.[bt] ?? inputs.band_type ?? 'electric'
     const isRoaming = btBandType === 'roaming'
-    const showIpadMusic = !inputs.is_acoustic && !isRoaming
+    const showIpadMusic = !inputs.is_acoustic && !isRoaming && !inputs.client_provides_pa
       && !(inputs.selected_add_ons ?? []).some(a => a.name === 'Roaming set')
 
     if (hasMultipleTypes && index > 0) html += HR
@@ -104,7 +121,7 @@ export function generateQuoteHtml(quote: QuoteRecord): string {
 
     // Inclusions
     const inclusions: { text: string; show: boolean }[] = [
-      { text: 'Background PA', show: !hasExtendedPaEngineer },
+      { text: 'Background PA', show: !hasExtendedPaEngineer && !inputs.client_provides_pa && (bt === 'background' || bt === 'dancing_under_40') },
       { text: 'Extended PA + sound engineer', show: hasExtendedPaEngineer },
       { text: 'Based on a finish of 11pm or earlier', show: !inputs.finish_time },
       { text: 'Music via iPad/PA during intervals', show: showIpadMusic },
@@ -156,9 +173,7 @@ export function generateQuoteHtml(quote: QuoteRecord): string {
   }
 
   html += HR
-  html += `<p style="margin:0 0 8px;">If you need any changes or additional requests, just drop us an email so we can make arrangements to accommodate them. Any changes made during checking-off or contracts need to be agreed by email first.</p>`
-  html += `<p style="margin:0 0 8px;">If you'd like to chat or have any questions please feel free to drop me a line, WhatsApp or text on 07734652303 or drop me an email.</p>`
-  html += `<p style="margin:24px 0 0;color:#555;">This quote is valid for 30 days. Ward Smith Entertainment — wardsmithentertainment.com</p>`
+  html += `<p style="margin:0 0 8px;">If you need any changes or additional requests, just drop us an email so we can make arrangements to accommodate them. Any changes needed during checking-off or contracts stages must be agreed by email first. This quote is valid for 30 days.</p>`
   html += `</div>`
 
   return html

@@ -105,7 +105,7 @@ export function calculate(inputs: QuoteInputs, settings: Settings): QuoteCalcula
   const pa_hire_cost = isLargeEnoughForPA && !inputs.client_provides_pa
     ? settings.pa_sound_engineer_rate : 0
   const pa_deduction = inputs.client_provides_pa && isLargeEnoughForPA
-    ? settings.pa_deduction_extended_background_pa : 0
+    ? (settings.pa_deduction_extended_background_pa ?? settings.pa_deduction_rate ?? 0) : 0
   const pa_hire_before_midnight_cost = settings.pa_rate_before_midnight * inputs.pa_hours_before_midnight
   const pa_hire_after_midnight_cost = settings.pa_rate_after_midnight * inputs.pa_hours_after_midnight
 
@@ -281,8 +281,11 @@ export function calculate(inputs: QuoteInputs, settings: Settings): QuoteCalcula
       const opt_pa_cost = has_extended_pa_engineer ? settings.pa_sound_engineer_rate : 0
 
       // PA deduction when client provides PA
+      // Fall back to pa_deduction_rate if specific fields not set in DB
       const opt_pa_deduction = inputs.client_provides_pa
-        ? (is_large_enough ? settings.pa_deduction_extended_background_pa : settings.pa_deduction_background_pa)
+        ? (is_large_enough
+            ? (settings.pa_deduction_extended_background_pa ?? settings.pa_deduction_rate ?? 0)
+            : (settings.pa_deduction_background_pa ?? settings.pa_deduction_rate ?? 0))
         : 0
 
       // Per-option travel
