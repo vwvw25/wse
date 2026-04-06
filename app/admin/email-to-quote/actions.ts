@@ -3,6 +3,19 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createServiceClient } from '@/lib/supabase'
 import type { RequestDetails, BookingType, TravelType } from '@/types/quote'
+import fs from 'fs'
+import path from 'path'
+
+// Turbopack dev workaround: env vars not always available in server actions
+function getAnthropicKey(): string {
+  if (process.env.ANTHROPIC_API_KEY) return process.env.ANTHROPIC_API_KEY
+  try {
+    const envFile = fs.readFileSync(path.join(process.cwd(), '.env.local'), 'utf8')
+    const match = envFile.match(/^ANTHROPIC_API_KEY=(.+)$/m)
+    if (match) return match[1].trim()
+  } catch {}
+  return ''
+}
 
 export interface ExtractedAutoFill {
   is_agency: boolean
@@ -76,7 +89,7 @@ Output: {"auto_fill":{"is_agency":true,"agency_name":"Sternberg Clarke","agent_n
 `
 
 export async function extractFromEmail(emailText: string): Promise<EmailExtractResult> {
-  const client = new Anthropic()
+  const client = new Anthropic({ apiKey: getAnthropicKey() })
   const message = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 1024,

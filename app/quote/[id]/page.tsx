@@ -94,6 +94,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
                 <a href={`/quote/builder?prefill=${id}`} style={headerBtnStyle}>Live builder →</a>
                 <a href={`/quote/new/details?prefill=${id}`} style={headerBtnStyle}>Duplicate &amp; edit →</a>
                 <a href={`/quote/${id}/text`} style={headerBtnStyle}>Email version →</a>
+                <a href={`/quote/${id}/email`} style={{ ...headerBtnStyle, background: 'var(--accent)', color: '#fff', borderColor: 'var(--accent)' }}>Send email →</a>
               </div>
             </div>
           </div>
