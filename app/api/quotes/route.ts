@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
       .eq('id', 1)
       .single()
 
-    const settings: Settings = settingsRow ?? DEFAULT_SETTINGS
+    const settings: Settings = { ...DEFAULT_SETTINGS, ...(settingsRow ?? {}) }
 
     // Run calculation
     const calculated = calculate(inputs, settings)

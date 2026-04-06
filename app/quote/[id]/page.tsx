@@ -1,7 +1,8 @@
 import React from 'react'
 import { notFound } from 'next/navigation'
 import { createServiceClient } from '@/lib/supabase'
-import type { QuoteRecord, PriceOption, BookingType } from '@/types/quote'
+import { calculate, DEFAULT_SETTINGS } from '@/lib/calculations'
+import type { QuoteRecord, PriceOption, BookingType, Settings } from '@/types/quote'
 import { BAND_SIZE_LABELS, BAND_TYPE_LABELS } from '@/lib/lineups'
 
 const BOOKING_TYPE_LABELS: Record<BookingType, string> = {
@@ -30,7 +31,17 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
 
   const quote = data as QuoteRecord & { event?: { location?: string | null; request_details?: { band_size_requested?: string | null; sets_requested?: string | null } | null } | null }
   const eventData = quote.event
-  const { inputs, calculated } = quote
+  let { inputs, calculated } = quote
+
+  // If stored prices are broken (null/NaN), recalculate and save
+  const hasBrokenPrices = calculated.price_options?.some(o => o.total_price == null || isNaN(o.total_price))
+  if (hasBrokenPrices) {
+    const { data: settingsRow } = await supabase.from('settings').select('*').eq('id', 1).single()
+    const settings: Settings = { ...DEFAULT_SETTINGS, ...(settingsRow ?? {}) }
+    calculated = calculate(inputs, settings)
+    // Save fixed calculated data back to DB silently
+    await supabase.from('quotes').update({ calculated }).eq('id', id)
+  }
 
   const fmt = (n: number) => `£${Math.round(n).toLocaleString('en-GB')}`
   const isInternational = inputs.travel_type === 'international'
