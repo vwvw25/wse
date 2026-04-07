@@ -105,7 +105,7 @@ export function calculate(inputs: QuoteInputs, settings: Settings): QuoteCalcula
   const pa_hire_cost = isLargeEnoughForPA && !inputs.client_provides_pa
     ? settings.pa_sound_engineer_rate : 0
   const pa_deduction = inputs.client_provides_pa && isLargeEnoughForPA
-    ? (settings.pa_deduction_extended_background_pa ?? settings.pa_deduction_rate ?? 0) : 0
+    ? (settings.pa_deduction_extended_background_pa ?? 0) : 0
   const pa_hire_before_midnight_cost = settings.pa_rate_before_midnight * inputs.pa_hours_before_midnight
   const pa_hire_after_midnight_cost = settings.pa_rate_after_midnight * inputs.pa_hours_after_midnight
 
@@ -281,11 +281,10 @@ export function calculate(inputs: QuoteInputs, settings: Settings): QuoteCalcula
       const opt_pa_cost = has_extended_pa_engineer ? settings.pa_sound_engineer_rate : 0
 
       // PA deduction when client provides PA
-      // Fall back to pa_deduction_rate if specific fields not set in DB
       const opt_pa_deduction = inputs.client_provides_pa
         ? (is_large_enough
-            ? (settings.pa_deduction_extended_background_pa ?? settings.pa_deduction_rate ?? 0)
-            : (settings.pa_deduction_background_pa ?? settings.pa_deduction_rate ?? 0))
+            ? (settings.pa_deduction_extended_background_pa ?? 0)
+            : (settings.pa_deduction_background_pa ?? 0))
         : 0
 
       // Per-option travel
@@ -374,6 +373,19 @@ export function calculate(inputs: QuoteInputs, settings: Settings): QuoteCalcula
     total_fee, single_day_fee, full_engagement_fee, per_day_saving,
     price_options, fixed_costs_total,
   }
+}
+
+export function quoteValidityText(eventDate: string | null, isInternational: boolean): string {
+  const daysUntil = eventDate
+    ? Math.ceil((new Date(eventDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : null
+  if (isInternational) {
+    const days = daysUntil !== null && daysUntil <= 45 ? 7 : 14
+    return `This quote is valid for ${days} days. After this time the main pricing variation may be due to flight and accommodation availability.`
+  }
+  if (daysUntil !== null && daysUntil <= 7) return 'This quote is valid for 24 hours.'
+  if (daysUntil !== null && daysUntil <= 30) return 'This quote is valid for 7 days.'
+  return 'This quote is valid for 30 days.'
 }
 
 export const DEFAULT_SETTINGS: Settings = {

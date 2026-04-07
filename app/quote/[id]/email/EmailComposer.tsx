@@ -11,7 +11,7 @@ interface Props {
 }
 
 function fillTemplate(body: string, event: EventRecord | null, quoteHtml: string): string {
-  const agentFirst = event?.agent_name?.split(' ')[0] ?? ''
+  const agentFirst = event?.agent_first_name ?? event?.agent_name?.split(' ')[0] ?? ''
   const eventDate = event?.event_date
     ? new Date(event.event_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
     : ''

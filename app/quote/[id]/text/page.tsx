@@ -2,6 +2,7 @@ import React from 'react'
 import { notFound } from 'next/navigation'
 import { createServiceClient } from '@/lib/supabase'
 import type { QuoteRecord, BookingType } from '@/types/quote'
+import { quoteValidityText } from '@/lib/calculations'
 import { BAND_SIZE_LABELS } from '@/lib/lineups'
 
 const BOOKING_TYPE_LABELS: Record<BookingType, string> = {
@@ -121,8 +122,8 @@ export default async function QuoteTextPage({ params }: { params: Promise<{ id: 
           { text: 'Music via iPad/PA during intervals', show: showIpadMusic },
           { text: 'Arrival one hour before performance start (1.5hrs if Extended PA + sound engineer)', show: !showSpecificTimes },
           { text: `Arrival: ${inputs.arrival_time}`, show: isCustomArrival && !!inputs.arrival_time },
-          { text: `Start: ${inputs.start_time}`, show: showSpecificTimes && !!inputs.start_time },
-          { text: `Finish: ${inputs.finish_time}`, show: showSpecificTimes && !!inputs.finish_time },
+          { text: `Start: ${inputs.start_time}`, show: !!inputs.start_time },
+          { text: `Finish: ${inputs.finish_time}`, show: !!inputs.finish_time },
           { text: `Load out: ${inputs.load_out_time}`, show: loadOutDiffersFromFinish && !!inputs.load_out_time },
           { text: 'Petrol / train travel', show: isDomesticOvernight && (inputs.petrol_train_cost ?? 0) > 0 },
           { text: `Accommodation (${inputs.accommodation_nights ?? 1} night${(inputs.accommodation_nights ?? 1) !== 1 ? 's' : ''})`, show: isDomesticOvernight && (inputs.accommodation_cost ?? 0) > 0 },
@@ -144,8 +145,9 @@ export default async function QuoteTextPage({ params }: { params: Promise<{ id: 
           { text: 'Full loading information required 2 weeks in advance', show: true },
           { text: 'Based on being able to park within 25 metres of an entrance to load. Please advise of any loading restrictions at the venue', show: true },
           { text: "If the venue isn't easily accessible by car then this may impact the quote and the equipment we're able to supply", show: true },
-          { text: 'Client to hire drum kit locally', show: isInternational && (inputs.drummer_fee ?? 0) > 0 },
-          { text: 'Client to provide keyboard or piano on-site', show: (inputs.keys_fee ?? 0) > 0 && isInternational },
+          { text: 'Client to hire drum kit locally if drummer is booked', show: isInternational && (inputs.drummer_fee ?? 0) > 0 },
+          { text: 'Client to provide keyboard or piano on-site if pianist is booked', show: (inputs.keys_fee ?? 0) > 0 && isInternational },
+          { text: 'Client to provide double bass on site if upright double bass is booked (alternatively bassist can bring electric bass)', show: isInternational && (inputs.bass_fee ?? 0) > 0 && ['roaming', 'jazz_keys', 'jazz_guitar'].includes(btBandType) },
         ]
 
         const activeInclusions = inclusions.filter(i => i.show)
@@ -207,6 +209,9 @@ export default async function QuoteTextPage({ params }: { params: Promise<{ id: 
             {/* Requirements */}
             <p style={{ ...p, fontWeight: 'bold' }}>Requirements</p>
             <ul style={{ margin: '0 0 16px', paddingLeft: 0, listStyle: 'none' }}>
+              {(isInternational || inputs.client_provides_pa) && (
+                <li style={{ marginBottom: 4 }}>– Client to provide full rider (for riders please see <a href="https://drive.google.com/drive/folders/1906sIEkcO5GTmLH395oRJuy6xtERE2QZ?usp=sharing" target="_blank" rel="noopener noreferrer">this folder</a>)</li>
+              )}
               {activeRequirements.map(item => <li key={item.text} style={{ marginBottom: 4 }}>– {item.text}</li>)}
               {addonRequirements.map(addon => <li key={addon.id} style={{ marginBottom: 4 }}>– {addon.requirement_text}</li>)}
             </ul>
@@ -216,7 +221,7 @@ export default async function QuoteTextPage({ params }: { params: Promise<{ id: 
 
       <div style={hr} />
 
-      <p style={p}>If you need any changes or additional requests, just drop us an email so we can make arrangements to accommodate them. Any changes needed during checking-off or contracts stages must be agreed by email first. This quote is valid for 30 days.</p>
+      <p style={p}>If you need any changes or additional requests, just drop us an email so we can make arrangements to accommodate them. Any changes needed during checking-off or contracts stages must be agreed by email first. {quoteValidityText(inputs.event_date, isInternational)}</p>
     </div>
   )
 }

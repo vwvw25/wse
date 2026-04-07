@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createServiceClient } from '@/lib/supabase'
-import { calculate, DEFAULT_SETTINGS } from '@/lib/calculations'
+import { calculate, DEFAULT_SETTINGS, quoteValidityText } from '@/lib/calculations'
 import type { QuoteInputs, Settings, PriceOption } from '@/types/quote'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
@@ -34,8 +34,10 @@ function buildEmailHtml(inputs: QuoteInputs, priceOptions: PriceOption[], quoteI
     { text: 'Includes mic hire for use during agreed performance times (i.e. not during break)', show: hasMicHire },
   ].filter(i => i.show)
 
+  const isInternational = inputs.travel_type === 'international'
   const hasBuyout = (inputs.selected_add_ons ?? []).some(a => a.name.toLowerCase().includes('buyout'))
   const requirements = [
+    { text: 'Client to provide full rider (for riders please see <a href="https://drive.google.com/drive/folders/1906sIEkcO5GTmLH395oRJuy6xtERE2QZ?usp=sharing" style="color:#111827;">this folder</a>)', show: isInternational || inputs.client_provides_pa },
     { text: '2 × 13amp plug sockets', show: !inputs.is_powerless && !inputs.is_acoustic },
     { text: 'Food clause — same menu choices as guests, or £20 per musician buyout', show: !hasBuyout },
     { text: 'Lockable indoor exclusive green room', show: true },
@@ -154,7 +156,7 @@ function buildEmailHtml(inputs: QuoteInputs, priceOptions: PriceOption[], quoteI
     <!-- Footer -->
     <div style="padding:20px 32px;border-top:1px solid #e5e7eb;background:#f9fafb;">
       <p style="margin:0;font-size:11px;color:#9ca3af;">
-        This quote is valid for 30 days. Ward Smith Entertainment &mdash; wardsmithentertainment.com
+        ${quoteValidityText(inputs.event_date, inputs.travel_type === 'international')} Ward Smith Entertainment &mdash; wardsmithentertainment.com
       </p>
       ${inputs.agent_name ? `<p style="margin:6px 0 0;font-size:11px;color:#9ca3af;">Prepared by ${inputs.agent_name}</p>` : ''}
     </div>

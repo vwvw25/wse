@@ -1,5 +1,6 @@
 import type { QuoteRecord, BookingType } from '@/types/quote'
 import { BAND_SIZE_LABELS } from '@/lib/lineups'
+import { quoteValidityText } from '@/lib/calculations'
 
 const BOOKING_TYPE_LABELS: Record<BookingType, string> = {
   background: 'Background',
@@ -127,8 +128,8 @@ export function generateQuoteHtml(quote: QuoteRecord): string {
       { text: 'Music via iPad/PA during intervals', show: showIpadMusic },
       { text: 'Arrival one hour before performance start (1.5hrs if Extended PA + sound engineer)', show: !showSpecificTimes },
       { text: `Arrival: ${inputs.arrival_time}`, show: isCustomArrival && !!inputs.arrival_time },
-      { text: `Start: ${inputs.start_time}`, show: showSpecificTimes && !!inputs.start_time },
-      { text: `Finish: ${inputs.finish_time}`, show: showSpecificTimes && !!inputs.finish_time },
+      { text: `Start: ${inputs.start_time}`, show: !!inputs.start_time },
+      { text: `Finish: ${inputs.finish_time}`, show: !!inputs.finish_time },
       { text: `Load out: ${inputs.load_out_time}`, show: loadOutDiffersFromFinish && !!inputs.load_out_time },
       { text: 'Petrol / train travel', show: isDomesticOvernight && (inputs.petrol_train_cost ?? 0) > 0 },
       { text: `Accommodation (${inputs.accommodation_nights ?? 1} night${(inputs.accommodation_nights ?? 1) !== 1 ? 's' : ''})`, show: isDomesticOvernight && (inputs.accommodation_cost ?? 0) > 0 },
@@ -159,21 +160,25 @@ export function generateQuoteHtml(quote: QuoteRecord): string {
       { text: 'Full loading information required 2 weeks in advance', show: true },
       { text: 'Based on being able to park within 25 metres of an entrance to load. Please advise of any loading restrictions at the venue', show: true },
       { text: "If the venue isn't easily accessible by car then this may impact the quote and the equipment we're able to supply", show: true },
-      { text: 'Client to hire drum kit locally', show: isInternational && (inputs.drummer_fee ?? 0) > 0 },
-      { text: 'Client to provide keyboard or piano on-site', show: (inputs.keys_fee ?? 0) > 0 && isInternational },
+      { text: 'Client to hire drum kit locally if drummer is booked', show: isInternational && (inputs.drummer_fee ?? 0) > 0 },
+      { text: 'Client to provide keyboard or piano on-site if pianist is booked', show: (inputs.keys_fee ?? 0) > 0 && isInternational },
+      { text: 'Client to provide double bass on site if upright double bass is booked (alternatively bassist can bring electric bass)', show: isInternational && (inputs.bass_fee ?? 0) > 0 && ['roaming', 'jazz_keys', 'jazz_guitar'].includes(btBandType) },
     ]
     const activeRequirements = requirements.filter(r => r.show)
     const addonRequirements = (inputs.selected_add_ons ?? []).filter(a => a.requirement_text)
 
     html += `<p style="margin:0 0 8px;font-weight:bold;">Requirements</p>`
     html += `<ul style="margin:0 0 16px;padding-left:0;list-style:none;">`
+    if (isInternational || inputs.client_provides_pa) {
+      html += `<li style="margin-bottom:4px;">– Client to provide full rider (for riders please see <a href="https://drive.google.com/drive/folders/1906sIEkcO5GTmLH395oRJuy6xtERE2QZ?usp=sharing">this folder</a>)</li>`
+    }
     activeRequirements.forEach(item => { html += `<li style="margin-bottom:4px;">– ${item.text}</li>` })
     addonRequirements.forEach(addon => { html += `<li style="margin-bottom:4px;">– ${addon.requirement_text}</li>` })
     html += `</ul>`
   }
 
   html += HR
-  html += `<p style="margin:0 0 8px;">If you need any changes or additional requests, just drop us an email so we can make arrangements to accommodate them. Any changes needed during checking-off or contracts stages must be agreed by email first. This quote is valid for 30 days.</p>`
+  html += `<p style="margin:0 0 8px;">If you need any changes or additional requests, just drop us an email so we can make arrangements to accommodate them. Any changes needed during checking-off or contracts stages must be agreed by email first. ${quoteValidityText(inputs.event_date, isInternational)}</p>`
   html += `</div>`
 
   return html

@@ -21,6 +21,8 @@ export interface ExtractedAutoFill {
   is_agency: boolean
   agency_name: string | null
   agent_name: string | null
+  agent_first_name: string | null
+  agent_surname: string | null
   client_email: string | null
   event_date: string | null
   event_type: string | null
@@ -47,7 +49,9 @@ const SYSTEM_PROMPT = `You are extracting booking enquiry details from an email 
 AUTO_FILL fields:
 - is_agency: boolean (true if from an agent/agency, false if direct client)
 - agency_name: string or null
-- agent_name: string or null
+- agent_name: string or null — full name (e.g. "Hettie Ralph")
+- agent_first_name: string or null — first name only (e.g. "Hettie")
+- agent_surname: string or null — surname only (e.g. "Ralph")
 - client_email: string or null (sender's email)
 - event_date: string or null — YYYY-MM-DD
 - event_type: string or null — e.g. "Corporate Event", "Charity Ball", "Wedding", "Summer Party", "Awards Ceremony", "Private Dinner", "Birthday Party"
@@ -76,16 +80,16 @@ Return exactly:
 --- EXAMPLES ---
 
 Email: "Hi Victoria, new enquiry for acoustic duo please: Date: 12th Dec. Timings: 2-5pm (set up by 1pm). Location: The Gherkin. Guests: 90. Please provide small PA. Kind regards, Hettie Ralph, AOK Entertains"
-Output: {"auto_fill":{"is_agency":true,"agency_name":"AOK Entertains","agent_name":"Hettie Ralph","client_email":null,"event_date":null,"event_type":null,"venue_name":"The Gherkin","venue_postcode":null,"venue_address":null,"location":"London","guests":90,"arrival_time":"13:00","start_time":"14:00","finish_time":"17:00","load_out_time":"17:00","booking_types":["background"],"travel_type":"london_based"},"request_details":{"special_requirements":null,"sound_requirements":"Client requesting PA provided","band_size_requested":"acoustic duo","sets_requested":null,"notes":null}}
+Output: {"auto_fill":{"is_agency":true,"agency_name":"AOK Entertains","agent_name":"Hettie Ralph","agent_first_name":"Hettie","agent_surname":"Ralph","client_email":null,"event_date":null,"event_type":null,"venue_name":"The Gherkin","venue_postcode":null,"venue_address":null,"location":"London","guests":90,"arrival_time":"13:00","start_time":"14:00","finish_time":"17:00","load_out_time":"17:00","booking_types":["background"],"travel_type":"london_based"},"request_details":{"special_requirements":null,"sound_requirements":"Client requesting PA provided","band_size_requested":"acoustic duo","sets_requested":null,"notes":null}}
 
 Email: "Hi Victoria, Type of event: Great Gatsby Charity Ball. Date: 14th March. Venue: Orsett House, Essex. Event timings: 18:30-0:00. Entertainment timings: TBC. Would you be able to reduce your rate for this charity event? Tiger Cronk, AOK Entertains"
-Output: {"auto_fill":{"is_agency":true,"agency_name":"AOK Entertains","agent_name":"Tiger Cronk","client_email":"tiger@aokevents.com","event_date":null,"event_type":"Charity Ball","venue_name":"Orsett House","venue_postcode":null,"venue_address":null,"location":"Essex","guests":null,"arrival_time":null,"start_time":"18:30","finish_time":"00:00","load_out_time":"00:00","booking_types":["dancing_over_40"],"travel_type":"domestic_overnight"},"request_details":{"special_requirements":null,"sound_requirements":null,"band_size_requested":null,"sets_requested":null,"notes":"Charity event — client requesting reduced rate. Bowel Cancer UK charity."}}
+Output: {"auto_fill":{"is_agency":true,"agency_name":"AOK Entertains","agent_name":"Tiger Cronk","agent_first_name":"Tiger","agent_surname":"Cronk","client_email":"tiger@aokevents.com","event_date":null,"event_type":"Charity Ball","venue_name":"Orsett House","venue_postcode":null,"venue_address":null,"location":"Essex","guests":null,"arrival_time":null,"start_time":"18:30","finish_time":"00:00","load_out_time":"00:00","booking_types":["dancing_over_40"],"travel_type":"domestic_overnight"},"request_details":{"special_requirements":null,"sound_requirements":null,"band_size_requested":null,"sets_requested":null,"notes":"Charity event — client requesting reduced rate. Bowel Cancer UK charity."}}
 
 Email: "Hi Victoria, I've got an enquiry for your Trio for a private awards dinner at the Rosewood London on the 10th of April. Start time is roughly 20:00. We'd need you to bring your small PA set up. Let me know availability and pricing. Iain Alexander, Blank Canvas Entertainment"
-Output: {"auto_fill":{"is_agency":true,"agency_name":"Blank Canvas Entertainment","agent_name":"Iain Alexander","client_email":"Iain@blankcanvasentertainment.co.uk","event_date":null,"event_type":"Awards Dinner","venue_name":"Rosewood London","venue_postcode":null,"venue_address":null,"location":"London","guests":null,"arrival_time":null,"start_time":"20:00","finish_time":null,"load_out_time":null,"booking_types":["background"],"travel_type":"london_based"},"request_details":{"special_requirements":null,"sound_requirements":"Small PA required","band_size_requested":"trio","sets_requested":null,"notes":null}}
+Output: {"auto_fill":{"is_agency":true,"agency_name":"Blank Canvas Entertainment","agent_name":"Iain Alexander","agent_first_name":"Iain","agent_surname":"Alexander","client_email":"Iain@blankcanvasentertainment.co.uk","event_date":null,"event_type":"Awards Dinner","venue_name":"Rosewood London","venue_postcode":null,"venue_address":null,"location":"London","guests":null,"arrival_time":null,"start_time":"20:00","finish_time":null,"load_out_time":null,"booking_types":["background"],"travel_type":"london_based"},"request_details":{"special_requirements":null,"sound_requirements":"Small PA required","band_size_requested":"trio","sets_requested":null,"notes":null}}
 
 Email: "Hi Victoria, Can you let me know if Harper and Bailey duo can do 22nd November at The Bradfield Centre, 184 Cambridge Science Park Rd, Milton, Cambridge CB4 0GA. Quote bringing PA, 150 guests, 3x45 mins over 3 hours, early evening. Laura Elliott, Sternberg Clarke"
-Output: {"auto_fill":{"is_agency":true,"agency_name":"Sternberg Clarke","agent_name":"Laura Elliott","client_email":"laura@sternbergclarke.co.uk","event_date":null,"event_type":null,"venue_name":"The Bradfield Centre","venue_postcode":"CB4 0GA","venue_address":"184 Cambridge Science Park Rd, Milton, Cambridge CB4 0GA","location":"Cambridge","guests":150,"arrival_time":null,"start_time":null,"finish_time":null,"load_out_time":null,"booking_types":["background"],"travel_type":"uk"},"request_details":{"special_requirements":null,"sound_requirements":"PA required","band_size_requested":"duo","sets_requested":"3 x 45 mins","notes":null}}
+Output: {"auto_fill":{"is_agency":true,"agency_name":"Sternberg Clarke","agent_name":"Laura Elliott","agent_first_name":"Laura","agent_surname":"Elliott","client_email":"laura@sternbergclarke.co.uk","event_date":null,"event_type":null,"venue_name":"The Bradfield Centre","venue_postcode":"CB4 0GA","venue_address":"184 Cambridge Science Park Rd, Milton, Cambridge CB4 0GA","location":"Cambridge","guests":150,"arrival_time":null,"start_time":null,"finish_time":null,"load_out_time":null,"booking_types":["background"],"travel_type":"uk"},"request_details":{"special_requirements":null,"sound_requirements":"PA required","band_size_requested":"duo","sets_requested":"3 x 45 mins","notes":null}}
 `
 
 export async function extractFromEmail(emailText: string): Promise<EmailExtractResult> {
@@ -111,6 +115,8 @@ export async function saveEvent(result: EmailExtractResult, rawEmail: string): P
     .insert({
       agency_name: af.agency_name,
       agent_name: af.agent_name,
+      agent_first_name: af.agent_first_name,
+      agent_surname: af.agent_surname,
       client_email: af.client_email,
       is_agency: af.is_agency,
       event_date: af.event_date,

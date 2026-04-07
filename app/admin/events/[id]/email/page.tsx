@@ -8,7 +8,8 @@ import type { EventRecord, EmailTemplate } from '@/types/quote'
 // Fields auto-filled from the event record
 const AUTO_FILL: Record<string, (e: EventRecord) => string | null> = {
   agent_name:       e => e.agent_name,
-  agent_first_name: e => e.agent_name?.split(' ')[0] ?? null,
+  agent_first_name: e => e.agent_first_name ?? e.agent_name?.split(' ')[0] ?? null,
+  agent_surname:    e => e.agent_surname ?? (e.agent_name?.split(' ').slice(1).join(' ') || null),
   agency_name:      e => e.agency_name,
   event_date:       e => e.event_date ? formatDate(e.event_date) : null,
   venue_name:       e => e.venue_name,
@@ -18,8 +19,8 @@ const AUTO_FILL: Record<string, (e: EventRecord) => string | null> = {
   guests:           e => e.guests != null ? String(e.guests) : null,
   event_type:       e => e.event_type,
   // Missive-style aliases
-  name:             e => e.agent_name?.split(' ')[0] ?? null,
-  NAME:             e => e.agent_name?.split(' ')[0] ?? null,
+  name:             e => e.agent_first_name ?? e.agent_name?.split(' ')[0] ?? null,
+  NAME:             e => e.agent_first_name ?? e.agent_name?.split(' ')[0] ?? null,
   date:             e => e.event_date ? formatDate(e.event_date) : null,
   DATE:             e => e.event_date ? formatDate(e.event_date) : null,
 }

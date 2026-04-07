@@ -1,34 +1,49 @@
 'use client'
 import { useState } from 'react'
-import type { QuoteCalculated } from '@/types/quote'
+import type { QuoteCalculated, QuoteInputs, Settings, BookingType } from '@/types/quote'
+import { optionLineItems } from '@/lib/option-line-items'
 
-function Row({ label, value, sub }: { label: string; value: string; sub?: boolean }) {
-  return (
-    <div style={{
-      display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-      padding: '6px 0', borderBottom: '0.5px solid var(--border)',
-      paddingLeft: sub ? 16 : 0,
-    }}>
-      <span style={{ fontSize: 13, color: sub ? 'var(--text-secondary)' : 'var(--text)' }}>{label}</span>
-      <span style={{ fontSize: 13, fontWeight: sub ? 400 : 500, color: 'var(--text)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', marginLeft: 24 }}>{value}</span>
-    </div>
-  )
+const BAND_SIZE_LABELS: Record<string, string> = {
+  duo: 'Duo', trio: 'Trio', quartet: 'Quartet', five_piece: 'Five-piece',
+  six_piece: 'Six-piece', seven_piece: 'Seven-piece', eight_piece: 'Eight-piece',
 }
 
-function Section({ label }: { label: string }) {
-  return (
-    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 20, marginBottom: 4 }}>
-      {label}
-    </div>
-  )
+const BOOKING_TYPE_LABELS: Record<BookingType, string> = {
+  background: 'Background',
+  dancing_under_40: 'Dancing <40',
+  dancing_over_40: 'Dancing >40',
+  wedding: 'Wedding',
 }
 
-export default function AuditButton({ calculated }: { calculated: QuoteCalculated }) {
+export default function AuditButton({
+  calculated,
+  inputs,
+  settings,
+}: {
+  calculated: QuoteCalculated
+  inputs: QuoteInputs
+  settings: Settings
+}) {
   const [open, setOpen] = useState(false)
-  const fmt = (n: number | null | undefined) => n == null || isNaN(n) ? '—' : `£${Math.round(n).toLocaleString('en-GB')}`
-  const fmtH = (n: number | null | undefined) => n == null || isNaN(n) || n === 0 ? null : `${n.toFixed(2).replace(/\.?0+$/, '')}h`
+
+  const fmt = (n: number) => '£' + Math.round(n).toLocaleString('en-GB')
+  const fmtD = (n: number) => n.toFixed(4).replace(/\.?0+$/, '')
 
   const c = calculated
+  const inp = inputs
+  const s = settings
+
+  const allBookingTypes: BookingType[] = inp.booking_types?.length
+    ? inp.booking_types
+    : (inp.booking_type ? [inp.booking_type] : ['background' as BookingType])
+  const hasMultipleTypes = allBookingTypes.length > 1
+
+  const multiplierMap: Record<string, number> = {
+    '2x45': s.set_multiplier_2x45,
+    '3x45': s.set_multiplier_3x45,
+    '4x45': s.set_multiplier_4x45,
+    '5x45': s.set_multiplier_5x45,
+  }
 
   return (
     <>
@@ -48,142 +63,174 @@ export default function AuditButton({ calculated }: { calculated: QuoteCalculate
         <div
           onClick={(e) => { if (e.target === e.currentTarget) setOpen(false) }}
           style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            zIndex: 1000, padding: '1rem',
+            zIndex: 1000, padding: '1.5rem',
           }}
         >
           <div style={{
             background: 'var(--bg)', borderRadius: 'var(--radius-lg)',
             border: '0.5px solid var(--border)',
-            width: '100%', maxWidth: 520,
-            maxHeight: '85vh', overflowY: 'auto',
+            width: '100%', maxWidth: 760,
+            maxHeight: '90vh', overflowY: 'auto',
             padding: '1.5rem',
+            fontFamily: 'var(--font)',
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h2 style={{ fontSize: 16, fontWeight: 600, letterSpacing: '-0.02em', color: 'var(--text)', margin: 0 }}>Price audit</h2>
               <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--text-secondary)', lineHeight: 1, padding: '0 4px' }}>×</button>
             </div>
 
-            <Section label="Performance" />
-            <Row label="Sum of musician fees" value={fmt(c.sum_musician_fees)} />
-            <Row label={`Set multiplier`} value={`×${c.set_multiplier?.toFixed(2) ?? '—'}`} sub />
-            <Row label="Base performance fee" value={fmt(c.base_performance_fee)} />
-
-            {(c.pa_hire_cost ?? 0) !== 0 && (
-              <>
-                <Section label="PA" />
-                <Row label="PA + sound engineer hire" value={fmt(c.pa_hire_cost)} />
-              </>
-            )}
-            {(c.pa_deduction ?? 0) !== 0 && (
-              <>
-                <Section label="PA" />
-                <Row label="PA deduction (client provides PA)" value={fmt(c.pa_deduction)} />
-              </>
-            )}
-            {(c.pa_hire_before_midnight_cost ?? 0) !== 0 && (
-              <Row label="PA extra hours (before midnight)" value={fmt(c.pa_hire_before_midnight_cost)} sub />
-            )}
-            {(c.pa_hire_after_midnight_cost ?? 0) !== 0 && (
-              <Row label="PA extra hours (after midnight)" value={fmt(c.pa_hire_after_midnight_cost)} sub />
-            )}
-
-            {(c.waiting_time_cost ?? 0) !== 0 && (
-              <>
-                <Section label="Waiting time" />
-                {fmtH(c.waiting_time_hours_before_midnight) && (
-                  <Row label={`Waiting time before midnight (${fmtH(c.waiting_time_hours_before_midnight)})`} value={fmt(c.waiting_time_cost_before_midnight)} sub />
-                )}
-                {fmtH(c.waiting_time_hours_after_midnight) && (
-                  <Row label={`Waiting time after midnight (${fmtH(c.waiting_time_hours_after_midnight)})`} value={fmt(c.waiting_time_cost_after_midnight)} sub />
-                )}
-                <Row label="Waiting time total" value={fmt(c.waiting_time_cost)} />
-              </>
-            )}
-
-            {(c.band_hours_after_midnight_cost ?? 0) !== 0 && (
-              <>
-                <Section label="After midnight" />
-                <Row label="Band performance after midnight" value={fmt(c.band_hours_after_midnight_cost)} />
-              </>
-            )}
-
-            {(c.add_ons_total ?? 0) !== 0 && (
-              <>
-                <Section label="Add-ons" />
-                <Row label="Add-ons total" value={fmt(c.add_ons_total)} />
-              </>
-            )}
-
-            {(c.location_surcharge ?? 0) !== 0 && (
-              <>
-                <Section label="Location" />
-                <Row label="Location surcharge" value={fmt(c.location_surcharge)} />
-              </>
-            )}
-
-            {((c.total_petrol_train_cost ?? 0) + (c.total_accommodation_cost ?? 0) + (c.total_per_diem_cost ?? 0) +
-              (c.total_flights_cost ?? 0) + (c.total_travel_day_cost ?? 0) + (c.total_off_day_cost ?? 0)) !== 0 && (
-              <>
-                <Section label="Travel" />
-                {(c.total_petrol_train_cost ?? 0) !== 0 && <Row label="Petrol / train" value={fmt(c.total_petrol_train_cost)} sub />}
-                {(c.total_accommodation_cost ?? 0) !== 0 && <Row label="Accommodation" value={fmt(c.total_accommodation_cost)} sub />}
-                {(c.total_per_diem_cost ?? 0) !== 0 && <Row label="Per diem" value={fmt(c.total_per_diem_cost)} sub />}
-                {(c.total_flights_cost ?? 0) !== 0 && <Row label="Flights" value={fmt(c.total_flights_cost)} sub />}
-                {(c.total_travel_day_cost ?? 0) !== 0 && <Row label="Travel days" value={fmt(c.total_travel_day_cost)} sub />}
-                {(c.total_off_day_cost ?? 0) !== 0 && <Row label="Off days" value={fmt(c.total_off_day_cost)} sub />}
-                {(c.total_outgoing_uk_transfer_cost ?? 0) !== 0 && <Row label="Outgoing UK transfer" value={fmt(c.total_outgoing_uk_transfer_cost)} sub />}
-                {(c.total_outgoing_dest_transfer_cost ?? 0) !== 0 && <Row label="Outgoing destination transfer" value={fmt(c.total_outgoing_dest_transfer_cost)} sub />}
-                {(c.total_return_dest_transfer_cost ?? 0) !== 0 && <Row label="Return destination transfer" value={fmt(c.total_return_dest_transfer_cost)} sub />}
-                {(c.total_return_uk_transfer_cost ?? 0) !== 0 && <Row label="Return UK transfer" value={fmt(c.total_return_uk_transfer_cost)} sub />}
-                {(c.total_local_transport_cost ?? 0) !== 0 && <Row label="Local transport" value={fmt(c.total_local_transport_cost)} sub />}
-                {(c.total_visa_cost ?? 0) !== 0 && <Row label="Visas" value={fmt(c.total_visa_cost)} sub />}
-                {(c.total_vaccinations_cost ?? 0) !== 0 && <Row label="Vaccinations" value={fmt(c.total_vaccinations_cost)} sub />}
-              </>
-            )}
-
-            <div style={{ marginTop: 20, borderTop: '2px solid var(--border)', paddingTop: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Total fee (single day / primary config)</span>
-                <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{fmt(c.total_fee)}</span>
-              </div>
-              {c.full_engagement_fee !== c.total_fee && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 8 }}>
-                  <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Full engagement fee (multi-day)</span>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{fmt(c.full_engagement_fee)}</span>
+            {/* Price options summary table */}
+            <SectionLabel>Price options</SectionLabel>
+            {allBookingTypes.map(bt => {
+              const btOptions = c.price_options.filter(o => (o.booking_type ?? 'background') === bt)
+              if (btOptions.length === 0) return null
+              return (
+                <div key={bt} style={{ marginBottom: hasMultipleTypes ? 16 : 0 }}>
+                  {hasMultipleTypes && (
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>
+                      {BOOKING_TYPE_LABELS[bt] ?? bt}
+                    </div>
+                  )}
+                  <table style={{ width: '100%', borderCollapse: 'collapse', background: 'var(--bg-secondary)', borderRadius: 8, marginBottom: 20 }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border)', fontSize: 11, color: 'var(--text-secondary)' }}>
+                        <th style={{ padding: '7px 12px', textAlign: 'left', fontWeight: 500 }}>Line-up</th>
+                        <th style={{ padding: '7px 12px', textAlign: 'left', fontWeight: 500 }}>Config</th>
+                        <th style={{ padding: '7px 12px', textAlign: 'left', fontWeight: 500 }}>Musicians</th>
+                        <th style={{ padding: '7px 12px', textAlign: 'left', fontWeight: 500 }}>Musician fees</th>
+                        <th style={{ padding: '7px 12px', textAlign: 'left', fontWeight: 500 }}>Perf fee</th>
+                        <th style={{ padding: '7px 12px', textAlign: 'left', fontWeight: 500 }}>PA</th>
+                        <th style={{ padding: '7px 12px', textAlign: 'left', fontWeight: 500 }}>Travel</th>
+                        <th style={{ padding: '7px 12px', textAlign: 'left', fontWeight: 500, color: 'var(--text)' }}>Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {btOptions.map((opt, i) => {
+                        const mult = multiplierMap[opt.set_config] ?? 1
+                        return (
+                          <tr key={i} style={{ borderBottom: '0.5px solid var(--border)' }}>
+                            <td style={{ padding: '8px 12px', fontSize: 12 }}>
+                              {opt.line_up}
+                              {opt.has_extended_pa_engineer && <span style={{ fontSize: 10, color: 'var(--text-tertiary)', marginLeft: 4 }}>+ SE</span>}
+                            </td>
+                            <td style={{ padding: '8px 12px', fontSize: 12 }}>{opt.set_config}</td>
+                            <td style={{ padding: '8px 12px', fontSize: 12 }}>{opt.travel_person_count ?? opt.musician_count}</td>
+                            <td style={{ padding: '8px 12px', fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{fmt(opt.sum_musician_fees)}</td>
+                            <td style={{ padding: '8px 12px', fontSize: 12, fontVariantNumeric: 'tabular-nums', color: 'var(--text-secondary)' }}>
+                              {fmt(opt.performance_fee)}
+                              <span style={{ fontSize: 10, color: 'var(--text-tertiary)', marginLeft: 4 }}>
+                                ×{fmtD(mult)} ×{fmtD(s.business_margin)}
+                              </span>
+                            </td>
+                            <td style={{ padding: '8px 12px', fontSize: 12, fontVariantNumeric: 'tabular-nums', color: opt.pa_cost !== 0 ? 'var(--text)' : 'var(--text-tertiary)' }}>
+                              {fmt(opt.pa_cost ?? 0)}
+                            </td>
+                            <td style={{ padding: '8px 12px', fontSize: 12, fontVariantNumeric: 'tabular-nums', color: (opt.travel_cost ?? 0) !== 0 ? 'var(--text)' : 'var(--text-tertiary)' }}>
+                              {fmt(opt.travel_cost ?? 0)}
+                            </td>
+                            <td style={{ padding: '8px 12px', fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                              {fmt(opt.total_price)}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
                 </div>
-              )}
-              {(c.per_day_saving ?? 0) > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 4 }}>
-                  <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Saving per day</span>
-                  <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>{fmt(c.per_day_saving)}</span>
+              )
+            })}
+
+            {/* Per-option line item breakdowns */}
+            <SectionLabel>Line item breakdown</SectionLabel>
+            {allBookingTypes.map(bt => {
+              const btOptions = c.price_options.filter(o => (o.booking_type ?? 'background') === bt)
+              if (btOptions.length === 0) return null
+              return (
+                <div key={bt} style={{ marginBottom: hasMultipleTypes ? 24 : 0 }}>
+                  {hasMultipleTypes && (
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                      {BOOKING_TYPE_LABELS[bt] ?? bt}
+                    </div>
+                  )}
+                  {btOptions.map((opt, i) => {
+                    const items = optionLineItems(opt, inp, s, c.location_surcharge)
+                    const total = items.reduce((sum, it) => sum + it.value, 0)
+                    return (
+                      <div key={i} style={{ background: 'var(--bg-secondary)', borderRadius: 8, marginBottom: 10, overflow: 'hidden' }}>
+                        <div style={{
+                          padding: '8px 12px', background: '#2a2a2a',
+                          fontSize: 12, fontWeight: 600, color: '#fff',
+                          borderBottom: '1px solid var(--border)',
+                        }}>
+                          {BAND_SIZE_LABELS[opt.band_size] ?? opt.band_size} — {opt.line_up}{opt.has_extended_pa_engineer ? ' + Sound engineer' : ''} — {opt.set_config}
+                        </div>
+                        <div>
+                          {items.map((item, j) => (
+                            <div key={j} style={{
+                              display: 'grid', gridTemplateColumns: '200px 1fr 90px',
+                              borderBottom: '0.5px solid var(--border)',
+                            }}>
+                              <div style={{ padding: '6px 12px', fontSize: 12, color: 'var(--text-secondary)' }}>{item.label}</div>
+                              <div style={{ padding: '6px 12px', fontSize: 11, color: 'var(--text-tertiary)', fontStyle: 'italic' }}>{item.formula}</div>
+                              <div style={{
+                                padding: '6px 12px', fontSize: 12, fontVariantNumeric: 'tabular-nums',
+                                textAlign: 'right', whiteSpace: 'nowrap',
+                                color: item.value < 0 ? '#e53e3e' : 'var(--text)',
+                              }}>{fmt(item.value)}</div>
+                            </div>
+                          ))}
+                          <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr 90px', borderTop: '1px solid var(--border)' }}>
+                            <div style={{ padding: '7px 12px', fontSize: 12, fontWeight: 600 }}>Total</div>
+                            <div />
+                            <div style={{
+                              padding: '7px 12px', fontSize: 13, fontWeight: 700,
+                              fontVariantNumeric: 'tabular-nums', textAlign: 'right',
+                              color: Math.abs(total - opt.total_price) > 1 ? '#e53e3e' : 'var(--text)',
+                            }}>
+                              {fmt(total)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
-              )}
+              )
+            })}
+
+            {/* Musician fees */}
+            <SectionLabel>Musician fees</SectionLabel>
+            <div style={{
+              background: 'var(--bg-secondary)', borderRadius: 8, padding: '12px 16px',
+              display: 'flex', flexWrap: 'wrap', gap: '6px 24px', fontSize: 12, marginBottom: 20,
+            }}>
+              {([
+                ['Singer', inp.singer_fee], ['Guitarist', inp.guitarist_fee], ['Drummer', inp.drummer_fee],
+                ['Bass', inp.bass_fee], ['Keys', inp.keys_fee], ['Sax', inp.sax_fee],
+                ['Trombone', inp.trombone_fee], ['Trumpet', inp.trumpet_fee], ['Singer 2', inp.singer_2_fee],
+              ] as [string, number][]).filter(([, v]) => v > 0).map(([k, v]) => (
+                <div key={k} style={{ display: 'flex', gap: 8 }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>{k}</span>
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(v)}</span>
+                </div>
+              ))}
             </div>
 
-            {c.price_options && c.price_options.length > 0 && (
-              <>
-                <Section label="Per-option breakdown" />
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8 }}>
-                  Fixed costs: {fmt(c.fixed_costs_total)} · Each option = perf fee (by size/config) + fixed costs
-                </div>
-                {c.price_options.map((opt, i) => (
-                  <div key={i} style={{
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-                    padding: '5px 0', borderBottom: '0.5px solid var(--border)',
-                  }}>
-                    <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                      {opt.booking_type?.replace(/_/g, ' ')} · {opt.band_size?.replace(/_/g, ' ')} · {opt.set_config}
-                    </span>
-                    <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', fontVariantNumeric: 'tabular-nums', marginLeft: 16 }}>{fmt(opt.total_price)}</span>
-                  </div>
-                ))}
-              </>
-            )}
           </div>
         </div>
       )}
     </>
+  )
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{
+      fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em',
+      color: 'var(--text-secondary)', marginBottom: 6,
+    }}>{children}</div>
   )
 }

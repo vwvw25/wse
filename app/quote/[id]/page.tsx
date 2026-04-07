@@ -1,7 +1,7 @@
 import React from 'react'
 import { notFound } from 'next/navigation'
 import { createServiceClient } from '@/lib/supabase'
-import { calculate, DEFAULT_SETTINGS } from '@/lib/calculations'
+import { calculate, DEFAULT_SETTINGS, quoteValidityText } from '@/lib/calculations'
 import type { QuoteRecord, PriceOption, BookingType, Settings } from '@/types/quote'
 import AuditButton from './AuditButton'
 import { BAND_SIZE_LABELS, BAND_TYPE_LABELS } from '@/lib/lineups'
@@ -107,7 +107,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
                 <a href={`/quote/new/details?prefill=${id}`} style={headerBtnStyle}>Duplicate &amp; edit →</a>
                 <a href={`/quote/${id}/text`} style={headerBtnStyle}>Email version →</a>
                 <a href={`/quote/${id}/email`} style={{ ...headerBtnStyle, background: 'var(--accent)', color: '#fff', borderColor: 'var(--accent)' }}>Send email →</a>
-                <AuditButton calculated={calculated} />
+                <AuditButton calculated={calculated} inputs={inputs} settings={quote.settings_snapshot} />
               </div>
             </div>
           </div>
@@ -163,8 +163,8 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
             { text: 'Music via iPad/PA during intervals', show: showIpadMusic },
             { text: 'Arrival one hour before performance start (1.5hrs if Extended PA + sound engineer)', show: !showSpecificTimes },
           { text: `Arrival: ${inputs.arrival_time}`, show: isCustomArrival && !!inputs.arrival_time },
-          { text: `Start: ${inputs.start_time}`, show: showSpecificTimes && !!inputs.start_time },
-          { text: `Finish: ${inputs.finish_time}`, show: showSpecificTimes && !!inputs.finish_time },
+          { text: `Start: ${inputs.start_time}`, show: !!inputs.start_time },
+          { text: `Finish: ${inputs.finish_time}`, show: !!inputs.finish_time },
           { text: `Load out: ${inputs.load_out_time}`, show: loadOutDiffersFromFinish && !!inputs.load_out_time },
             { text: 'Petrol / train travel', show: isDomesticOvernight && (inputs.petrol_train_cost ?? 0) > 0 },
             { text: `Accommodation (${inputs.accommodation_nights ?? 1} night${(inputs.accommodation_nights ?? 1) !== 1 ? 's' : ''})`, show: isDomesticOvernight && (inputs.accommodation_cost ?? 0) > 0 },
@@ -187,8 +187,9 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
             { text: 'Full loading information required 2 weeks in advance', show: true },
             { text: 'Based on being able to park within 25 metres of an entrance to load. Please advise of any loading restrictions at the venue', show: true },
             { text: 'If the venue isn\'t easily accessible by car then this may impact the quote and the equipment we\'re able to supply', show: true },
-            { text: 'Client to hire drum kit locally', show: isInternational && (inputs.drummer_fee ?? 0) > 0 },
-            { text: 'Client to provide keyboard or piano on-site', show: (inputs.keys_fee ?? 0) > 0 && isInternational },
+            { text: 'Client to hire drum kit locally if drummer is booked', show: isInternational && (inputs.drummer_fee ?? 0) > 0 },
+            { text: 'Client to provide keyboard or piano on-site if pianist is booked', show: (inputs.keys_fee ?? 0) > 0 && isInternational },
+            { text: 'Client to provide double bass on site if upright double bass is booked (alternatively bassist can bring electric bass)', show: isInternational && (inputs.bass_fee ?? 0) > 0 && ['roaming', 'jazz_keys', 'jazz_guitar'].includes(btBandType) },
           ]
 
           return (
@@ -243,6 +244,14 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
               {/* Requirements */}
               <Card label="Requirements">
                 <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {(isInternational || inputs.client_provides_pa) && (
+                    <li style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                      <span style={{ color: 'var(--text-secondary)', marginTop: 1, flexShrink: 0 }}>·</span>
+                      <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>
+                        Client to provide full rider (for riders please see <a href="https://drive.google.com/drive/folders/1906sIEkcO5GTmLH395oRJuy6xtERE2QZ?usp=sharing" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>this folder</a>)
+                      </span>
+                    </li>
+                  )}
                   {requirements.filter(r => r.show).map(item => (
                     <li key={item.text} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                       <span style={{ color: 'var(--text-secondary)', marginTop: 1, flexShrink: 0 }}>·</span>
@@ -271,7 +280,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
           If you&apos;d like to chat or have any questions please feel free to drop me a line, WhatsApp or text on 07734652303 or drop me an email.
         </p>
         <p style={{ fontSize: 11, color: 'var(--text-tertiary)', textAlign: 'center', marginTop: '0.75rem' }}>
-          This quote is valid for 30 days. Ward Smith Entertainment — wardsmithentertainment.com
+          {quoteValidityText(inputs.event_date, isInternational)} Ward Smith Entertainment — wardsmithentertainment.com
         </p>
       </div>
     </div>

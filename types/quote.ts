@@ -229,6 +229,8 @@ export interface EventRecord {
   created_at: string
   agency_name: string | null
   agent_name: string | null
+  agent_first_name: string | null
+  agent_surname: string | null
   client_email: string | null
   is_agency: boolean
   event_date: string | null
