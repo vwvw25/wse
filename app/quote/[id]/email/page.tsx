@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { createServiceClient } from '@/lib/supabase'
-import { generateQuoteHtml } from '@/lib/quote-html'
+import { generateQuoteHtml, generateBookingDetailsHtml } from '@/lib/quote-html'
 import type { QuoteRecord, EmailTemplate, EventRecord } from '@/types/quote'
 import EmailComposer from './EmailComposer'
 
@@ -26,12 +26,14 @@ export default async function QuoteEmailPage({ params }: { params: Promise<{ id:
   }
 
   const quoteHtml = generateQuoteHtml(quote)
+  const bookingDetailsHtml = generateBookingDetailsHtml(quote)
 
   return (
     <EmailComposer
       templates={templates}
       event={event}
       quoteHtml={quoteHtml}
+      bookingDetailsHtml={bookingDetailsHtml}
       quoteId={id}
     />
   )

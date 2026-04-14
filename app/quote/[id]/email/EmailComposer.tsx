@@ -7,10 +7,11 @@ interface Props {
   templates: EmailTemplate[]
   event: EventRecord | null
   quoteHtml: string
+  bookingDetailsHtml: string
   quoteId: string
 }
 
-function fillTemplate(body: string, event: EventRecord | null, quoteHtml: string): string {
+function fillTemplate(body: string, event: EventRecord | null, quoteHtml: string, bookingDetailsHtml: string): string {
   const agentFirst = event?.agent_first_name ?? event?.agent_name?.split(' ')[0] ?? ''
   const eventDate = event?.event_date
     ? new Date(event.event_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -32,6 +33,7 @@ function fillTemplate(body: string, event: EventRecord | null, quoteHtml: string
     NAME: agentFirst,
     DATE: eventDate,
     quote: quoteHtml,
+    booking_details: bookingDetailsHtml,
   }
 
   return body.replace(/\{\{([^}]+)\}\}/g, (match, field) => {
@@ -46,7 +48,7 @@ function toDisplayHtml(body: string): string {
   return body.replace(/\n/g, '<br>')
 }
 
-export default function EmailComposer({ templates, event, quoteHtml, quoteId }: Props) {
+export default function EmailComposer({ templates, event, quoteHtml, bookingDetailsHtml, quoteId }: Props) {
   const [selected, setSelected] = useState<EmailTemplate | null>(templates[0] ?? null)
   const [search, setSearch] = useState('')
   const [copied, setCopied] = useState(false)
@@ -55,13 +57,13 @@ export default function EmailComposer({ templates, event, quoteHtml, quoteId }: 
 
   const filledHtml = useMemo(() => {
     if (!selected) return ''
-    return fillTemplate(toDisplayHtml(selected.body), event, quoteHtml)
-  }, [selected, event, quoteHtml])
+    return fillTemplate(toDisplayHtml(selected.body), event, quoteHtml, bookingDetailsHtml)
+  }, [selected, event, quoteHtml, bookingDetailsHtml])
 
   const filledSubject = useMemo(() => {
     if (!selected?.subject) return ''
-    return fillTemplate(selected.subject, event, quoteHtml)
-  }, [selected, event, quoteHtml])
+    return fillTemplate(selected.subject, event, quoteHtml, bookingDetailsHtml)
+  }, [selected, event, quoteHtml, bookingDetailsHtml])
 
   async function handleCopy() {
     try {

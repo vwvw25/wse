@@ -8,6 +8,7 @@ const KNOWN_AUTO_FIELDS = new Set([
   'agent_name', 'agent_first_name', 'agency_name', 'event_date', 'venue_name',
   'location', 'start_time', 'finish_time', 'guests', 'event_type',
   'name', 'date', 'NAME', 'DATE',
+  'quote', 'booking_details',
 ])
 
 function highlightFieldsHtml(html: string) {
@@ -301,7 +302,7 @@ export default function TemplatesPage() {
             <div style={{ marginBottom: 12 }}>
               <Label>Body</Label>
               <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 6 }}>
-                Auto-filled: <code style={{ fontSize: 11 }}>{'{{agent_first_name}}'}</code> <code style={{ fontSize: 11 }}>{'{{event_date}}'}</code> <code style={{ fontSize: 11 }}>{'{{venue_name}}'}</code> <code style={{ fontSize: 11 }}>{'{{agency_name}}'}</code> <code style={{ fontSize: 11 }}>{'{{start_time}}'}</code> <code style={{ fontSize: 11 }}>{'{{finish_time}}'}</code> <code style={{ fontSize: 11 }}>{'{{guests}}'}</code> — anything else will be prompted.
+                Auto-filled: <code style={{ fontSize: 11 }}>{'{{agent_first_name}}'}</code> <code style={{ fontSize: 11 }}>{'{{event_date}}'}</code> <code style={{ fontSize: 11 }}>{'{{venue_name}}'}</code> <code style={{ fontSize: 11 }}>{'{{agency_name}}'}</code> <code style={{ fontSize: 11 }}>{'{{start_time}}'}</code> <code style={{ fontSize: 11 }}>{'{{finish_time}}'}</code> <code style={{ fontSize: 11 }}>{'{{guests}}'}</code> <code style={{ fontSize: 11 }}>{'{{booking_details}}'}</code> <code style={{ fontSize: 11 }}>{'{{quote}}'}</code> — anything else will be prompted.
               </div>
 
               <BodyEditor

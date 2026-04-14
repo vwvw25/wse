@@ -24,6 +24,51 @@ function renderItemHtml(item: QuoteItem): string {
     + (item.linkSuffix ?? '')
 }
 
+// Generates the full top block for use as {{booking_details}} in templates:
+// header (WSE, agent, date, venue) + HR + booking details table + HR
+export function generateBookingDetailsHtml(quote: QuoteRecord): string {
+  const { inputs } = quote
+  const HR = `<hr style="border:none;border-top:1px solid #ccc;margin:24px 0;">`
+  const td = `padding:4px 8px 4px 0;border-bottom:1px solid #ccc;`
+  const tdLabel = `${td}font-weight:500;width:160px;`
+
+  const eventDate = inputs.event_date
+    ? new Date(inputs.event_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+    : null
+
+  let html = `<div style="font-family:Arial,sans-serif;font-size:14px;color:#111;line-height:1.6;">`
+
+  // Header
+  html += `<p style="margin:0 0 8px;"><strong>Ward Smith Entertainment</strong></p>`
+  if (inputs.agent_name || inputs.agency_name) {
+    const who = inputs.agent_name && inputs.agency_name
+      ? `${inputs.agent_name} at ${inputs.agency_name}`
+      : inputs.agent_name ?? inputs.agency_name
+    html += `<p style="margin:0 0 8px;">For <strong>${who}</strong></p>`
+  }
+  if (eventDate)        html += `<p style="margin:0 0 8px;">Date: ${eventDate}</p>`
+  if (inputs.venue_name)html += `<p style="margin:0 0 8px;">Venue: ${inputs.venue_name}</p>`
+
+  // Booking details table
+  const hasBookingDetails = inputs.location || inputs.start_time || inputs.finish_time || inputs.band_size_requested || inputs.sets_requested || inputs.client_provides_pa
+  if (hasBookingDetails) {
+    html += HR
+    html += `<p style="margin:0 0 8px;font-weight:bold;">Booking details</p>`
+    html += `<table style="width:100%;border-collapse:collapse;margin:8px 0 0;"><tbody>`
+    if (inputs.client_provides_pa) html += `<tr><td style="${tdLabel}">PA</td><td style="${td}">Client providing PA</td></tr>`
+    if (inputs.location)            html += `<tr><td style="${tdLabel}">Location</td><td style="${td}">${inputs.location}</td></tr>`
+    if (inputs.start_time)          html += `<tr><td style="${tdLabel}">Start time</td><td style="${td}">${inputs.start_time}</td></tr>`
+    if (inputs.finish_time)         html += `<tr><td style="${tdLabel}">Finish time</td><td style="${td}">${inputs.finish_time}</td></tr>`
+    if (inputs.band_size_requested) html += `<tr><td style="${tdLabel}">Band size</td><td style="${td}">${inputs.band_size_requested}</td></tr>`
+    if (inputs.sets_requested)      html += `<tr><td style="${tdLabel}">Sets</td><td style="${td}">${inputs.sets_requested}</td></tr>`
+    html += `</tbody></table>`
+  }
+
+  html += HR
+  html += `</div>`
+  return html
+}
+
 // Generates the quote body as an HTML string — same content as /quote/[id]/text
 export function generateQuoteHtml(quote: QuoteRecord): string {
   const { inputs, calculated } = quote
@@ -54,21 +99,6 @@ export function generateQuoteHtml(quote: QuoteRecord): string {
   }
   if (eventDate) html += `<p style="margin:0 0 8px;">Date: ${eventDate}</p>`
   if (inputs.venue_name) html += `<p style="margin:0 0 8px;">Venue: ${inputs.venue_name}</p>`
-
-  // Booking details
-  const hasBookingDetails = inputs.location || inputs.start_time || inputs.finish_time || inputs.band_size_requested || inputs.sets_requested || inputs.client_provides_pa
-  if (hasBookingDetails) {
-    html += HR
-    html += `<p style="margin:0 0 8px;font-weight:bold;">Booking details</p>`
-    html += `<table style="width:100%;border-collapse:collapse;margin:8px 0 0;"><tbody>`
-    if (inputs.client_provides_pa) html += `<tr><td style="padding:4px 8px 4px 0;border-bottom:1px solid #ccc;font-weight:500;width:160px;">PA</td><td style="padding:4px 8px 4px 0;border-bottom:1px solid #ccc;">Client providing PA</td></tr>`
-    if (inputs.location) html += `<tr><td style="padding:4px 8px 4px 0;border-bottom:1px solid #ccc;font-weight:500;width:160px;">Location</td><td style="padding:4px 8px 4px 0;border-bottom:1px solid #ccc;">${inputs.location}</td></tr>`
-    if (inputs.start_time) html += `<tr><td style="padding:4px 8px 4px 0;border-bottom:1px solid #ccc;font-weight:500;">Start time</td><td style="padding:4px 8px 4px 0;border-bottom:1px solid #ccc;">${inputs.start_time}</td></tr>`
-    if (inputs.finish_time) html += `<tr><td style="padding:4px 8px 4px 0;border-bottom:1px solid #ccc;font-weight:500;">Finish time</td><td style="padding:4px 8px 4px 0;border-bottom:1px solid #ccc;">${inputs.finish_time}</td></tr>`
-    if (inputs.band_size_requested) html += `<tr><td style="padding:4px 8px 4px 0;border-bottom:1px solid #ccc;font-weight:500;">Band size</td><td style="padding:4px 8px 4px 0;border-bottom:1px solid #ccc;">${inputs.band_size_requested}</td></tr>`
-    if (inputs.sets_requested) html += `<tr><td style="padding:4px 0;border-bottom:1px solid #ccc;font-weight:500;">Sets</td><td style="padding:4px 0;border-bottom:1px solid #ccc;">${inputs.sets_requested}</td></tr>`
-    html += `</tbody></table>`
-  }
 
   html += HR
 
