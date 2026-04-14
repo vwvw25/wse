@@ -246,7 +246,7 @@ export interface EventRecord {
   load_out_time: string | null
   request_details: RequestDetails | null
   raw_email: string | null
-  status: 'pending' | 'quoted' | 'confirmed' | 'cancelled'
+  status: 'enquiry' | 'quoted' | 'pencil_hold' | 'client_declined' | 'cancelled' | 'confirmed_stc' | 'contracted' | 'pending' | 'confirmed'
 }
 
 export interface EmailTemplate {

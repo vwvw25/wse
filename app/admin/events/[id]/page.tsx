@@ -1,6 +1,7 @@
 import { createServiceClient } from '@/lib/supabase'
 import { notFound } from 'next/navigation'
 import type { EventRecord, QuoteRecord } from '@/types/quote'
+import StatusSelect from '../StatusSelect'
 
 function formatDate(d: string | null) {
   if (!d) return '—'
@@ -11,13 +12,6 @@ function formatDate(d: string | null) {
 
 function formatCreated(d: string) {
   return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-}
-
-const STATUS_STYLES: Record<string, { bg: string; color: string; label: string }> = {
-  pending:   { bg: 'var(--bg-secondary)', color: 'var(--text-secondary)', label: 'Pending quote' },
-  quoted:    { bg: 'var(--bg-info)',      color: 'var(--text-info)',      label: 'Quoted' },
-  confirmed: { bg: '#e6f4ea',            color: '#276749',               label: 'Confirmed' },
-  cancelled: { bg: 'var(--bg-secondary)', color: 'var(--text-tertiary)', label: 'Cancelled' },
 }
 
 function Cell({ label, value }: { label: string; value: string | null | undefined }) {
@@ -52,7 +46,6 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
 
   const event = eventData as EventRecord
   const quotes = (quotesData ?? []) as Pick<QuoteRecord, 'id' | 'created_at' | 'inputs'>[]
-  const st = STATUS_STYLES[event.status] ?? STATUS_STYLES.pending
   const rd = event.request_details
 
   const title = event.agency_name
@@ -73,13 +66,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{
-            display: 'inline-block', padding: '4px 10px',
-            fontSize: 12, fontWeight: 500, borderRadius: 4,
-            background: st.bg, color: st.color,
-          }}>
-            {st.label}
-          </span>
+          <StatusSelect eventId={event.id} currentStatus={event.status} />
           <a
             href={`/admin/events/${event.id}/email`}
             style={{

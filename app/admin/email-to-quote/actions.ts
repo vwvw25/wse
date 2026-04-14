@@ -132,7 +132,7 @@ export async function saveEvent(result: EmailExtractResult, rawEmail: string): P
       load_out_time: af.load_out_time,
       request_details: result.request_details,
       raw_email: rawEmail,
-      status: 'pending',
+      status: 'enquiry',
     })
     .select('id')
     .single()
