@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createServiceClient } from '@/lib/supabase'
 import { calculate, DEFAULT_SETTINGS, quoteValidityText } from '@/lib/calculations'
-import type { QuoteInputs, Settings, PriceOption } from '@/types/quote'
+import { getQuoteItems } from '@/lib/quote-items'
+import type { QuoteItem } from '@/lib/quote-items'
+import type { QuoteInputs, Settings, PriceOption, BookingType } from '@/types/quote'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -13,39 +15,22 @@ function fmt(n: number) {
   return `£${Math.round(n).toLocaleString('en-GB')}`
 }
 
-function buildEmailHtml(inputs: QuoteInputs, priceOptions: PriceOption[], quoteId: string): string {
+function renderItemHtml(item: QuoteItem): string {
+  return item.text
+    + (item.link ? `<a href="${item.link.href}" style="color:#059669;">${item.link.text}</a>` : '')
+    + (item.linkSuffix ?? '')
+}
+
+function buildEmailHtml(inputs: QuoteInputs, priceOptions: PriceOption[], quoteId: string, paEngineerRate = 0): string {
   const quoteUrl = `${BASE_URL}/quote/${quoteId}`
 
   const eventDate = inputs.event_date
     ? new Date(inputs.event_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
     : null
 
-  const hasMicHire = (inputs.selected_add_ons ?? []).some(a => a.name.toLowerCase().includes('mic hire'))
-  const loadOutDiffersFromFinish = !!inputs.load_out_time && !!inputs.finish_time && inputs.load_out_time !== inputs.finish_time
-
-  const inclusions = [
-    { text: 'All equipment for our use', show: !inputs.client_provides_pa },
-    { text: 'Based on a finish of 11pm or earlier', show: !inputs.finish_time || inputs.finish_time <= '23:00' },
-    { text: 'Music via iPad/PA during intervals', show: !(inputs.selected_add_ons ?? []).some(a => a.name === 'Roaming set') },
-    { text: 'Arrival one hour before performance start (1.5hrs if full PA)', show: true },
-    { text: 'Travel and expenses included', show: true },
-    { text: 'If dancing and 40+ guests — book quartet or larger', show: inputs.booking_type === 'dancing_over_40' || inputs.booking_type === 'wedding' },
-    { text: 'Does not include use of mic — please book mic hire option if any use of mic is required', show: !hasMicHire },
-    { text: 'Includes mic hire for use during agreed performance times (i.e. not during break)', show: hasMicHire },
-  ].filter(i => i.show)
-
-  const isInternational = inputs.travel_type === 'international'
-  const hasBuyout = (inputs.selected_add_ons ?? []).some(a => a.name.toLowerCase().includes('buyout'))
-  const requirements = [
-    { text: 'Client to provide full rider (for riders please see <a href="https://drive.google.com/drive/folders/1906sIEkcO5GTmLH395oRJuy6xtERE2QZ?usp=sharing" style="color:#111827;">this folder</a>)', show: isInternational || inputs.client_provides_pa },
-    { text: '2 × 13amp plug sockets', show: !inputs.is_powerless && !inputs.is_acoustic },
-    { text: 'Food clause — same menu choices as guests, or £20 per musician buyout', show: !hasBuyout },
-    { text: 'Lockable indoor exclusive green room', show: true },
-    { text: 'Soft drinks and mineral water', show: true },
-    { text: 'Able to pack down at end of final set', show: !loadOutDiffersFromFinish },
-    { text: 'Full loading information required 2 weeks in advance', show: true },
-    { text: 'Please advise of any accessibility considerations at the venue', show: true },
-  ].filter(r => r.show)
+  const activeBookingTypes = (inputs.booking_types?.length ? inputs.booking_types : (inputs.booking_type ? [inputs.booking_type] : [])) as BookingType[]
+  const primaryBt: BookingType = activeBookingTypes[0] ?? 'background'
+  const { inclusions, requirements } = getQuoteItems(inputs, primaryBt, activeBookingTypes, priceOptions, paEngineerRate)
 
   // Group price options by band size
   const bySize = new Map<string, PriceOption[]>()
@@ -114,10 +99,10 @@ function buildEmailHtml(inputs: QuoteInputs, priceOptions: PriceOption[], quoteI
         What&rsquo;s included
       </div>
       <ul style="margin:0;padding:0;list-style:none;">
-        ${inclusions.map(i => `
+        ${inclusions.filter(i => i.show).map(i => `
         <li style="display:flex;gap:10px;padding:5px 0;font-size:13px;color:#374151;line-height:1.5;">
           <span style="color:#059669;flex-shrink:0;">&#10003;</span>
-          <span>${i.text}</span>
+          <span>${renderItemHtml(i)}</span>
         </li>`).join('')}
         ${(inputs.selected_add_ons ?? []).filter(a => a.inclusion_text).map(a => `
         <li style="display:flex;gap:10px;padding:5px 0;font-size:13px;color:#374151;line-height:1.5;">
@@ -133,10 +118,10 @@ function buildEmailHtml(inputs: QuoteInputs, priceOptions: PriceOption[], quoteI
         Requirements
       </div>
       <ul style="margin:0;padding:0;list-style:none;">
-        ${requirements.map(r => `
+        ${requirements.filter(r => r.show).map(r => `
         <li style="display:flex;gap:10px;padding:5px 0;font-size:13px;color:#374151;line-height:1.5;">
           <span style="color:#9ca3af;flex-shrink:0;">&middot;</span>
-          <span>${r.text}</span>
+          <span>${renderItemHtml(r)}</span>
         </li>`).join('')}
         ${(inputs.selected_add_ons ?? []).filter(a => a.requirement_text).map(a => `
         <li style="display:flex;gap:10px;padding:5px 0;font-size:13px;color:#374151;line-height:1.5;">
@@ -191,7 +176,7 @@ export async function POST(req: NextRequest) {
     if (dbErr || !q?.id) throw dbErr ?? new Error('No quote ID returned')
 
     // Send email
-    const emailHtml = buildEmailHtml(inputs, calculated.price_options ?? [], q.id)
+    const emailHtml = buildEmailHtml(inputs, calculated.price_options ?? [], q.id, settings.pa_sound_engineer_rate)
 
     const { error: emailErr } = await resend.emails.send({
       from: FROM_ADDRESS,

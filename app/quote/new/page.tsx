@@ -11,7 +11,7 @@ function NewQuoteForm() {
   const searchParams = useSearchParams()
   const eventId = searchParams.get('event')
 
-  const [bookingTypes, setBookingTypes] = useState<Set<BookingType>>(new Set())
+  const [bookingType, setBookingType] = useState<'wedding' | 'other' | null>(null)
   const [travel, setTravel] = useState<TravelType | null>(null)
   const [multiDay, setMultiDay] = useState<boolean | null>(null)
   const [eventDate, setEventDate] = useState('')
@@ -57,18 +57,10 @@ function NewQuoteForm() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId])
 
-  function toggleBookingType(type: BookingType) {
-    setBookingTypes(prev => {
-      const next = new Set(prev)
-      if (next.has(type)) next.delete(type)
-      else next.add(type)
-      return next
-    })
-  }
-
   function handleContinue() {
     const params = new URLSearchParams()
-    bookingTypes.forEach(t => params.append('bt', t))
+    const bt: BookingType = bookingType === 'wedding' ? 'wedding' : 'background'
+    params.append('bt', bt)
     if (travel) params.set('travel', travel)
     if (multiDay !== null) params.set('multiDay', multiDay ? '1' : '0')
     if (eventDate) params.set('date', eventDate)
@@ -77,7 +69,7 @@ function NewQuoteForm() {
     router.push(`/quote/new/details?${params.toString()}`)
   }
 
-  const canContinue = bookingTypes.size > 0 && travel !== null && multiDay !== null && clientType !== null
+  const canContinue = bookingType !== null && travel !== null && multiDay !== null && clientType !== null
 
   return (
     <div style={{ padding: '2.5rem 1rem', display: 'flex', justifyContent: 'center' }}>
@@ -129,28 +121,16 @@ function NewQuoteForm() {
         <Card label="Booking type">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <OptionTile
-              label="Background"
-              desc="No dance floor, ambient music, smaller PA setup"
-              active={bookingTypes.has('background')}
-              onClick={() => toggleBookingType('background')}
-            />
-            <OptionTile
-              label="Dancing — under 40"
-              desc="Smaller event, duo or trio appropriate"
-              active={bookingTypes.has('dancing_under_40')}
-              onClick={() => toggleBookingType('dancing_under_40')}
-            />
-            <OptionTile
-              label="Dancing — over 40"
-              desc="Larger event, quartet or bigger required"
-              active={bookingTypes.has('dancing_over_40')}
-              onClick={() => toggleBookingType('dancing_over_40')}
+              label="Other"
+              desc="Corporate, private, background, dancing"
+              active={bookingType === 'other'}
+              onClick={() => setBookingType('other')}
             />
             <OptionTile
               label="Wedding"
               desc="Ceremony, drinks reception and/or evening"
-              active={bookingTypes.has('wedding')}
-              onClick={() => toggleBookingType('wedding')}
+              active={bookingType === 'wedding'}
+              onClick={() => setBookingType('wedding')}
             />
           </div>
         </Card>

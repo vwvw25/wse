@@ -2,6 +2,8 @@ import React from 'react'
 import { notFound } from 'next/navigation'
 import { createServiceClient } from '@/lib/supabase'
 import { calculate, DEFAULT_SETTINGS, quoteValidityText } from '@/lib/calculations'
+import { getQuoteItems, autoArrivalTime } from '@/lib/quote-items'
+import type { QuoteItem } from '@/lib/quote-items'
 import type { QuoteRecord, PriceOption, BookingType, Settings } from '@/types/quote'
 import AuditButton from './AuditButton'
 import { BAND_SIZE_LABELS, BAND_TYPE_LABELS } from '@/lib/lineups'
@@ -46,23 +48,6 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
 
   const fmt = (n: number) => `£${Math.round(n).toLocaleString('en-GB')}`
   const isInternational = inputs.travel_type === 'international'
-  const isDomesticOvernight = inputs.travel_type === 'domestic_overnight' || isInternational
-
-  const hasBuyout = (inputs.selected_add_ons ?? []).some(a => a.name.toLowerCase().includes('buyout'))
-  const hasMicHire = (inputs.selected_add_ons ?? []).some(a => a.name.toLowerCase().includes('mic hire'))
-  const loadOutDiffersFromFinish = !!inputs.load_out_time && !!inputs.finish_time && inputs.load_out_time !== inputs.finish_time
-
-  function autoArrivalTime(start: string | null): string | null {
-    if (!start) return null
-    const [h, m] = start.split(':').map(Number)
-    const mins = h * 60 + m - 60
-    const hh = Math.floor(((mins % 1440) + 1440) % 1440 / 60)
-    const mm = ((mins % 1440) + 1440) % 1440 % 60
-    return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`
-  }
-  const isCustomArrival = inputs.is_custom_arrival_time === true
-    || (inputs.is_custom_arrival_time == null && !!inputs.arrival_time && inputs.arrival_time !== autoArrivalTime(inputs.start_time))
-  const showSpecificTimes = isCustomArrival || loadOutDiffersFromFinish
 
   const eventDate = inputs.event_date
     ? new Date(inputs.event_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -150,51 +135,16 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
         {/* Per booking type sections */}
         {bookingTypes.map((bt, index) => {
           const btOptions = options.filter(o => (o.booking_type ?? 'background') === bt)
-          const hasExtendedPaEngineer = btOptions.some(o => o.has_extended_pa_engineer)
-          const btBandType = (inputs.band_types_by_type as Record<string, string> | undefined)?.[bt] ?? inputs.band_type ?? 'electric'
-          const isRoaming = btBandType === 'roaming'
-          const showIpadMusic = !inputs.is_acoustic && !isRoaming && !inputs.client_provides_pa
-            && !(inputs.selected_add_ons ?? []).some(a => a.name === 'Roaming set')
+          const paEngineerRate = quote.settings_snapshot?.pa_sound_engineer_rate ?? 0
+          const { inclusions, requirements } = getQuoteItems(inputs, bt, bookingTypes, btOptions, paEngineerRate)
 
-          const inclusions: { text: string; show: boolean }[] = [
-            { text: 'Background PA', show: !hasExtendedPaEngineer && !inputs.client_provides_pa && (bt === 'background' || bt === 'dancing_under_40') },
-            { text: 'Extended PA + sound engineer', show: hasExtendedPaEngineer },
-            { text: 'Based on a finish of 11pm or earlier', show: !inputs.finish_time },
-            { text: 'Music via iPad/PA during intervals', show: showIpadMusic },
-            { text: 'Arrival one hour before performance start (1.5hrs if Extended PA + sound engineer)', show: !showSpecificTimes },
-          { text: `Arrival: ${inputs.arrival_time}`, show: isCustomArrival && !!inputs.arrival_time },
-          { text: `Start: ${inputs.start_time}`, show: !!inputs.start_time },
-          { text: `Finish: ${inputs.finish_time}`, show: !!inputs.finish_time },
-          { text: `Load out: ${inputs.load_out_time}`, show: loadOutDiffersFromFinish && !!inputs.load_out_time },
-            { text: 'Petrol / train travel', show: isDomesticOvernight && (inputs.petrol_train_cost ?? 0) > 0 },
-            { text: `Accommodation (${inputs.accommodation_nights ?? 1} night${(inputs.accommodation_nights ?? 1) !== 1 ? 's' : ''})`, show: isDomesticOvernight && (inputs.accommodation_cost ?? 0) > 0 },
-            { text: 'Per diem', show: isDomesticOvernight && (inputs.per_diem_rate ?? 0) > 0 },
-            { text: 'Flights', show: isInternational },
-            { text: 'Airport transfers', show: isInternational && ((inputs.outgoing_uk_transfer_cost ?? 0) + (inputs.outgoing_dest_transfer_cost ?? 0)) > 0 },
-            { text: 'Local transport', show: isInternational && (inputs.local_transport_cost ?? 0) > 0 },
-            { text: 'Visa costs', show: isInternational && (inputs.visa_cost ?? 0) > 0 },
-            { text: 'If dancing and 40+ guests — book quartet or larger', show: bt === 'dancing_over_40' || bt === 'wedding' },
-            { text: 'Does not include client use of mic — please book mic hire option if any use of mic is required', show: !hasMicHire },
-            { text: 'Includes mic hire for use during agreed performance times (i.e. not during break)', show: hasMicHire },
-          ]
-
-          const requirements: { text: string; show: boolean }[] = [
-            { text: '2 x 13amp plug sockets (although powerless set-ups can be provided — please ask for a quote)', show: !inputs.is_powerless && !inputs.is_acoustic },
-            { text: 'For bookings of 2×45 or more the following needs to be stated on the contract: same main choices as guests, choice from a menu or a buyout of £20 per performer', show: !hasBuyout },
-            { text: 'A lockable, indoor green room that is exclusive to the band and not shared with any other artists, suppliers or staff', show: true },
-            { text: 'Soft drinks and mineral water', show: true },
-            { text: 'Being able to pack down/load out at the end of the final set', show: !loadOutDiffersFromFinish },
-            { text: 'Full loading information required 2 weeks in advance', show: true },
-            { text: 'Based on being able to park within 25 metres of an entrance to load. Please advise of any loading restrictions at the venue', show: true },
-            { text: 'If the venue isn\'t easily accessible by car then this may impact the quote and the equipment we\'re able to supply', show: true },
-            { text: 'Client to hire drum kit locally if drummer is booked', show: isInternational && (inputs.drummer_fee ?? 0) > 0 },
-            { text: 'Client to provide keyboard or piano on-site if pianist is booked', show: (inputs.keys_fee ?? 0) > 0 && isInternational },
-            { text: 'Client to provide double bass on site if upright double bass is booked (alternatively bassist can bring electric bass)', show: isInternational && (inputs.bass_fee ?? 0) > 0 && ['roaming', 'jazz_keys', 'jazz_guitar'].includes(btBandType) },
-          ]
+          const renderItem = (item: QuoteItem) => (
+            <>{item.text}{item.link && <a href={item.link.href} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>{item.link.text}</a>}{item.linkSuffix}</>
+          )
 
           return (
             <div key={bt}>
-              {hasMultipleTypes && (
+              {hasMultipleTypes && bt !== 'background' && (
                 <div style={{
                   fontSize: 22, fontWeight: 600, color: 'var(--text)',
                   letterSpacing: '-0.02em',
@@ -206,30 +156,16 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
                 </div>
               )}
 
-              {/* Background suitability note */}
-              {bt === 'background' && (
-                <div style={{ marginBottom: '1rem', padding: '14px 16px', background: 'var(--bg)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
-                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 8 }}>Suits the kind of events that:</p>
-                  <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    {['are looking for background music', 'won\'t have a dance floor', 'the client doesn\'t see dancing as a big part of the event'].map(t => (
-                      <li key={t} style={{ fontSize: 13, color: 'var(--text-secondary)', display: 'flex', gap: 8 }}>
-                        <span>–</span><span>{t}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
               {/* Quotes */}
               <PriceSectionCards options={btOptions} fmt={fmt} />
 
               {/* What's included */}
               <Card label="What's included">
                 <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {inclusions.filter(i => i.show).map(item => (
-                    <li key={item.text} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                  {inclusions.filter(i => i.show).map((item, idx) => (
+                    <li key={idx} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                       <span style={{ color: 'var(--text-info)', marginTop: 1, flexShrink: 0 }}>✓</span>
-                      <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{item.text}</span>
+                      <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{renderItem(item)}</span>
                     </li>
                   ))}
                   {(inputs.selected_add_ons ?? []).filter(a => a.inclusion_text).map(addon => (
@@ -244,18 +180,10 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
               {/* Requirements */}
               <Card label="Requirements">
                 <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {(isInternational || inputs.client_provides_pa) && (
-                    <li style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                  {requirements.filter(r => r.show).map((item, idx) => (
+                    <li key={idx} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                       <span style={{ color: 'var(--text-secondary)', marginTop: 1, flexShrink: 0 }}>·</span>
-                      <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>
-                        Client to provide full rider (for riders please see <a href="https://drive.google.com/drive/folders/1906sIEkcO5GTmLH395oRJuy6xtERE2QZ?usp=sharing" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>this folder</a>)
-                      </span>
-                    </li>
-                  )}
-                  {requirements.filter(r => r.show).map(item => (
-                    <li key={item.text} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                      <span style={{ color: 'var(--text-secondary)', marginTop: 1, flexShrink: 0 }}>·</span>
-                      <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{item.text}</span>
+                      <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{renderItem(item)}</span>
                     </li>
                   ))}
                   {(inputs.selected_add_ons ?? []).filter(a => a.requirement_text).map(addon => (

@@ -1,6 +1,8 @@
 import type { QuoteRecord, BookingType } from '@/types/quote'
 import { BAND_SIZE_LABELS } from '@/lib/lineups'
 import { quoteValidityText } from '@/lib/calculations'
+import { getQuoteItems } from '@/lib/quote-items'
+import type { QuoteItem } from '@/lib/quote-items'
 
 const BOOKING_TYPE_LABELS: Record<BookingType, string> = {
   background: 'Background',
@@ -16,13 +18,10 @@ function formatSetConfig(cfg: string): string {
 
 const fmt = (n: number) => `£${Math.round(n).toLocaleString('en-GB')}`
 
-function autoArrivalTime(start: string | null): string | null {
-  if (!start) return null
-  const [h, m] = start.split(':').map(Number)
-  const mins = h * 60 + m - 60
-  const hh = Math.floor(((mins % 1440) + 1440) % 1440 / 60)
-  const mm = ((mins % 1440) + 1440) % 1440 % 60
-  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`
+function renderItemHtml(item: QuoteItem): string {
+  return item.text
+    + (item.link ? `<a href="${item.link.href}">${item.link.text}</a>` : '')
+    + (item.linkSuffix ?? '')
 }
 
 // Generates the quote body as an HTML string — same content as /quote/[id]/text
@@ -30,13 +29,6 @@ export function generateQuoteHtml(quote: QuoteRecord): string {
   const { inputs, calculated } = quote
 
   const isInternational = inputs.travel_type === 'international'
-  const isDomesticOvernight = inputs.travel_type === 'domestic_overnight' || isInternational
-  const hasBuyout = (inputs.selected_add_ons ?? []).some(a => a.name.toLowerCase().includes('buyout'))
-  const hasMicHire = (inputs.selected_add_ons ?? []).some(a => a.name.toLowerCase().includes('mic hire'))
-  const loadOutDiffersFromFinish = !!inputs.load_out_time && !!inputs.finish_time && inputs.load_out_time !== inputs.finish_time
-  const isCustomArrival = inputs.is_custom_arrival_time === true
-    || (inputs.is_custom_arrival_time == null && !!inputs.arrival_time && inputs.arrival_time !== autoArrivalTime(inputs.start_time))
-  const showSpecificTimes = isCustomArrival || loadOutDiffersFromFinish
 
   const eventDate = inputs.event_date
     ? new Date(inputs.event_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -50,7 +42,7 @@ export function generateQuoteHtml(quote: QuoteRecord): string {
 
   const HR = `<hr style="border:none;border-top:1px solid #ccc;margin:24px 0;">`
 
-  let html = `<div style="font-family:Georgia,serif;font-size:15px;color:#111;line-height:1.6;">`
+  let html = `<div style="font-family:Arial,sans-serif;font-size:14px;color:#111;line-height:1.6;">`
 
   // Header
   html += `<p style="margin:0 0 8px;"><strong>Ward Smith Entertainment</strong></p>`
@@ -63,13 +55,12 @@ export function generateQuoteHtml(quote: QuoteRecord): string {
   if (eventDate) html += `<p style="margin:0 0 8px;">Date: ${eventDate}</p>`
   if (inputs.venue_name) html += `<p style="margin:0 0 8px;">Venue: ${inputs.venue_name}</p>`
 
-  // Booking details — only fields not already in the header
+  // Booking details
   const hasBookingDetails = inputs.location || inputs.start_time || inputs.finish_time || inputs.band_size_requested || inputs.sets_requested || inputs.client_provides_pa
   if (hasBookingDetails) {
     html += HR
     html += `<p style="margin:0 0 8px;font-weight:bold;">Booking details</p>`
-    html += `<table style="width:100%;border-collapse:collapse;margin:8px 0 0;">`
-    html += `<tbody>`
+    html += `<table style="width:100%;border-collapse:collapse;margin:8px 0 0;"><tbody>`
     if (inputs.client_provides_pa) html += `<tr><td style="padding:4px 8px 4px 0;border-bottom:1px solid #ccc;font-weight:500;width:160px;">PA</td><td style="padding:4px 8px 4px 0;border-bottom:1px solid #ccc;">Client providing PA</td></tr>`
     if (inputs.location) html += `<tr><td style="padding:4px 8px 4px 0;border-bottom:1px solid #ccc;font-weight:500;width:160px;">Location</td><td style="padding:4px 8px 4px 0;border-bottom:1px solid #ccc;">${inputs.location}</td></tr>`
     if (inputs.start_time) html += `<tr><td style="padding:4px 8px 4px 0;border-bottom:1px solid #ccc;font-weight:500;">Start time</td><td style="padding:4px 8px 4px 0;border-bottom:1px solid #ccc;">${inputs.start_time}</td></tr>`
@@ -86,18 +77,14 @@ export function generateQuoteHtml(quote: QuoteRecord): string {
     const btOptions = options.filter(o => (o.booking_type ?? 'background') === bt)
     if (btOptions.length === 0) continue
 
-    const hasExtendedPaEngineer = btOptions.some(o => o.has_extended_pa_engineer)
-    const btBandType = (inputs.band_types_by_type as Record<string, string> | undefined)?.[bt] ?? inputs.band_type ?? 'electric'
-    const isRoaming = btBandType === 'roaming'
-    const showIpadMusic = !inputs.is_acoustic && !isRoaming && !inputs.client_provides_pa
-      && !(inputs.selected_add_ons ?? []).some(a => a.name === 'Roaming set')
+    const paEngineerRate = quote.settings_snapshot?.pa_sound_engineer_rate ?? 0
+    const { inclusions, requirements } = getQuoteItems(inputs, bt, bookingTypes, btOptions, paEngineerRate)
+    const addonInclusions = (inputs.selected_add_ons ?? []).filter(a => a.inclusion_text)
+    const addonRequirements = (inputs.selected_add_ons ?? []).filter(a => a.requirement_text)
 
     if (hasMultipleTypes && index > 0) html += HR
-    if (hasMultipleTypes) {
+    if (hasMultipleTypes && bt !== 'background') {
       html += `<p style="margin:0 0 16px;font-weight:bold;font-size:16px;">${BOOKING_TYPE_LABELS[bt] ?? bt}</p>`
-    }
-    if (bt === 'background') {
-      html += `<p style="margin:0 0 8px;color:#555;">Suitable for events looking for background music, without a dance floor, where dancing isn't a key part of the event.</p>`
     }
 
     // Price table
@@ -120,59 +107,15 @@ export function generateQuoteHtml(quote: QuoteRecord): string {
     }
     html += `</tbody></table>`
 
-    // Inclusions
-    const inclusions: { text: string; show: boolean }[] = [
-      { text: 'Background PA', show: !hasExtendedPaEngineer && !inputs.client_provides_pa && (bt === 'background' || bt === 'dancing_under_40') },
-      { text: 'Extended PA + sound engineer', show: hasExtendedPaEngineer },
-      { text: 'Based on a finish of 11pm or earlier', show: !inputs.finish_time },
-      { text: 'Music via iPad/PA during intervals', show: showIpadMusic },
-      { text: 'Arrival one hour before performance start (1.5hrs if Extended PA + sound engineer)', show: !showSpecificTimes },
-      { text: `Arrival: ${inputs.arrival_time}`, show: isCustomArrival && !!inputs.arrival_time },
-      { text: `Start: ${inputs.start_time}`, show: !!inputs.start_time },
-      { text: `Finish: ${inputs.finish_time}`, show: !!inputs.finish_time },
-      { text: `Load out: ${inputs.load_out_time}`, show: loadOutDiffersFromFinish && !!inputs.load_out_time },
-      { text: 'Petrol / train travel', show: isDomesticOvernight && (inputs.petrol_train_cost ?? 0) > 0 },
-      { text: `Accommodation (${inputs.accommodation_nights ?? 1} night${(inputs.accommodation_nights ?? 1) !== 1 ? 's' : ''})`, show: isDomesticOvernight && (inputs.accommodation_cost ?? 0) > 0 },
-      { text: 'Per diem', show: isDomesticOvernight && (inputs.per_diem_rate ?? 0) > 0 },
-      { text: 'Flights', show: isInternational },
-      { text: 'Airport transfers', show: isInternational && ((inputs.outgoing_uk_transfer_cost ?? 0) + (inputs.outgoing_dest_transfer_cost ?? 0)) > 0 },
-      { text: 'Local transport', show: isInternational && (inputs.local_transport_cost ?? 0) > 0 },
-      { text: 'Visa costs', show: isInternational && (inputs.visa_cost ?? 0) > 0 },
-      { text: 'Does not include client use of mic — please book mic hire option if any use of mic is required', show: !hasMicHire },
-      { text: 'Includes mic hire for use during agreed performance times (i.e. not during break)', show: hasMicHire },
-    ]
-    const activeInclusions = inclusions.filter(i => i.show)
-    const addonInclusions = (inputs.selected_add_ons ?? []).filter(a => a.inclusion_text)
-
     html += `<p style="margin:0 0 8px;font-weight:bold;">What's included</p>`
     html += `<ul style="margin:0 0 16px;padding-left:0;list-style:none;">`
-    activeInclusions.forEach(item => { html += `<li style="margin-bottom:4px;">– ${item.text}</li>` })
+    inclusions.filter(i => i.show).forEach(item => { html += `<li style="margin-bottom:4px;">– ${renderItemHtml(item)}</li>` })
     addonInclusions.forEach(addon => { html += `<li style="margin-bottom:4px;">– ${addon.inclusion_text}</li>` })
     html += `</ul>`
 
-    // Requirements
-    const requirements: { text: string; show: boolean }[] = [
-      { text: '2 x 13amp plug sockets (although powerless set-ups can be provided — please ask for a quote)', show: !inputs.is_powerless && !inputs.is_acoustic },
-      { text: 'For bookings of 2×45 or more the following needs to be stated on the contract: same main choices as guests, choice from a menu or a buyout of £20 per performer', show: !hasBuyout },
-      { text: 'A lockable, indoor green room that is exclusive to the band and not shared with any other artists, suppliers or staff', show: true },
-      { text: 'Soft drinks and mineral water', show: true },
-      { text: 'Being able to pack down/load out at the end of the final set', show: !loadOutDiffersFromFinish },
-      { text: 'Full loading information required 2 weeks in advance', show: true },
-      { text: 'Based on being able to park within 25 metres of an entrance to load. Please advise of any loading restrictions at the venue', show: true },
-      { text: "If the venue isn't easily accessible by car then this may impact the quote and the equipment we're able to supply", show: true },
-      { text: 'Client to hire drum kit locally if drummer is booked', show: isInternational && (inputs.drummer_fee ?? 0) > 0 },
-      { text: 'Client to provide keyboard or piano on-site if pianist is booked', show: (inputs.keys_fee ?? 0) > 0 && isInternational },
-      { text: 'Client to provide double bass on site if upright double bass is booked (alternatively bassist can bring electric bass)', show: isInternational && (inputs.bass_fee ?? 0) > 0 && ['roaming', 'jazz_keys', 'jazz_guitar'].includes(btBandType) },
-    ]
-    const activeRequirements = requirements.filter(r => r.show)
-    const addonRequirements = (inputs.selected_add_ons ?? []).filter(a => a.requirement_text)
-
     html += `<p style="margin:0 0 8px;font-weight:bold;">Requirements</p>`
     html += `<ul style="margin:0 0 16px;padding-left:0;list-style:none;">`
-    if (isInternational || inputs.client_provides_pa) {
-      html += `<li style="margin-bottom:4px;">– Client to provide full rider (for riders please see <a href="https://drive.google.com/drive/folders/1906sIEkcO5GTmLH395oRJuy6xtERE2QZ?usp=sharing">this folder</a>)</li>`
-    }
-    activeRequirements.forEach(item => { html += `<li style="margin-bottom:4px;">– ${item.text}</li>` })
+    requirements.filter(r => r.show).forEach(item => { html += `<li style="margin-bottom:4px;">– ${renderItemHtml(item)}</li>` })
     addonRequirements.forEach(addon => { html += `<li style="margin-bottom:4px;">– ${addon.requirement_text}</li>` })
     html += `</ul>`
   }
