@@ -8,6 +8,7 @@ const navLinks = [
   { href: '/admin/bookings', label: 'Bookings' },
   { href: '/admin/events', label: 'Events' },
   { href: '/admin/quotes', label: 'Quotes' },
+  { href: '/admin/set-lists', label: 'Set lists' },
   { href: '/admin/templates', label: 'Templates' },
   { href: '/admin/settings', label: 'Settings' },
   { href: '/admin/add-ons', label: 'Add-ons' },

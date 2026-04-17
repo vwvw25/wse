@@ -75,10 +75,6 @@ export function generateQuoteHtml(quote: QuoteRecord): string {
 
   const isInternational = inputs.travel_type === 'international'
 
-  const eventDate = inputs.event_date
-    ? new Date(inputs.event_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
-    : null
-
   const options = calculated.price_options ?? []
   const bookingTypes = (inputs.booking_types?.length
     ? inputs.booking_types
@@ -88,19 +84,6 @@ export function generateQuoteHtml(quote: QuoteRecord): string {
   const HR = `<hr style="border:none;border-top:1px solid #ccc;margin:24px 0;">`
 
   let html = `<div style="font-family:Arial,sans-serif;font-size:14px;color:#111;line-height:1.6;">`
-
-  // Header
-  html += `<p style="margin:0 0 8px;"><strong>Ward Smith Entertainment</strong></p>`
-  if (inputs.agent_name || inputs.agency_name) {
-    const who = inputs.agent_name && inputs.agency_name
-      ? `${inputs.agent_name} at ${inputs.agency_name}`
-      : inputs.agent_name ?? inputs.agency_name
-    html += `<p style="margin:0 0 8px;">For <strong>${who}</strong></p>`
-  }
-  if (eventDate) html += `<p style="margin:0 0 8px;">Date: ${eventDate}</p>`
-  if (inputs.venue_name) html += `<p style="margin:0 0 8px;">Venue: ${inputs.venue_name}</p>`
-
-  html += HR
 
   for (let index = 0; index < bookingTypes.length; index++) {
     const bt = bookingTypes[index]
