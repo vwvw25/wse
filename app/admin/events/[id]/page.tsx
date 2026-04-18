@@ -1,7 +1,11 @@
 import { createServiceClient } from '@/lib/supabase'
 import { notFound } from 'next/navigation'
 import type { EventRecord, QuoteRecord } from '@/types/quote'
+import type { EventMusician, Musician, BandTemplate, BandTemplateSlot } from '@/types/musicians'
+import { musicianFullName } from '@/types/musicians'
 import StatusSelect from '../StatusSelect'
+import EventMusiciansClient from './musicians/EventMusiciansClient'
+import CopyEventDetailsButton from './CopyEventDetailsButton'
 
 function formatDate(d: string | null) {
   if (!d) return '—'
@@ -33,8 +37,19 @@ function FullRow({ label, value }: { label: string; value: string | null | undef
   )
 }
 
-export default async function EventDetailPage({ params }: { params: Promise<{ id: string }> }) {
+type Tab = 'information' | 'musicians'
+
+export default async function EventDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ tab?: string }>
+}) {
   const { id } = await params
+  const { tab: tabParam } = await searchParams
+  const tab: Tab = tabParam === 'musicians' ? 'musicians' : 'information'
+
   const supabase = createServiceClient()
 
   const [{ data: eventData }, { data: quotesData }] = await Promise.all([
@@ -52,11 +67,45 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
     ? (event.agent_name ? `${event.agent_name} at ${event.agency_name}` : event.agency_name)
     : (event.agent_name ?? 'Unknown')
 
+  // Fetch musicians data when on the musicians tab
+  let slots: EventMusician[] = []
+  let musicians: Musician[] = []
+  let templates: (BandTemplate & { slots: BandTemplateSlot[] })[] = []
+
+  if (tab === 'musicians') {
+    const [{ data: slotsData }, { data: musiciansData }, { data: templatesData }, { data: templateSlotsData }] = await Promise.all([
+      supabase.from('event_musicians').select('*').eq('event_id', id).order('date_added'),
+      supabase.from('musicians').select('*').order('first_name').order('last_name'),
+      supabase.from('band_templates').select('*').order('name'),
+      supabase.from('band_template_slots').select('*').order('sort_order'),
+    ])
+
+    slots = (slotsData ?? []) as EventMusician[]
+    musicians = (musiciansData ?? []) as Musician[]
+    const rawTemplates = (templatesData ?? []) as BandTemplate[]
+    const templateSlots = (templateSlotsData ?? []) as BandTemplateSlot[]
+    templates = rawTemplates.map(t => ({ ...t, slots: templateSlots.filter(s => s.template_id === t.id) }))
+
+    // Enrich slots with musician data
+    slots = slots.map(s => ({
+      ...s,
+      musician: s.musician_id ? (musicians.find(m => m.id === s.musician_id) ?? null) : null,
+    }))
+  }
+
+  const tabStyle = (active: boolean): React.CSSProperties => ({
+    display: 'inline-block', padding: '8px 16px', fontSize: 13, fontWeight: active ? 500 : 400,
+    color: active ? 'var(--text)' : 'var(--text-secondary)',
+    borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
+    textDecoration: 'none', cursor: 'pointer',
+  })
+
   return (
-    <div style={{ padding: '32px 32px', fontFamily: 'var(--font)', maxWidth: 800 }}>
+    <div style={{ padding: '32px 32px', fontFamily: 'var(--font)', maxWidth: 900 }}>
       <a href="/admin/events" style={{ fontSize: 12, color: 'var(--text-secondary)', textDecoration: 'none' }}>← Events</a>
 
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', margin: '16px 0 24px' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', margin: '16px 0 20px' }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0 0 4px', color: 'var(--text)' }}>{title}</h1>
           <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>
@@ -67,13 +116,31 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <StatusSelect eventId={event.id} currentStatus={event.status} />
+          <CopyEventDetailsButton event={{
+            agencyName: event.agency_name,
+            agentName: event.agent_name,
+            eventDate: event.event_date,
+            venueName: event.venue_name,
+            venueAddress: event.venue_address,
+            location: event.location,
+            venuePostcode: event.venue_postcode,
+            arrivalTime: event.arrival_time,
+            startTime: event.start_time,
+            finishTime: event.finish_time,
+            loadOutTime: event.load_out_time,
+            guests: event.guests,
+            bandSize: rd?.band_size_requested ?? null,
+            sets: rd?.sets_requested ?? null,
+            specialRequirements: rd?.special_requirements ?? null,
+            soundRequirements: rd?.sound_requirements ?? null,
+            notes: rd?.notes ?? null,
+          }} />
           <a
             href={`/admin/events/${event.id}/email`}
             style={{
               display: 'inline-block', padding: '8px 18px', fontSize: 13, fontWeight: 500,
               background: 'var(--bg-secondary)', color: 'var(--text)',
-              border: '0.5px solid var(--border)',
-              borderRadius: 'var(--radius-sm)', textDecoration: 'none',
+              border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)', textDecoration: 'none',
             }}
           >
             Generate email
@@ -82,8 +149,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
             href={`/quote/new?event=${event.id}`}
             style={{
               display: 'inline-block', padding: '8px 18px', fontSize: 13, fontWeight: 500,
-              background: 'var(--accent)', color: '#fff', borderRadius: 'var(--radius-sm)',
-              textDecoration: 'none',
+              background: 'var(--accent)', color: '#fff', borderRadius: 'var(--radius-sm)', textDecoration: 'none',
             }}
           >
             Generate quote →
@@ -91,91 +157,109 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
         </div>
       </div>
 
-      {/* Event details */}
-      <Section label="Event details">
-        <PairGrid>
-          <Cell label="Agency" value={event.agency_name} />
-          <Cell label="Agent" value={event.agent_name} />
-          <Cell label="Date" value={formatDate(event.event_date)} />
-          <Cell label="Client email" value={event.client_email} />
-          <Cell label="Arrival" value={event.arrival_time} />
-          <Cell label="Start" value={event.start_time} />
-          <Cell label="Finish" value={event.finish_time} />
-          <Cell label="Load out" value={event.load_out_time} />
-        </PairGrid>
-        <PairGrid style={{ borderBottom: 'none' }}>
-          <Cell label="Venue" value={event.venue_name} />
-          <Cell label="Guests" value={event.guests != null ? String(event.guests) : null} />
-          <Cell label="Postcode" value={event.venue_postcode} />
-          <Cell label="Location" value={event.location} />
-        </PairGrid>
-        <FullRow label="Address" value={event.venue_address} />
-      </Section>
+      {/* Tabs */}
+      <div style={{ display: 'flex', borderBottom: '0.5px solid var(--border)', marginBottom: 28, gap: 0 }}>
+        <a href={`/admin/events/${id}`} style={tabStyle(tab === 'information')}>Information</a>
+        <a href={`/admin/events/${id}?tab=musicians`} style={tabStyle(tab === 'musicians')}>Musicians</a>
+      </div>
 
-      {/* Request details */}
-      {rd && (
-        <Section label="Request details">
-          <PairGrid>
-            <Cell label="Band size requested" value={rd.band_size_requested} />
-            <Cell label="Sets requested" value={rd.sets_requested} />
-          </PairGrid>
-          <FullRow label="Special requirements" value={rd.special_requirements} />
-          <FullRow label="Sound requirements" value={rd.sound_requirements} />
-          <FullRow label="Notes" value={rd.notes} />
-        </Section>
+      {/* ── Information tab ── */}
+      {tab === 'information' && (
+        <>
+          <Section label="Event details">
+            <PairGrid>
+              <Cell label="Agency" value={event.agency_name} />
+              <Cell label="Agent" value={event.agent_name} />
+              <Cell label="Date" value={formatDate(event.event_date)} />
+              <Cell label="Client email" value={event.client_email} />
+              <Cell label="Arrival" value={event.arrival_time} />
+              <Cell label="Start" value={event.start_time} />
+              <Cell label="Finish" value={event.finish_time} />
+              <Cell label="Load out" value={event.load_out_time} />
+            </PairGrid>
+            <PairGrid style={{ borderBottom: 'none' }}>
+              <Cell label="Venue" value={event.venue_name} />
+              <Cell label="Guests" value={event.guests != null ? String(event.guests) : null} />
+              <Cell label="Postcode" value={event.venue_postcode} />
+              <Cell label="Location" value={event.location} />
+            </PairGrid>
+            <FullRow label="Address" value={event.venue_address} />
+          </Section>
+
+          {rd && (
+            <Section label="Request details">
+              <PairGrid>
+                <Cell label="Band size requested" value={rd.band_size_requested} />
+                <Cell label="Sets requested" value={rd.sets_requested} />
+              </PairGrid>
+              <FullRow label="Special requirements" value={rd.special_requirements} />
+              <FullRow label="Sound requirements" value={rd.sound_requirements} />
+              <FullRow label="Notes" value={rd.notes} />
+            </Section>
+          )}
+
+          <Section label={`Quotes (${quotes.length})`}>
+            {quotes.length === 0 ? (
+              <p style={{ fontSize: 13, color: 'var(--text-tertiary)', margin: '8px 0 12px' }}>No quotes yet.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 0' }}>
+                {quotes.map(q => {
+                  const inp = q.inputs as { agency_name?: string | null; event_date?: string | null }
+                  return (
+                    <a
+                      key={q.id}
+                      href={`/quote/${q.id}`}
+                      style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        padding: '10px 14px', textDecoration: 'none',
+                        background: 'var(--bg-secondary)', border: '0.5px solid var(--border)',
+                        borderRadius: 'var(--radius-md)',
+                      }}
+                    >
+                      <span style={{ fontSize: 13, color: 'var(--text)' }}>
+                        Quote — {formatDate(inp.event_date ?? null)}
+                      </span>
+                      <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
+                        {formatCreated(q.created_at)}
+                      </span>
+                    </a>
+                  )
+                })}
+              </div>
+            )}
+          </Section>
+
+          {event.raw_email && (
+            <details style={{ marginTop: 24 }}>
+              <summary style={{
+                fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)',
+                textTransform: 'uppercase', letterSpacing: '0.08em',
+                cursor: 'pointer', marginBottom: 10, userSelect: 'none',
+              }}>
+                Original email
+              </summary>
+              <pre style={{
+                fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6,
+                whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                background: 'var(--bg-secondary)', border: '0.5px solid var(--border)',
+                borderRadius: 'var(--radius-md)', padding: '14px 16px', margin: 0,
+              }}>
+                {event.raw_email}
+              </pre>
+            </details>
+          )}
+        </>
       )}
 
-      {/* Associated quotes */}
-      <Section label={`Quotes (${quotes.length})`}>
-        {quotes.length === 0 ? (
-          <p style={{ fontSize: 13, color: 'var(--text-tertiary)', margin: '8px 0 12px' }}>No quotes yet.</p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 0' }}>
-            {quotes.map(q => {
-              const inp = q.inputs as { agency_name?: string | null; event_date?: string | null }
-              return (
-                <a
-                  key={q.id}
-                  href={`/quote/${q.id}`}
-                  style={{
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    padding: '10px 14px', textDecoration: 'none',
-                    background: 'var(--bg-secondary)', border: '0.5px solid var(--border)',
-                    borderRadius: 'var(--radius-md)',
-                  }}
-                >
-                  <span style={{ fontSize: 13, color: 'var(--text)' }}>
-                    Quote — {formatDate(inp.event_date ?? null)}
-                  </span>
-                  <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
-                    {formatCreated(q.created_at)}
-                  </span>
-                </a>
-              )
-            })}
-          </div>
-        )}
-      </Section>
-
-      {/* Raw email */}
-      {event.raw_email && (
-        <details style={{ marginTop: 24 }}>
-          <summary style={{
-            fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)',
-            textTransform: 'uppercase', letterSpacing: '0.08em',
-            cursor: 'pointer', marginBottom: 10, userSelect: 'none',
-          }}>
-            Original email
-          </summary>
-          <pre style={{
-            fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6,
-            whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-            background: 'var(--bg-secondary)', border: '0.5px solid var(--border)',
-            borderRadius: 'var(--radius-md)', padding: '14px 16px', margin: 0,
-          }}>
-            {event.raw_email}
-          </pre>
-        </details>
+      {/* ── Musicians tab ── */}
+      {tab === 'musicians' && (
+        <EventMusiciansClient
+          eventId={id}
+          eventLabel={title}
+          slots={slots}
+          musicians={musicians}
+          templates={templates}
+        />
       )}
     </div>
   )

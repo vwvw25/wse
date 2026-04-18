@@ -195,6 +195,41 @@ export default function SettingsPage() {
       <FieldRow label="Private house surcharge" fieldKey="location_surcharge_house" value={settings.location_surcharge_house} onChange={handleChange} />
       <FieldRow label="No-drive zone surcharge" fieldKey="location_surcharge_no_drive" value={settings.location_surcharge_no_drive} onChange={handleChange} />
 
+      {/* Add-ons */}
+      <div style={sectionHeaderStyle}>Add-ons</div>
+      <div style={{ ...rowStyle, borderBottom: 'none' }}>
+        <span style={labelStyle}>Manage add-ons</span>
+        <a
+          href="/admin/add-ons"
+          style={{
+            padding: '6px 14px', fontSize: 13, fontWeight: 500,
+            background: 'var(--bg)', color: 'var(--text)',
+            border: '0.5px solid var(--border-hover)',
+            borderRadius: 'var(--radius-sm)', textDecoration: 'none',
+          }}
+        >
+          Open
+        </a>
+      </div>
+
+      {/* Exports */}
+      <div style={sectionHeaderStyle}>Exports</div>
+      <div style={{ ...rowStyle, borderBottom: 'none' }}>
+        <span style={labelStyle}>Events CSV</span>
+        <a
+          href="/api/admin/export/events"
+          download
+          style={{
+            padding: '6px 14px', fontSize: 13, fontWeight: 500,
+            background: 'var(--bg)', color: 'var(--text)',
+            border: '0.5px solid var(--border-hover)',
+            borderRadius: 'var(--radius-sm)', textDecoration: 'none',
+          }}
+        >
+          Download
+        </a>
+      </div>
+
       {/* Save */}
       <div style={{ marginTop: 28, display: 'flex', alignItems: 'center', gap: 16 }}>
         <button

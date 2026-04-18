@@ -105,8 +105,27 @@ function KanbanCard({ ev }: { ev: EventRecord }) {
   )
 }
 
+const LIVE_ENQUIRY_STATUSES: EventStatus[] = ['enquiry', 'quoted', 'pencil_hold']
+const CONFIRMED_STATUSES: EventStatus[] = ['confirmed_stc', 'contracted']
+
+type FilterMode = 'live' | 'confirmed'
+
 export default function EventsClient({ events }: { events: EventRecord[] }) {
   const [view, setView] = useState<'list' | 'kanban'>('list')
+  const [filter, setFilter] = useState<FilterMode>('live')
+  const [includePast, setIncludePast] = useState(false)
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const filtered = events.filter(ev => {
+    const statuses = filter === 'live' ? LIVE_ENQUIRY_STATUSES : CONFIRMED_STATUSES
+    if (!statuses.includes(ev.status as EventStatus)) return false
+    if (filter === 'confirmed' && !includePast) {
+      if (ev.event_date && new Date(ev.event_date) < today) return false
+    }
+    return true
+  })
 
   const btnBase: React.CSSProperties = {
     padding: '6px 14px', fontSize: 13, fontWeight: 500, cursor: 'pointer',
@@ -114,22 +133,70 @@ export default function EventsClient({ events }: { events: EventRecord[] }) {
     fontFamily: 'var(--font)',
   }
 
+  const filterBtnStyle = (active: boolean): React.CSSProperties => ({
+    padding: '5px 14px', fontSize: 13, fontWeight: 500, cursor: 'pointer',
+    border: `0.5px solid ${active ? 'var(--border-info)' : 'var(--border)'}`,
+    borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font)',
+    background: active ? 'var(--bg-info)' : 'var(--bg)',
+    color: active ? 'var(--text-info)' : 'var(--text-secondary)',
+    transition: 'all 0.1s',
+  })
+
   return (
     <div>
-      {/* View toggle */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
-        <button
-          onClick={() => setView('list')}
-          style={{ ...btnBase, background: view === 'list' ? 'var(--text)' : 'var(--bg)', color: view === 'list' ? 'var(--bg)' : 'var(--text-secondary)' }}
-        >
-          List
-        </button>
-        <button
-          onClick={() => setView('kanban')}
-          style={{ ...btnBase, background: view === 'kanban' ? 'var(--text)' : 'var(--bg)', color: view === 'kanban' ? 'var(--bg)' : 'var(--text-secondary)' }}
-        >
-          Kanban
-        </button>
+      {/* Controls row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
+        {/* Filter */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>Show:</span>
+          <button onClick={() => setFilter('live')} style={filterBtnStyle(filter === 'live')}>Live enquiries</button>
+          <button onClick={() => setFilter('confirmed')} style={filterBtnStyle(filter === 'confirmed')}>Confirmed</button>
+        </div>
+
+        {/* Include past toggle — only shown for Confirmed */}
+        {filter === 'confirmed' && (
+          <div
+            onClick={() => setIncludePast(p => !p)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 7,
+              padding: '5px 12px',
+              border: `0.5px solid ${includePast ? 'var(--border-info)' : 'var(--border)'}`,
+              borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+              background: includePast ? 'var(--bg-info)' : 'var(--bg)',
+              userSelect: 'none', transition: 'all 0.1s',
+            }}
+          >
+            <div style={{
+              width: 14, height: 14, borderRadius: 3, flexShrink: 0,
+              border: `1.5px solid ${includePast ? 'var(--text-info)' : 'var(--border-hover)'}`,
+              background: includePast ? 'var(--text-info)' : 'transparent',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {includePast && (
+                <svg width="8" height="6" viewBox="0 0 8 6" fill="none">
+                  <path d="M1 3L3 5L7 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+            </div>
+            <span style={{ fontSize: 13, color: includePast ? 'var(--text-info)' : 'var(--text-secondary)' }}>Include past</span>
+          </div>
+        )}
+
+        {/* Spacer + view toggle */}
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+          <button
+            onClick={() => setView('list')}
+            style={{ ...btnBase, background: view === 'list' ? 'var(--text)' : 'var(--bg)', color: view === 'list' ? 'var(--bg)' : 'var(--text-secondary)' }}
+          >
+            List
+          </button>
+          <button
+            onClick={() => setView('kanban')}
+            style={{ ...btnBase, background: view === 'kanban' ? 'var(--text)' : 'var(--bg)', color: view === 'kanban' ? 'var(--bg)' : 'var(--text-secondary)' }}
+          >
+            Kanban
+          </button>
+        </div>
       </div>
 
       {view === 'list' ? (
@@ -146,7 +213,13 @@ export default function EventsClient({ events }: { events: EventRecord[] }) {
             <div>Times</div>
             <div>Status</div>
           </div>
-          {events.map(ev => <EventRow key={ev.id} ev={ev} />)}
+          {filtered.length === 0 ? (
+            <div style={{ padding: '32px 16px', textAlign: 'center', fontSize: 13, color: 'var(--text-tertiary)' }}>
+              No events
+            </div>
+          ) : (
+            filtered.map(ev => <EventRow key={ev.id} ev={ev} />)
+          )}
         </div>
       ) : (
         <div style={{
@@ -157,7 +230,7 @@ export default function EventsClient({ events }: { events: EventRecord[] }) {
           paddingBottom: 16,
         }}>
           {EVENT_STATUSES.map(status => {
-            const cols = events.filter(ev => (ev.status ?? 'enquiry') === status.value)
+            const cols = filtered.filter(ev => (ev.status ?? 'enquiry') === status.value)
             return (
               <div key={status.value}>
                 <div style={{

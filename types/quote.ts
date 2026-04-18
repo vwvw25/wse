@@ -224,6 +224,22 @@ export interface RequestDetails {
   notes: string | null
 }
 
+export interface ContractFlag {
+  field: string
+  label: string
+  contract_value: string
+  event_value: string
+}
+
+export interface ContractData {
+  parsed: Record<string, string | number | null>
+  flags: ContractFlag[]
+  uploaded_at: string
+  file_path?: string
+  file_name?: string
+  file_size?: number
+}
+
 export interface EventRecord {
   id: string
   created_at: string
@@ -247,6 +263,7 @@ export interface EventRecord {
   request_details: RequestDetails | null
   raw_email: string | null
   status: 'enquiry' | 'quoted' | 'pencil_hold' | 'client_declined' | 'cancelled' | 'confirmed_stc' | 'contracted' | 'pending' | 'confirmed'
+  contract: ContractData | null
 }
 
 export interface EmailTemplate {

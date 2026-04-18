@@ -7,6 +7,8 @@ const navLinks = [
   { href: '/admin', label: 'Dashboard' },
   { href: '/admin/bookings', label: 'Bookings' },
   { href: '/admin/events', label: 'Events' },
+  { href: '/admin/band-builder', label: 'Band builder' },
+  { href: '/admin/musicians', label: 'Musicians' },
   { href: '/admin/quotes', label: 'Quotes' },
   { href: '/admin/set-lists', label: 'Set lists' },
   { href: '/admin/templates', label: 'Templates' },

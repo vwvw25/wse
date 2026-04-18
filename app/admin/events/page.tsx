@@ -7,7 +7,7 @@ export default async function EventsPage() {
   const { data, error } = await supabase
     .from('events')
     .select('*')
-    .order('event_date', { ascending: false })
+    .order('event_date', { ascending: true })
 
   if (error) return <div style={{ padding: 32, color: 'red' }}>Failed to load: {error.message}</div>
 
@@ -22,13 +22,23 @@ export default async function EventsPage() {
             {events.length} event{events.length !== 1 ? 's' : ''}
           </p>
         </div>
-        <a href="/admin/email-to-quote" style={{
-          display: 'inline-block', padding: '8px 16px', fontSize: 13, fontWeight: 500,
-          background: 'var(--accent)', color: '#fff', borderRadius: 'var(--radius-sm)',
-          textDecoration: 'none',
-        }}>
-          New from email
-        </a>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <a href="/admin/events/new" style={{
+            display: 'inline-block', padding: '8px 16px', fontSize: 13, fontWeight: 500,
+            background: 'var(--bg)', color: 'var(--text)',
+            border: '0.5px solid var(--border-hover)',
+            borderRadius: 'var(--radius-sm)', textDecoration: 'none',
+          }}>
+            New
+          </a>
+          <a href="/admin/email-to-quote" style={{
+            display: 'inline-block', padding: '8px 16px', fontSize: 13, fontWeight: 500,
+            background: 'var(--accent)', color: '#fff', borderRadius: 'var(--radius-sm)',
+            textDecoration: 'none',
+          }}>
+            New from email
+          </a>
+        </div>
       </div>
 
       {events.length === 0 ? (

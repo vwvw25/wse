@@ -28,6 +28,7 @@ function DetailsForm() {
   const eventDateParam = searchParams.get('date') ?? ''
   const clientType = searchParams.get('clientType') as 'direct' | 'agency' | null
   const eventId = searchParams.get('event')
+  const editId = searchParams.get('edit')
 
   const [form, setForm] = useState<Partial<QuoteInputs>>({
     booking_type: bookingTypes[0] ?? null,
@@ -183,15 +184,16 @@ function DetailsForm() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId])
 
-  // Prefill from existing quote (duplicate flow)
+  // Prefill from existing quote (duplicate flow or edit flow)
   const prefillId = searchParams.get('prefill')
+  const loadId = editId ?? prefillId
   useEffect(() => {
-    if (!prefillId) return
+    if (!loadId) return
     async function prefill() {
       const { data } = await createBrowserClient()
         .from('quotes')
         .select('inputs, request_details')
-        .eq('id', prefillId)
+        .eq('id', loadId)
         .single()
       if (!data?.inputs) return
       if (data.request_details) {
@@ -252,7 +254,7 @@ function DetailsForm() {
     }
     prefill()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefillId])
+  }, [loadId])
 
   // Postcode distance calculation
   useEffect(() => {
@@ -338,12 +340,18 @@ function DetailsForm() {
         band_sizes: Array.from(primaryType ? (bandSizesByType[primaryType] ?? []) : []),
         set_configs: Array.from(primaryType ? (setConfigsByType[primaryType] ?? []) : []),
       }
-      const res = await fetch('/api/quotes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ inputs, event_id: eventId ?? undefined }),
-      })
-      if (!res.ok) throw new Error('Failed to generate quote')
+      const res = editId
+        ? await fetch(`/api/quotes/${editId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ inputs }),
+          })
+        : await fetch('/api/quotes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ inputs, event_id: eventId ?? undefined }),
+          })
+      if (!res.ok) throw new Error(editId ? 'Failed to update quote' : 'Failed to generate quote')
       const { id } = await res.json()
       router.push(`/quote/${id}`)
     } catch (e) {
@@ -362,8 +370,8 @@ function DetailsForm() {
     <div style={{ padding: '2rem 1rem' }}>
       <div style={{ maxWidth: 860, margin: '0 auto' }}>
         <div style={{ marginBottom: '2.5rem' }}>
-          <h1 style={{ fontSize: 22, fontWeight: 500, color: 'var(--text)', letterSpacing: '-0.02em' }}>New quote</h1>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>Ward Smith Entertainment — Step 2 of 2</p>
+          <h1 style={{ fontSize: 22, fontWeight: 500, color: 'var(--text)', letterSpacing: '-0.02em' }}>{editId ? 'Edit quote' : 'New quote'}</h1>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>Ward Smith Entertainment{editId ? '' : ' — Step 2 of 2'}</p>
         </div>
 
         {/* Request details card — shown when coming from event */}
@@ -805,7 +813,7 @@ function DetailsForm() {
               color: 'var(--bg)', fontWeight: 500, opacity: submitting ? 0.6 : 1,
             }}
           >
-            {submitting ? 'Generating…' : 'Generate quote'}
+            {submitting ? (editId ? 'Saving…' : 'Generating…') : (editId ? 'Save changes' : 'Generate quote')}
           </button>
         </div>
       </div>

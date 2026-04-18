@@ -6,7 +6,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'var(--font)', background: 'var(--bg-secondary)' }}>
       {/* Sidebar */}
       <div style={{
-        width: 220,
+        width: 168,
         flexShrink: 0,
         background: 'var(--bg)',
         borderRight: '0.5px solid var(--border)',
@@ -48,7 +48,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Main content */}
       <div style={{
-        marginLeft: 220,
+        marginLeft: 168,
         flex: 1,
         background: 'var(--bg)',
         minHeight: '100vh',
