@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
     'email.delivered': 'delivered',
     'email.bounced': 'bounced',
     'email.complained': 'complained',
+    'email.failed': 'failed',
     'email.delivery_delayed': 'sent', // stays as sent, will be caught by health cron
   }
 
@@ -36,9 +37,9 @@ export async function POST(req: NextRequest) {
     .select('id, recipient_email, recipient_name, subject, type')
     .single()
 
-  // Create notification for bounced or complained
-  if ((newStatus === 'bounced' || newStatus === 'complained') && logRow) {
-    const label = newStatus === 'bounced' ? 'bounced' : 'marked as spam'
+  // Create notification for bounced, complained, or failed
+  if ((newStatus === 'bounced' || newStatus === 'complained' || newStatus === 'failed') && logRow) {
+    const label = newStatus === 'bounced' ? 'bounced' : newStatus === 'complained' ? 'marked as spam' : 'failed'
     await supabase.from('notifications').insert({
       type: `email_${newStatus}`,
       message: `Email to ${logRow.recipient_name ?? logRow.recipient_email} (${logRow.type}) ${label}: "${logRow.subject}"`,
