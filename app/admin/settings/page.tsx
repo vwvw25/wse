@@ -105,6 +105,13 @@ export default function SettingsPage() {
   const [testSending, setTestSending] = useState<Record<string, boolean>>({})
   const [testResults, setTestResults] = useState<Record<string, { ok: boolean; text: string }>>({})
 
+  // Celebration GIFs state
+  const [gifs, setGifs] = useState<{ id: string; url: string }[]>([])
+  const [gifsLoading, setGifsLoading] = useState(true)
+  const [newGifUrl, setNewGifUrl] = useState('')
+  const [gifAdding, setGifAdding] = useState(false)
+  const [gifDeleting, setGifDeleting] = useState<string | null>(null)
+
   const TEMPLATES = [
     { key: 'availability_request', label: 'Availability request' },
     { key: 'availability_reminder', label: 'Availability reminder' },
@@ -128,6 +135,10 @@ export default function SettingsPage() {
       .then(r => r.json())
       .then(data => { setMonSettings(data); setMonLoading(false) })
       .catch(() => { setMonLoading(false) })
+    fetch('/api/admin/celebration-gifs')
+      .then(r => r.json())
+      .then(data => { setGifs(Array.isArray(data) ? data : []); setGifsLoading(false) })
+      .catch(() => { setGifsLoading(false) })
   }, [])
 
   function handleChange(key: string, val: number) {
@@ -159,6 +170,35 @@ export default function SettingsPage() {
       setMonMessage({ type: 'error', text: 'Network error.' })
     } finally {
       setMonSaving(false)
+    }
+  }
+
+  async function addGif() {
+    if (!newGifUrl.trim()) return
+    setGifAdding(true)
+    try {
+      const res = await fetch('/api/admin/celebration-gifs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: newGifUrl.trim() }),
+      })
+      if (res.ok) {
+        const gif = await res.json()
+        setGifs(prev => [gif, ...prev])
+        setNewGifUrl('')
+      }
+    } finally {
+      setGifAdding(false)
+    }
+  }
+
+  async function deleteGif(id: string) {
+    setGifDeleting(id)
+    try {
+      await fetch(`/api/admin/celebration-gifs/${id}`, { method: 'DELETE' })
+      setGifs(prev => prev.filter(g => g.id !== id))
+    } finally {
+      setGifDeleting(null)
     }
   }
 
@@ -532,6 +572,89 @@ export default function SettingsPage() {
           </div>
         ))}
       </div>
+
+      {/* Celebration GIFs */}
+      <div style={{ ...sectionHeaderStyle, marginTop: 40 }}>Celebration GIFs</div>
+      <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 16px' }}>
+        Shown at random when a musician confirms availability.
+      </p>
+
+      {/* Add new GIF */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <input
+          type="url"
+          placeholder="Paste a GIF URL…"
+          value={newGifUrl}
+          onChange={e => setNewGifUrl(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') addGif() }}
+          style={{
+            flex: 1, padding: '7px 10px', border: '0.5px solid var(--border)',
+            borderRadius: 'var(--radius-sm)', fontSize: 13, fontFamily: 'var(--font)',
+            background: 'var(--bg)', color: 'var(--text)', outline: 'none',
+          }}
+        />
+        <button
+          onClick={addGif}
+          disabled={gifAdding || !newGifUrl.trim()}
+          style={{
+            padding: '7px 16px', fontSize: 13, fontWeight: 500,
+            background: 'var(--accent)', color: '#fff', border: 'none',
+            borderRadius: 'var(--radius-sm)', cursor: gifAdding || !newGifUrl.trim() ? 'not-allowed' : 'pointer',
+            opacity: gifAdding || !newGifUrl.trim() ? 0.6 : 1, fontFamily: 'var(--font)',
+          }}
+        >
+          {gifAdding ? 'Adding…' : 'Add'}
+        </button>
+      </div>
+
+      {/* GIF list */}
+      {gifsLoading ? (
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Loading…</p>
+      ) : gifs.length === 0 ? (
+        <p style={{ fontSize: 13, color: 'var(--text-tertiary)', fontStyle: 'italic' }}>No GIFs added yet.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+          {gifs.map(gif => (
+            <div
+              key={gif.id}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '8px 0', borderBottom: '0.5px solid var(--border)',
+              }}
+            >
+              {/* Thumbnail */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={gif.url}
+                alt=""
+                style={{ width: 48, height: 36, objectFit: 'cover', borderRadius: 4, flexShrink: 0, background: '#f3f4f6' }}
+              />
+              {/* URL */}
+              <span style={{
+                flex: 1, fontSize: 12, color: 'var(--text-secondary)',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {gif.url}
+              </span>
+              {/* Delete */}
+              <button
+                onClick={() => deleteGif(gif.id)}
+                disabled={gifDeleting === gif.id}
+                title="Remove"
+                style={{
+                  background: 'none', border: 'none', cursor: gifDeleting === gif.id ? 'not-allowed' : 'pointer',
+                  padding: 4, color: '#9ca3af', flexShrink: 0, lineHeight: 1,
+                  opacity: gifDeleting === gif.id ? 0.4 : 1,
+                }}
+              >
+                <svg width="15" height="15" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M6 2h8M3 5h14M5 5l1 12h8l1-12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Add-ons */}
       <div style={sectionHeaderStyle}>Add-ons</div>

@@ -1,7 +1,11 @@
 import { Resend } from 'resend'
 import { createServiceClient } from './supabase'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Lazy-init so the Resend constructor isn't called at module evaluation time
+// (Next.js static page collection runs without env vars)
+function getResend() {
+  return new Resend(process.env.RESEND_API_KEY)
+}
 
 export const FROM_ADDRESS = 'Ward Smith Entertainment <onboarding@resend.dev>'
 
@@ -46,7 +50,7 @@ export async function sendEmail({
   const emailLogId = logRow?.id ?? ''
 
   try {
-    const result = await resend.emails.send({ from, to, subject, html })
+    const result = await getResend().emails.send({ from, to, subject, html })
     const resendId = (result.data as { id?: string } | null)?.id ?? null
 
     await supabase

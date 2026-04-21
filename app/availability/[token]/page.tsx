@@ -127,11 +127,16 @@ export default async function AvailabilityPage({
 
   const supabase = createServiceClient()
 
-  const { data: slot } = await supabase
-    .from('event_musicians')
-    .select('*, musician:musicians(*), event:events(*)')
-    .eq('token', token)
-    .single()
+  const [{ data: slot }, { data: gifs }] = await Promise.all([
+    supabase
+      .from('event_musicians')
+      .select('*, musician:musicians(*), event:events(*)')
+      .eq('token', token)
+      .single(),
+    supabase
+      .from('celebration_gifs')
+      .select('url'),
+  ])
 
   if (!slot) notFound()
 
@@ -142,6 +147,12 @@ export default async function AvailabilityPage({
   const eventLabel = event.agency_name
     ? (event.agent_name ? `${event.agent_name} at ${event.agency_name}` : event.agency_name)
     : (event.agent_name ?? 'Event')
+
+  // Pick a random celebration GIF (stable per token+confirmed to avoid flicker on re-render)
+  const gifUrls = (gifs ?? []).map((g: { url: string }) => g.url).filter(Boolean)
+  const randomGif = gifUrls.length > 0
+    ? gifUrls[Math.floor(Math.random() * gifUrls.length)]
+    : null
 
   // Handle response submission via URL param — server-side
   if (response === 'yes' || response === 'no') {
@@ -241,6 +252,28 @@ export default async function AvailabilityPage({
   const alreadyResponded = slot.availability !== 'tbc'
   const responseWas = confirmed ?? (alreadyResponded ? slot.availability : null)
 
+  // ── 'Yes' success: just show a celebration GIF ──────────────────────────
+  if (responseWas === 'yes') {
+    return (
+      <div style={{ minHeight: '100vh', background: '#111827', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif' }}>
+        {randomGif ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={randomGif}
+            alt="Celebration"
+            style={{ maxWidth: '100%', maxHeight: '80vh', borderRadius: 8, display: 'block' }}
+          />
+        ) : (
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
+            <p style={{ fontSize: 20, fontWeight: 700, color: '#fff', margin: 0 }}>You&apos;re booked in!</p>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ── 'No' response / pending ──────────────────────────────────────────────
   return (
     <div style={{ minHeight: '100vh', background: '#f9fafb', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif' }}>
       <div style={{ background: '#fff', borderRadius: 10, boxShadow: '0 2px 12px rgba(0,0,0,0.1)', width: '100%', maxWidth: 480, overflow: 'hidden' }}>
@@ -257,18 +290,14 @@ export default async function AvailabilityPage({
 
         <div style={{ padding: '24px 28px' }}>
 
-          {/* Confirmation state */}
-          {responseWas && (
+          {/* 'No' confirmation banner */}
+          {responseWas === 'no' && (
             <div style={{
               padding: '14px 16px', borderRadius: 6, marginBottom: 20,
-              background: responseWas === 'yes' ? '#f0fdf4' : '#fef2f2',
-              border: `1px solid ${responseWas === 'yes' ? '#bbf7d0' : '#fecaca'}`,
-              color: responseWas === 'yes' ? '#166534' : '#991b1b',
-              fontSize: 14, fontWeight: 500,
+              background: '#fef2f2', border: '1px solid #fecaca',
+              color: '#991b1b', fontSize: 14, fontWeight: 500,
             }}>
-              {responseWas === 'yes'
-                ? '✓ You\'ve confirmed you\'re available for this event.'
-                : '✗ You\'ve indicated you\'re not available. We\'ll be in touch if anything changes.'}
+              ✗ You&apos;ve indicated you&apos;re not available. We&apos;ll be in touch if anything changes.
             </div>
           )}
 
@@ -307,7 +336,7 @@ export default async function AvailabilityPage({
                 href={`/availability/${token}?response=yes`}
                 style={{ display: 'block', textAlign: 'center', padding: '13px 0', background: '#16a34a', color: '#fff', fontSize: 14, fontWeight: 600, borderRadius: 6, textDecoration: 'none' }}
               >
-                ✓ Yes, I'm available
+                ✓ Yes, I&apos;m available
               </a>
               <a
                 href={`/availability/${token}?response=no`}

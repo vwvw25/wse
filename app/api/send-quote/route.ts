@@ -6,7 +6,7 @@ import { getQuoteItems } from '@/lib/quote-items'
 import type { QuoteItem } from '@/lib/quote-items'
 import type { QuoteInputs, Settings, PriceOption, BookingType } from '@/types/quote'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+function getResend() { return new Resend(process.env.RESEND_API_KEY) }
 
 const FROM_ADDRESS = 'Ward Smith Entertainment <onboarding@resend.dev>'
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://wse.vercel.app'
@@ -178,7 +178,7 @@ export async function POST(req: NextRequest) {
     // Send email
     const emailHtml = buildEmailHtml(inputs, calculated.price_options ?? [], q.id, settings.pa_sound_engineer_rate)
 
-    const { error: emailErr } = await resend.emails.send({
+    const { error: emailErr } = await getResend().emails.send({
       from: FROM_ADDRESS,
       to: inputs.client_email,
       subject: `Your quote — Ward Smith Entertainment${inputs.event_date ? ` · ${new Date(inputs.event_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}` : ''}`,

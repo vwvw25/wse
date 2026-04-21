@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createServiceClient } from '@/lib/supabase'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+function getResend() { return new Resend(process.env.RESEND_API_KEY) }
 const FROM_ADDRESS = 'Ward Smith Entertainment <onboarding@resend.dev>'
 
 export async function GET(req: NextRequest) {
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
     // Send alert email to admin if configured
     if (alertEmail) {
       try {
-        await resend.emails.send({
+        await getResend().emails.send({
           from: FROM_ADDRESS,
           to: alertEmail,
           subject: `⚠️ Email delivery issue — ${email.type as string}`,
