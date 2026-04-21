@@ -9,7 +9,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const supabase = createServiceClient()
-  const body = await req.json() as { alert_email?: string; delivery_threshold_minutes?: number; pending_threshold_minutes?: number }
+  const body = await req.json() as { alert_email?: string; delivery_threshold_minutes?: number; pending_threshold_minutes?: number; test_email_address?: string }
   await supabase.from('monitoring_settings').upsert({ id: 1, ...body })
   return NextResponse.json({ ok: true })
 }

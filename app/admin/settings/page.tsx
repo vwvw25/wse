@@ -96,10 +96,24 @@ export default function SettingsPage() {
   const [invMessage, setInvMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   // Monitoring settings state
-  const [monSettings, setMonSettings] = useState<{ alert_email?: string; delivery_threshold_minutes?: number; pending_threshold_minutes?: number }>({})
+  const [monSettings, setMonSettings] = useState<{ alert_email?: string; delivery_threshold_minutes?: number; pending_threshold_minutes?: number; test_email_address?: string }>({})
   const [monLoading, setMonLoading] = useState(true)
   const [monSaving, setMonSaving] = useState(false)
   const [monMessage, setMonMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  // Test email state
+  const [testSending, setTestSending] = useState<Record<string, boolean>>({})
+  const [testResults, setTestResults] = useState<Record<string, { ok: boolean; text: string }>>({})
+
+  const TEMPLATES = [
+    { key: 'availability_request', label: 'Availability request' },
+    { key: 'availability_reminder', label: 'Availability reminder' },
+    { key: 'gig_confirmation', label: 'Gig confirmation' },
+    { key: 'general_onboard', label: 'General onboard' },
+    { key: 'info_request', label: 'Information request' },
+    { key: 'onboarding_reminder_1', label: 'Onboarding reminder (1st)' },
+    { key: 'onboarding_reminder_urgent', label: 'Onboarding reminder (urgent)' },
+  ]
 
   useEffect(() => {
     fetch('/api/admin/settings')
@@ -145,6 +159,33 @@ export default function SettingsPage() {
       setMonMessage({ type: 'error', text: 'Network error.' })
     } finally {
       setMonSaving(false)
+    }
+  }
+
+  async function sendTestEmail(templateKey: string) {
+    const to = monSettings.test_email_address
+    if (!to) {
+      setTestResults(prev => ({ ...prev, [templateKey]: { ok: false, text: 'Set a test email address first' } }))
+      return
+    }
+    setTestSending(prev => ({ ...prev, [templateKey]: true }))
+    setTestResults(prev => ({ ...prev, [templateKey]: { ok: true, text: '' } }))
+    try {
+      const res = await fetch('/api/admin/send-test-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ template: templateKey, to }),
+      })
+      if (res.ok) {
+        setTestResults(prev => ({ ...prev, [templateKey]: { ok: true, text: `Sent to ${to}` } }))
+      } else {
+        const err = await res.json()
+        setTestResults(prev => ({ ...prev, [templateKey]: { ok: false, text: err.error ?? 'Failed' } }))
+      }
+    } catch {
+      setTestResults(prev => ({ ...prev, [templateKey]: { ok: false, text: 'Network error' } }))
+    } finally {
+      setTestSending(prev => ({ ...prev, [templateKey]: false }))
     }
   }
 
@@ -404,7 +445,7 @@ export default function SettingsPage() {
               min={5}
             />
           </div>
-          <div style={{ ...rowStyle, borderBottom: 'none' }}>
+          <div style={rowStyle}>
             <span style={labelStyle}>Email logs</span>
             <a
               href="/admin/email-logs"
@@ -417,6 +458,16 @@ export default function SettingsPage() {
             >
               View logs
             </a>
+          </div>
+          <div style={{ ...rowStyle, borderBottom: 'none' }}>
+            <span style={labelStyle}>Send test emails to</span>
+            <input
+              type="email"
+              style={{ ...inputStyle, width: 220 }}
+              value={monSettings.test_email_address ?? ''}
+              onChange={e => { setMonSettings(prev => ({ ...prev, test_email_address: e.target.value || undefined })); setMonMessage(null) }}
+              placeholder="vickylward@gmail.com"
+            />
           </div>
           <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 16 }}>
             <button
@@ -439,6 +490,48 @@ export default function SettingsPage() {
           </div>
         </>
       )}
+
+      {/* Email templates / test sends */}
+      <div style={{ ...sectionHeaderStyle, marginTop: 40 }}>Email templates</div>
+      <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 16px' }}>
+        Send a test version of each template to the address above.
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {TEMPLATES.map(({ key, label }) => (
+          <div
+            key={key}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '8px 0', borderBottom: '0.5px solid var(--border)',
+            }}
+          >
+            <span style={{ fontSize: 13, color: 'var(--text)' }}>{label}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              {testResults[key] && (
+                <span style={{
+                  fontSize: 12,
+                  color: testResults[key].ok ? '#166534' : '#b91c1c',
+                }}>
+                  {testResults[key].ok ? `✓ ${testResults[key].text}` : `✗ ${testResults[key].text}`}
+                </span>
+              )}
+              <button
+                onClick={() => sendTestEmail(key)}
+                disabled={testSending[key]}
+                style={{
+                  padding: '5px 14px', fontSize: 12, fontWeight: 500,
+                  background: 'var(--bg)', color: 'var(--text)',
+                  border: '0.5px solid var(--border-hover)',
+                  borderRadius: 'var(--radius-sm)', cursor: testSending[key] ? 'not-allowed' : 'pointer',
+                  opacity: testSending[key] ? 0.6 : 1, fontFamily: 'var(--font)',
+                }}
+              >
+                {testSending[key] ? 'Sending…' : 'Send test'}
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
 
       {/* Add-ons */}
       <div style={sectionHeaderStyle}>Add-ons</div>
