@@ -104,6 +104,7 @@ export default function OnboardingForm({ token, musician, type, fieldsRequested 
     musician.covid_booster === true ? 'yes' : musician.covid_booster === false ? 'no' : '',
   )
 
+  const [consented, setConsented] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -404,9 +405,25 @@ export default function OnboardingForm({ token, musician, type, fieldsRequested 
               </div>
             )}
 
+            {/* Consent */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
+                <input
+                  type="checkbox"
+                  checked={consented}
+                  onChange={e => setConsented(e.target.checked)}
+                  style={{ width: 16, height: 16, marginTop: 2, flexShrink: 0, cursor: 'pointer' }}
+                  required
+                />
+                <span style={{ fontSize: 13, color: '#374151', lineHeight: 1.5 }}>
+                  The information you provide will be sent to clients, where requested. Please tick here to confirm that you agree with this information being shared.
+                </span>
+              </label>
+            </div>
+
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || !consented}
               style={{
                 width: '100%',
                 padding: '13px 0',
@@ -416,8 +433,8 @@ export default function OnboardingForm({ token, musician, type, fieldsRequested 
                 fontWeight: 600,
                 border: 'none',
                 borderRadius: 6,
-                cursor: submitting ? 'not-allowed' : 'pointer',
-                opacity: submitting ? 0.7 : 1,
+                cursor: (submitting || !consented) ? 'not-allowed' : 'pointer',
+                opacity: (submitting || !consented) ? 0.7 : 1,
                 fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif',
               }}
             >
