@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useTransition } from 'react'
-import type { Musician, BandTemplate, BandTemplateSlot, PreferenceOrder, OnboardingType, OnboardingToken } from '@/types/musicians'
+import type { Musician, BandTemplate, BandTemplateSlot, PreferenceOrder, OnboardingToken } from '@/types/musicians'
 import { INSTRUMENTS, musicianFullName, ONBOARDING_OPTIONAL_FIELDS, ONBOARDING_BASE_FIELDS } from '@/types/musicians'
 import {
   upsertMusician, deleteMusician,
@@ -287,9 +287,133 @@ function MusicianModal({ musician, onClose }: { musician: Partial<Musician> | nu
   )
 }
 
-// ── Send onboard modal ────────────────────────────────────────────────────────
-function SendOnboardModal({ musician, onClose }: { musician: Musician; onClose: () => void }) {
-  const [type, setType] = useState<OnboardingType>('general')
+// ── Onboard musician modal (general) ─────────────────────────────────────────
+function OnboardMusicianModal({ musicians, onClose }: { musicians: Musician[]; onClose: () => void }) {
+  const [selectedId, setSelectedId] = useState('')
+  const [checked, setChecked] = useState<Set<string>>(new Set())
+  const [deadline, setDeadline] = useState('')
+  const [sending, setSending] = useState(false)
+  const [sent, setSent] = useState(false)
+
+  function toggleField(key: string) {
+    setChecked(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  const fieldsToShow: { key: string; label: string; group: string }[] = [...ONBOARDING_OPTIONAL_FIELDS]
+  const groups: Record<string, { key: string; label: string; group: string }[]> = {}
+  for (const field of fieldsToShow) {
+    if (!groups[field.group]) groups[field.group] = []
+    groups[field.group].push(field)
+  }
+
+  const canSend = selectedId.length > 0 && deadline.length > 0
+
+  async function handleSend() {
+    setSending(true)
+    try {
+      await fetch('/api/musicians/send-onboard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          musicianId: selectedId,
+          type: 'general',
+          fieldsRequested: Array.from(checked),
+          deadlineAt: new Date(deadline).toISOString(),
+        }),
+      })
+      setSent(true)
+      setTimeout(() => onClose(), 1500)
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <Overlay onClose={onClose} width={520}>
+      <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 20 }}>Onboard musician</div>
+
+      {/* Musician selector */}
+      <div style={{ marginBottom: 20 }}>
+        <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+          Musician *
+        </label>
+        <select
+          value={selectedId}
+          onChange={e => setSelectedId(e.target.value)}
+          style={inputStyle}
+        >
+          <option value="">— select musician —</option>
+          {musicians.map(m => (
+            <option key={m.id} value={m.id}>{musicianFullName(m)}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Optional extra fields */}
+      {Object.keys(groups).length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8 }}>
+            Additional fields (optional)
+          </div>
+          {Object.entries(groups).map(([group, fields]) => (
+            <div key={group} style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+                {group}
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {fields.map(f => (
+                  <label key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--text)', cursor: 'pointer', userSelect: 'none' }}>
+                    <input
+                      type="checkbox"
+                      checked={checked.has(f.key)}
+                      onChange={() => toggleField(f.key)}
+                      style={{ width: 14, height: 14 }}
+                    />
+                    {f.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Deadline */}
+      <div style={{ marginBottom: 20 }}>
+        <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+          Response deadline *
+        </label>
+        <input
+          type="datetime-local"
+          value={deadline}
+          onChange={e => setDeadline(e.target.value)}
+          style={{ ...inputStyle, width: 240 }}
+          required
+        />
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <button type="button" onClick={onClose} style={cancelBtn}>Cancel</button>
+        <button
+          type="button"
+          disabled={!canSend || sending || sent}
+          onClick={handleSend}
+          style={{ ...primaryBtn, opacity: (!canSend || sending || sent) ? 0.5 : 1, minWidth: 80 }}
+        >
+          {sent ? 'Sent ✓' : sending ? 'Sending…' : 'Send'}
+        </button>
+      </div>
+    </Overlay>
+  )
+}
+
+// ── Request info modal (info_request) ─────────────────────────────────────────
+function RequestInfoModal({ musician, onClose }: { musician: Musician; onClose: () => void }) {
   const [checked, setChecked] = useState<Set<string>>(new Set())
   const [deadline, setDeadline] = useState('')
   const [sending, setSending] = useState(false)
@@ -306,17 +430,17 @@ function SendOnboardModal({ musician, onClose }: { musician: Musician; onClose: 
     })
   }
 
-  // For general: show optional extras only. For info_request: show all fields.
-  const fieldsToShow = type === 'general' ? ONBOARDING_OPTIONAL_FIELDS : [...ONBOARDING_BASE_FIELDS, ...ONBOARDING_OPTIONAL_FIELDS]
-
-  // Group them
-  const groups: Record<string, typeof fieldsToShow[number][]> = {}
-  for (const field of fieldsToShow) {
+  const allFields: { key: string; label: string; group: string }[] = [
+    ...ONBOARDING_BASE_FIELDS,
+    ...ONBOARDING_OPTIONAL_FIELDS,
+  ]
+  const groups: Record<string, { key: string; label: string; group: string }[]> = {}
+  for (const field of allFields) {
     if (!groups[field.group]) groups[field.group] = []
     groups[field.group].push(field)
   }
 
-  const canSend = (type === 'general' || checked.size > 0) && deadline.length > 0
+  const canSend = checked.size > 0 && deadline.length > 0
 
   async function handleSend() {
     setSending(true)
@@ -326,7 +450,7 @@ function SendOnboardModal({ musician, onClose }: { musician: Musician; onClose: 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           musicianId: musician.id,
-          type,
+          type: 'info_request',
           fieldsRequested: Array.from(checked),
           deadlineAt: new Date(deadline).toISOString(),
         }),
@@ -340,40 +464,10 @@ function SendOnboardModal({ musician, onClose }: { musician: Musician; onClose: 
 
   return (
     <Overlay onClose={onClose} width={520}>
-      <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>Send onboarding email</div>
+      <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>Request information</div>
       <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>{name}</div>
 
-      {/* Type toggle */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
-        {(['general', 'info_request'] as const).map(t => {
-          const active = type === t
-          return (
-            <button
-              key={t}
-              type="button"
-              onClick={() => { setType(t); setChecked(new Set()) }}
-              style={{
-                padding: '12px 14px', textAlign: 'left', cursor: 'pointer',
-                background: active ? 'var(--accent)' : 'var(--bg-secondary)',
-                color: active ? '#fff' : 'var(--text)',
-                border: `0.5px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-                borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font)',
-              }}
-            >
-              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
-                {t === 'general' ? 'General onboard' : 'Information request'}
-              </div>
-              <div style={{ fontSize: 12, opacity: active ? 0.85 : 0.7, lineHeight: 1.4 }}>
-                {t === 'general'
-                  ? 'For new musicians. Asks for phone, home city, dietary, instruments, and fee. Tick any additional fields below.'
-                  : 'For existing musicians. Only sends the fields you tick.'}
-              </div>
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Field checkboxes */}
+      {/* Field checkboxes — all fields grouped */}
       <div style={{ marginBottom: 20 }}>
         {Object.entries(groups).map(([group, fields]) => (
           <div key={group} style={{ marginBottom: 14 }}>
@@ -417,11 +511,7 @@ function SendOnboardModal({ musician, onClose }: { musician: Musician; onClose: 
           type="button"
           disabled={!canSend || sending || sent}
           onClick={handleSend}
-          style={{
-            ...primaryBtn,
-            opacity: (!canSend || sending || sent) ? 0.5 : 1,
-            minWidth: 80,
-          }}
+          style={{ ...primaryBtn, opacity: (!canSend || sending || sent) ? 0.5 : 1, minWidth: 80 }}
         >
           {sent ? 'Sent ✓' : sending ? 'Sending…' : 'Send'}
         </button>
@@ -431,14 +521,28 @@ function SendOnboardModal({ musician, onClose }: { musician: Musician; onClose: 
 }
 
 // ── Roster tab ────────────────────────────────────────────────────────────────
+const DIETARY_LABELS: Record<string, string> = {
+  lactose_intolerant: 'Lactose',
+  gluten_intolerant: 'Gluten',
+  vegan: 'Vegan',
+  vegetarian: 'Vegetarian',
+}
+
 function RosterTab({ musicians }: { musicians: Musician[] }) {
   const [modal, setModal] = useState<Partial<Musician> | null | false>(false)
-  const [onboardModal, setOnboardModal] = useState<Musician | null>(null)
+  const [onboardModal, setOnboardModal] = useState(false)
+  const [requestInfoModal, setRequestInfoModal] = useState<Musician | null>(null)
   const [, startTransition] = useTransition()
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 16 }}>
+        <button
+          style={{ ...primaryBtn, background: 'var(--bg-secondary)', color: 'var(--text)', border: '0.5px solid var(--border)' }}
+          onClick={() => setOnboardModal(true)}
+        >
+          Onboard musician
+        </button>
         <button style={primaryBtn} onClick={() => setModal({})}>+ Add musician</button>
       </div>
 
@@ -447,50 +551,73 @@ function RosterTab({ musicians }: { musicians: Musician[] }) {
           No musicians yet — add your first musician.
         </div>
       ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid var(--border)' }}>
-              {['Name', 'Primary', 'Secondary', 'Email', 'Phone', 'Default fee', ''].map((h, i) => (
-                <th key={i} style={{ textAlign: 'left', padding: '6px 12px 6px 0', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {musicians.map(m => (
-              <tr key={m.id} style={{ borderBottom: '0.5px solid var(--border)' }}>
-                <td style={{ padding: '9px 12px 9px 0', fontSize: 13, color: 'var(--text)', fontWeight: 500 }}>{musicianFullName(m)}</td>
-                <td style={{ padding: '9px 12px 9px 0', fontSize: 13, color: 'var(--text-secondary)' }}>{m.primary_instrument ?? '—'}</td>
-                <td style={{ padding: '9px 12px 9px 0', fontSize: 13, color: 'var(--text-secondary)' }}>{m.secondary_instrument ?? '—'}</td>
-                <td style={{ padding: '9px 12px 9px 0', fontSize: 13, color: 'var(--text-secondary)' }}>{m.email ?? '—'}</td>
-                <td style={{ padding: '9px 12px 9px 0', fontSize: 13, color: 'var(--text-secondary)' }}>{m.phone ?? '—'}</td>
-                <td style={{ padding: '9px 12px 9px 0', fontSize: 13, color: 'var(--text-secondary)' }}>
-                  {m.default_fee > 0 ? `£${m.default_fee.toFixed(2)}` : '—'}
-                </td>
-                <td style={{ padding: '9px 0', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                  <button
-                    onClick={() => setOnboardModal(m)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--text-secondary)', padding: '2px 8px', fontFamily: 'var(--font)' }}
-                  >Send onboard</button>
-                  <button
-                    onClick={() => setModal(m)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--text-secondary)', padding: '2px 8px', fontFamily: 'var(--font)' }}
-                  >Edit</button>
-                  <button
-                    onClick={() => { if (confirm(`Remove ${musicianFullName(m)} from roster?`)) startTransition(async () => deleteMusician(m.id)) }}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--text-danger)', padding: '2px 8px', fontFamily: 'var(--font)' }}
-                  >Delete</button>
-                </td>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                {['Name', 'Primary', 'Secondary', 'Email', 'Phone', 'Fee', 'Home city', 'Dietary', 'Car reg', 'DOB', 'Passport', 'COVID', ''].map((h, i) => (
+                  <th key={i} style={{ textAlign: 'left', padding: '6px 8px 6px 0', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>{h}</th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {musicians.map(m => {
+                const dietaryLabels = (m.dietary_requirements ?? [])
+                  .map(k => DIETARY_LABELS[k] ?? k)
+                  .join(', ') || '—'
+                const dobStr = m.date_of_birth
+                  ? new Date(m.date_of_birth).toLocaleDateString('en-GB')
+                  : '—'
+                const v = m.covid_vaccinated
+                const b = m.covid_booster
+                const covidStr = v === true && b === true ? 'V+B' : v === true ? 'V' : v === false ? 'No' : '—'
+
+                return (
+                  <tr key={m.id} style={{ borderBottom: '0.5px solid var(--border)' }}>
+                    <td style={{ padding: '6px 8px 6px 0', fontSize: 13, color: 'var(--text)', fontWeight: 500 }}>{musicianFullName(m)}</td>
+                    <td style={{ padding: '6px 8px 6px 0', fontSize: 13, color: 'var(--text-secondary)' }}>{m.primary_instrument ?? '—'}</td>
+                    <td style={{ padding: '6px 8px 6px 0', fontSize: 13, color: 'var(--text-secondary)' }}>{m.secondary_instrument ?? '—'}</td>
+                    <td style={{ padding: '6px 8px 6px 0', fontSize: 13, color: 'var(--text-secondary)' }}>{m.email ?? '—'}</td>
+                    <td style={{ padding: '6px 8px 6px 0', fontSize: 13, color: 'var(--text-secondary)' }}>{m.phone ?? '—'}</td>
+                    <td style={{ padding: '6px 8px 6px 0', fontSize: 13, color: 'var(--text-secondary)' }}>
+                      {m.default_fee > 0 ? `£${m.default_fee.toFixed(2)}` : '—'}
+                    </td>
+                    <td style={{ padding: '6px 8px 6px 0', fontSize: 13, color: 'var(--text-secondary)' }}>{m.home_city ?? '—'}</td>
+                    <td style={{ padding: '6px 8px 6px 0', fontSize: 13, color: 'var(--text-secondary)' }}>{dietaryLabels}</td>
+                    <td style={{ padding: '6px 8px 6px 0', fontSize: 13, color: 'var(--text-secondary)' }}>{m.car_registration ?? '—'}</td>
+                    <td style={{ padding: '6px 8px 6px 0', fontSize: 13, color: 'var(--text-secondary)' }}>{dobStr}</td>
+                    <td style={{ padding: '6px 8px 6px 0', fontSize: 13, color: 'var(--text-secondary)' }}>{m.passport_number ?? '—'}</td>
+                    <td style={{ padding: '6px 8px 6px 0', fontSize: 13, color: 'var(--text-secondary)' }}>{covidStr}</td>
+                    <td style={{ padding: '6px 0', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <button
+                        onClick={() => setRequestInfoModal(m)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--text-secondary)', padding: '2px 8px', fontFamily: 'var(--font)' }}
+                      >Request info</button>
+                      <button
+                        onClick={() => setModal(m)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--text-secondary)', padding: '2px 8px', fontFamily: 'var(--font)' }}
+                      >Edit</button>
+                      <button
+                        onClick={() => { if (confirm(`Remove ${musicianFullName(m)} from roster?`)) startTransition(async () => deleteMusician(m.id)) }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--text-danger)', padding: '2px 8px', fontFamily: 'var(--font)' }}
+                      >Delete</button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {modal !== false && (
         <MusicianModal musician={modal} onClose={() => setModal(false)} />
       )}
       {onboardModal && (
-        <SendOnboardModal musician={onboardModal} onClose={() => setOnboardModal(null)} />
+        <OnboardMusicianModal musicians={musicians} onClose={() => setOnboardModal(false)} />
+      )}
+      {requestInfoModal && (
+        <RequestInfoModal musician={requestInfoModal} onClose={() => setRequestInfoModal(null)} />
       )}
     </div>
   )
@@ -848,7 +975,7 @@ export default function MusicianClient({ musicians, templates, preferenceOrders,
             Preference orders
           </button>
           <button style={tabStyle(tab === 'onboarding')} onClick={() => setTab('onboarding')}>
-            Onboarding ({onboardingTokens.length})
+            Requests ({onboardingTokens.length})
           </button>
         </div>
       </div>
