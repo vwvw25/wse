@@ -80,12 +80,9 @@ function buildGeneralEmailHtml({
       <p style="font-size:14px;color:#374151;margin:0 0 16px;">
         We're delighted to welcome you to the Ward Smith Entertainment musician roster. We work with a wide range of clients and look forward to having you perform with us.
       </p>
-      <p style="font-size:14px;color:#374151;margin:0 0 20px;">
-        To get you set up, please take a moment to complete your profile. We'll ask for a few details:
+      <p style="font-size:14px;color:#374151;margin:0 0 24px;">
+        To get you set up, please take a moment to complete your profile.
       </p>
-      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:16px 20px;margin-bottom:24px;">
-        ${renderFieldGroups(allFields)}
-      </div>
       <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:12px 16px;margin-bottom:24px;">
         <div style="font-size:12px;font-weight:600;color:#92400e;margin-bottom:2px;">Please respond by</div>
         <div style="font-size:14px;color:#78350f;font-weight:500;">${formattedDeadline}</div>
