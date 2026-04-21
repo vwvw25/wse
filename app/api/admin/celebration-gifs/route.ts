@@ -11,13 +11,21 @@ export async function GET() {
   return NextResponse.json(data ?? [])
 }
 
+function normaliseGifUrl(raw: string): string {
+  // Convert Giphy page URL → direct media URL
+  // https://giphy.com/gifs/slug-GIPHYID  →  https://media.giphy.com/media/GIPHYID/giphy.gif
+  const giphyPage = raw.match(/giphy\.com\/gifs\/(?:[^/]+-)?([a-zA-Z0-9]+)\/?$/)
+  if (giphyPage) return `https://media.giphy.com/media/${giphyPage[1]}/giphy.gif`
+  return raw
+}
+
 export async function POST(req: NextRequest) {
   const supabase = createServiceClient()
   const { url } = await req.json() as { url: string }
   if (!url?.trim()) return NextResponse.json({ error: 'url is required' }, { status: 400 })
   const { data, error } = await supabase
     .from('celebration_gifs')
-    .insert({ url: url.trim() })
+    .insert({ url: normaliseGifUrl(url.trim()) })
     .select('id, url')
     .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
