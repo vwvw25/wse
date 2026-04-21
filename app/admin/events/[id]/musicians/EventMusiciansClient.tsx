@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useTransition } from 'react'
-import type { EventMusician, Musician, BandTemplate, BandTemplateSlot } from '@/types/musicians'
+import type { EventMusician, Musician, BandTemplate, BandTemplateSlot, MusicianAvailability } from '@/types/musicians'
 import { musicianFullName } from '@/types/musicians'
 import {
   applyTemplateToEvent,
@@ -37,7 +37,7 @@ const AVAILABILITY_CONFIG = {
 }
 
 // ── Availability badge ────────────────────────────────────────────────────────
-function AvailabilityBadge({ value, onChange }: { value: 'yes' | 'no' | 'tbc'; onChange: (v: 'yes' | 'no' | 'tbc') => void }) {
+function AvailabilityBadge({ value, onChange }: { value: MusicianAvailability; onChange: (v: MusicianAvailability) => void }) {
   const cfg = AVAILABILITY_CONFIG[value]
   const [open, setOpen] = useState(false)
 
@@ -114,7 +114,7 @@ function SlotRow({
     })
   }
 
-  function handleAvailability(v: 'yes' | 'no' | 'tbc') {
+  function handleAvailability(v: MusicianAvailability) {
     startTransition(async () => {
       await updateSlotAvailability(slot.id, eventId, v)
     })

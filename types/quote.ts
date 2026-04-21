@@ -243,6 +243,7 @@ export interface ContractData {
 export interface EventRecord {
   id: string
   created_at: string
+  client_id: string | null
   agency_name: string | null
   agent_name: string | null
   agent_first_name: string | null

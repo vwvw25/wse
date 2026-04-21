@@ -24,10 +24,26 @@ function renderItemHtml(item: QuoteItem): string {
     + (item.linkSuffix ?? '')
 }
 
+type BookingDetailsEvent = {
+  arrival_time?: string | null
+  finish_time?: string | null
+  load_out_time?: string | null
+  guests?: number | null
+  venue_address?: string | null
+  request_details?: {
+    band_size_requested?: string | null
+    sets_requested?: string | null
+    special_requirements?: string | null
+    sound_requirements?: string | null
+    notes?: string | null
+  } | null
+} | null
+
 // Generates the full top block for use as {{booking_details}} in templates:
 // header (WSE, agent, date, venue) + HR + booking details table + HR
-export function generateBookingDetailsHtml(quote: QuoteRecord): string {
+export function generateBookingDetailsHtml(quote: QuoteRecord, event?: BookingDetailsEvent): string {
   const { inputs } = quote
+  const rd = event?.request_details
   const HR = `<hr style="border:none;border-top:1px solid #ccc;margin:24px 0;">`
   const td = `padding:4px 8px 4px 0;border-bottom:1px solid #ccc;`
   const tdLabel = `${td}font-weight:500;width:160px;`
@@ -46,24 +62,42 @@ export function generateBookingDetailsHtml(quote: QuoteRecord): string {
       : inputs.agent_name ?? inputs.agency_name
     html += `<p style="margin:0 0 8px;">For <strong>${who}</strong></p>`
   }
-  if (eventDate)        html += `<p style="margin:0 0 8px;">Date: ${eventDate}</p>`
-  if (inputs.venue_name)html += `<p style="margin:0 0 8px;">Venue: ${inputs.venue_name}</p>`
+  if (eventDate)         html += `<p style="margin:0 0 8px;">Date: ${eventDate}</p>`
+  if (inputs.venue_name) html += `<p style="margin:0 0 8px;">Venue: ${inputs.venue_name}</p>`
 
   // Booking details table
-  const hasBookingDetails = inputs.location || inputs.start_time || inputs.finish_time || inputs.band_size_requested || inputs.sets_requested || inputs.client_provides_pa
-  if (hasBookingDetails) {
-    html += HR
-    html += `<p style="margin:0 0 8px;font-weight:bold;">Booking details</p>`
-    html += `<table style="width:100%;border-collapse:collapse;margin:8px 0 0;"><tbody>`
-    if (inputs.client_provides_pa) html += `<tr><td style="${tdLabel}">PA</td><td style="${td}">Client providing PA</td></tr>`
-    if (inputs.location)            html += `<tr><td style="${tdLabel}">Location</td><td style="${td}">${inputs.location}</td></tr>`
-    if (inputs.start_time)          html += `<tr><td style="${tdLabel}">Start time</td><td style="${td}">${inputs.start_time}</td></tr>`
-    if (inputs.finish_time)         html += `<tr><td style="${tdLabel}">Finish time</td><td style="${td}">${inputs.finish_time}</td></tr>`
-    if (inputs.band_size_requested) html += `<tr><td style="${tdLabel}">Band size</td><td style="${td}">${inputs.band_size_requested}</td></tr>`
-    if (inputs.sets_requested)      html += `<tr><td style="${tdLabel}">Sets</td><td style="${td}">${inputs.sets_requested}</td></tr>`
-    html += `</tbody></table>`
-  }
+  html += HR
+  html += `<p style="margin:0 0 8px;font-weight:bold;">Booking details</p>`
+  html += `<table style="width:100%;border-collapse:collapse;margin:8px 0 0;"><tbody>`
 
+  if (inputs.client_provides_pa)
+    html += `<tr><td style="${tdLabel}">PA</td><td style="${td}">Client providing PA</td></tr>`
+  if (inputs.location)
+    html += `<tr><td style="${tdLabel}">Location</td><td style="${td}">${inputs.location}</td></tr>`
+  if (event?.venue_address)
+    html += `<tr><td style="${tdLabel}">Address</td><td style="${td}">${event.venue_address}</td></tr>`
+  if (event?.guests)
+    html += `<tr><td style="${tdLabel}">Guests</td><td style="${td}">${event.guests}</td></tr>`
+  if (event?.arrival_time ?? inputs.arrival_time)
+    html += `<tr><td style="${tdLabel}">Arrival</td><td style="${td}">${event?.arrival_time ?? inputs.arrival_time}</td></tr>`
+  if (inputs.start_time)
+    html += `<tr><td style="${tdLabel}">Start time</td><td style="${td}">${inputs.start_time}</td></tr>`
+  if (event?.finish_time ?? inputs.finish_time)
+    html += `<tr><td style="${tdLabel}">Finish time</td><td style="${td}">${event?.finish_time ?? inputs.finish_time}</td></tr>`
+  if (event?.load_out_time ?? inputs.load_out_time)
+    html += `<tr><td style="${tdLabel}">Load out</td><td style="${td}">${event?.load_out_time ?? inputs.load_out_time}</td></tr>`
+  if (inputs.band_size_requested ?? rd?.band_size_requested)
+    html += `<tr><td style="${tdLabel}">Band size</td><td style="${td}">${inputs.band_size_requested ?? rd?.band_size_requested}</td></tr>`
+  if (inputs.sets_requested ?? rd?.sets_requested)
+    html += `<tr><td style="${tdLabel}">Sets</td><td style="${td}">${inputs.sets_requested ?? rd?.sets_requested}</td></tr>`
+  if (rd?.sound_requirements)
+    html += `<tr><td style="${tdLabel}">Sound</td><td style="${td}">${rd.sound_requirements}</td></tr>`
+  if (rd?.special_requirements)
+    html += `<tr><td style="${tdLabel}">Requirements</td><td style="${td}">${rd.special_requirements}</td></tr>`
+  if (rd?.notes)
+    html += `<tr><td style="${tdLabel}">Notes</td><td style="${td}">${rd.notes}</td></tr>`
+
+  html += `</tbody></table>`
   html += HR
   html += `</div>`
   return html

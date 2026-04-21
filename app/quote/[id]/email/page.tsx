@@ -26,7 +26,7 @@ export default async function QuoteEmailPage({ params }: { params: Promise<{ id:
   }
 
   const quoteHtml = generateQuoteHtml(quote)
-  const bookingDetailsHtml = generateBookingDetailsHtml(quote)
+  const bookingDetailsHtml = generateBookingDetailsHtml(quote, event)
 
   return (
     <EmailComposer

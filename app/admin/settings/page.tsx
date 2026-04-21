@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import type { Settings } from '@/types/quote'
+import type { InvoiceSettings } from '@/types/invoice'
 
 type SettingsState = Settings & Record<string, number>
 
@@ -88,16 +89,53 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
+  // Invoice settings state
+  const [invSettings, setInvSettings] = useState<Partial<InvoiceSettings>>({})
+  const [invLoading, setInvLoading] = useState(true)
+  const [invSaving, setInvSaving] = useState(false)
+  const [invMessage, setInvMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
   useEffect(() => {
     fetch('/api/admin/settings')
       .then(r => r.json())
       .then(data => { setSettings(data); setLoading(false) })
       .catch(() => { setLoading(false) })
+    fetch('/api/admin/invoice-settings')
+      .then(r => r.json())
+      .then(data => { setInvSettings(data); setInvLoading(false) })
+      .catch(() => { setInvLoading(false) })
   }, [])
 
   function handleChange(key: string, val: number) {
     setSettings(prev => prev ? { ...prev, [key]: val } : prev)
     setMessage(null)
+  }
+
+  function handleInvChange(key: keyof InvoiceSettings, val: unknown) {
+    setInvSettings(prev => ({ ...prev, [key]: val }))
+    setInvMessage(null)
+  }
+
+  async function handleInvSave() {
+    setInvSaving(true)
+    setInvMessage(null)
+    try {
+      const res = await fetch('/api/admin/invoice-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(invSettings),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        setInvMessage({ type: 'error', text: err.error ?? 'Failed to save' })
+      } else {
+        setInvMessage({ type: 'success', text: 'Invoice settings saved.' })
+      }
+    } catch {
+      setInvMessage({ type: 'error', text: 'Network error.' })
+    } finally {
+      setInvSaving(false)
+    }
   }
 
   async function handleSave() {
@@ -194,6 +232,119 @@ export default function SettingsPage() {
       <FieldRow label="Stadium surcharge" fieldKey="location_surcharge_stadium" value={settings.location_surcharge_stadium} onChange={handleChange} />
       <FieldRow label="Private house surcharge" fieldKey="location_surcharge_house" value={settings.location_surcharge_house} onChange={handleChange} />
       <FieldRow label="No-drive zone surcharge" fieldKey="location_surcharge_no_drive" value={settings.location_surcharge_no_drive} onChange={handleChange} />
+
+      {/* ── Invoicing settings ── */}
+      <div style={{ ...sectionHeaderStyle, marginTop: 40 }}>Invoicing</div>
+      {invLoading ? (
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Loading…</p>
+      ) : (
+        <>
+          {/* VAT */}
+          <div style={rowStyle}>
+            <span style={labelStyle}>VAT registered</span>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={!!invSettings.vat_registered}
+                onChange={e => handleInvChange('vat_registered', e.target.checked)}
+                style={{ width: 16, height: 16, accentColor: 'var(--accent)' }}
+              />
+              <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                {invSettings.vat_registered ? 'Yes' : 'No'}
+              </span>
+            </label>
+          </div>
+          {invSettings.vat_registered && (
+            <div style={rowStyle}>
+              <span style={labelStyle}>VAT number</span>
+              <input
+                type="text"
+                style={inputStyle}
+                value={invSettings.vat_number ?? ''}
+                onChange={e => handleInvChange('vat_number', e.target.value || null)}
+                placeholder="GB123456789"
+              />
+            </div>
+          )}
+
+          {/* Bank details */}
+          <div style={{ ...sectionHeaderStyle, marginTop: 20, marginBottom: 8 }}>Bank details</div>
+          {([
+            ['bank_name', 'Bank name', 'e.g. Monzo'],
+            ['account_name', 'Account name', 'e.g. Ward Smith Entertainment'],
+            ['sort_code', 'Sort code', 'XX-XX-XX'],
+            ['account_number', 'Account number', ''],
+            ['iban', 'IBAN', 'Optional'],
+            ['swift', 'SWIFT / BIC', 'Optional'],
+          ] as [keyof InvoiceSettings, string, string][]).map(([key, label, placeholder]) => (
+            <div key={key} style={rowStyle}>
+              <span style={labelStyle}>{label}</span>
+              <input
+                type="text"
+                style={inputStyle}
+                value={(invSettings[key] as string | null) ?? ''}
+                onChange={e => handleInvChange(key, e.target.value || null)}
+                placeholder={placeholder}
+              />
+            </div>
+          ))}
+
+          {/* Logo + notes */}
+          <div style={{ ...sectionHeaderStyle, marginTop: 20, marginBottom: 8 }}>PDF appearance</div>
+          <div style={rowStyle}>
+            <span style={labelStyle}>Logo URL <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>(public image link)</span></span>
+            <input
+              type="text"
+              style={{ ...inputStyle, width: 260 }}
+              value={invSettings.logo_url ?? ''}
+              onChange={e => handleInvChange('logo_url', e.target.value || null)}
+              placeholder="https://…/logo.png"
+            />
+          </div>
+          <div style={{ ...rowStyle, alignItems: 'flex-start', borderBottom: 'none' }}>
+            <span style={{ ...labelStyle, paddingTop: 6 }}>Default notes</span>
+            <textarea
+              style={{
+                ...inputStyle,
+                width: 260,
+                height: 72,
+                resize: 'vertical',
+                padding: '6px 10px',
+                lineHeight: 1.5,
+              }}
+              value={invSettings.default_notes ?? ''}
+              onChange={e => handleInvChange('default_notes', e.target.value || null)}
+              placeholder="e.g. Payment terms, thank you note…"
+            />
+          </div>
+
+          <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 16 }}>
+            <button
+              onClick={handleInvSave}
+              disabled={invSaving}
+              style={{
+                padding: '9px 20px',
+                background: 'var(--accent)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: 14,
+                fontWeight: 500,
+                fontFamily: 'var(--font)',
+                cursor: invSaving ? 'not-allowed' : 'pointer',
+                opacity: invSaving ? 0.7 : 1,
+              }}
+            >
+              {invSaving ? 'Saving…' : 'Save invoice settings'}
+            </button>
+            {invMessage && (
+              <span style={{ fontSize: 13, color: invMessage.type === 'success' ? '#166534' : '#b91c1c' }}>
+                {invMessage.text}
+              </span>
+            )}
+          </div>
+        </>
+      )}
 
       {/* Add-ons */}
       <div style={sectionHeaderStyle}>Add-ons</div>

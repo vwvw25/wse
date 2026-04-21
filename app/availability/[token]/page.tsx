@@ -143,7 +143,7 @@ export default async function AvailabilityPage({
                 ['Arrival', formatTime(event.arrival_time)],
                 ['Start / Finish', `${formatTime(event.start_time)} – ${formatTime(event.finish_time)}`],
                 ['Your role', slot.instrument],
-              ].filter(Boolean).map(([label, value], i) => (
+              ].filter((r): r is [string, string] => r !== null).map(([label, value], i) => (
                 <tr key={i}>
                   <td style={{ padding: '5px 0', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', width: 110, verticalAlign: 'top' }}>
                     {label}

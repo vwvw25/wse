@@ -5,15 +5,14 @@ import { usePathname } from 'next/navigation'
 
 const navLinks = [
   { href: '/admin', label: 'Dashboard' },
-  { href: '/admin/bookings', label: 'Bookings' },
   { href: '/admin/events', label: 'Events' },
   { href: '/admin/band-builder', label: 'Band builder' },
   { href: '/admin/musicians', label: 'Musicians' },
   { href: '/admin/quotes', label: 'Quotes' },
   { href: '/admin/set-lists', label: 'Set lists' },
   { href: '/admin/templates', label: 'Templates' },
+  { href: '/admin/clients', label: 'Clients' },
   { href: '/admin/settings', label: 'Settings' },
-  { href: '/admin/add-ons', label: 'Add-ons' },
 ]
 
 export default function AdminNav() {

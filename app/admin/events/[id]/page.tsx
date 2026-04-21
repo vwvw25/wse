@@ -3,9 +3,13 @@ import { notFound } from 'next/navigation'
 import type { EventRecord, QuoteRecord } from '@/types/quote'
 import type { EventMusician, Musician, BandTemplate, BandTemplateSlot } from '@/types/musicians'
 import { musicianFullName } from '@/types/musicians'
+import type { Invoice, InvoiceLineItem, InvoiceSettings, Client } from '@/types/invoice'
 import StatusSelect from '../StatusSelect'
 import EventMusiciansClient from './musicians/EventMusiciansClient'
 import CopyEventDetailsButton from './CopyEventDetailsButton'
+import ContractSection from './ContractSection'
+import InvoiceSection from './InvoiceSection'
+import ClientLinkSection from './ClientLinkSection'
 
 function formatDate(d: string | null) {
   if (!d) return '—'
@@ -52,16 +56,29 @@ export default async function EventDetailPage({
 
   const supabase = createServiceClient()
 
-  const [{ data: eventData }, { data: quotesData }] = await Promise.all([
+  const [{ data: eventData }, { data: quotesData }, { data: invoicesData }, { data: invoiceSettingsData }, { data: allClientsData }] = await Promise.all([
     supabase.from('events').select('*').eq('id', id).single(),
-    supabase.from('quotes').select('id, created_at, inputs').eq('event_id', id).order('created_at', { ascending: false }),
+    supabase.from('quotes').select('id, created_at, inputs, calculated').eq('event_id', id).order('created_at', { ascending: false }),
+    supabase.from('invoices').select('*, line_items:invoice_line_items(*)').eq('event_id', id).order('created_at'),
+    supabase.from('invoice_settings').select('*').single(),
+    supabase.from('clients').select('*').order('name'),
   ])
 
   if (!eventData) notFound()
 
   const event = eventData as EventRecord
-  const quotes = (quotesData ?? []) as Pick<QuoteRecord, 'id' | 'created_at' | 'inputs'>[]
+  const quotes = (quotesData ?? []) as Pick<QuoteRecord, 'id' | 'created_at' | 'inputs' | 'calculated'>[]
+  const invoices = (invoicesData ?? []) as (Invoice & { line_items: InvoiceLineItem[] })[]
+  const invoiceSettings = (invoiceSettingsData ?? null) as InvoiceSettings | null
+  const allClients = (allClientsData ?? []) as Client[]
+  const linkedClient = allClients.find(c => c.id === event.client_id) ?? null
   const rd = event.request_details
+  const quotePrice: number | null = quotes[0]?.calculated?.total_fee ?? null
+
+  // Prefill invoice line items from latest quote
+  const prefillItems: { description: string; cost: number }[] = quotePrice
+    ? [{ description: event.venue_name ? `Band performance — ${event.venue_name}` : 'Band performance', cost: quotePrice }]
+    : []
 
   const title = event.agency_name
     ? (event.agent_name ? `${event.agent_name} at ${event.agency_name}` : event.agency_name)
@@ -101,7 +118,7 @@ export default async function EventDetailPage({
   })
 
   return (
-    <div style={{ padding: '32px 32px', fontFamily: 'var(--font)', maxWidth: 900 }}>
+    <div style={{ padding: '32px 32px', fontFamily: 'var(--font)', maxWidth: 1000 }}>
       <a href="/admin/events" style={{ fontSize: 12, color: 'var(--text-secondary)', textDecoration: 'none' }}>← Events</a>
 
       {/* Header */}
@@ -186,6 +203,18 @@ export default async function EventDetailPage({
             <FullRow label="Address" value={event.venue_address} />
           </Section>
 
+          <Section label="Client">
+            <ClientLinkSection
+              eventId={event.id}
+              isAgency={event.is_agency}
+              agencyName={event.agency_name}
+              agentName={event.agent_name}
+              clientEmail={event.client_email}
+              linkedClient={linkedClient}
+              allClients={allClients}
+            />
+          </Section>
+
           {rd && (
             <Section label="Request details">
               <PairGrid>
@@ -227,6 +256,24 @@ export default async function EventDetailPage({
                 })}
               </div>
             )}
+          </Section>
+
+          <Section label="Contract">
+            <div style={{ padding: '12px 0' }}>
+              <ContractSection event={event} quotePrice={quotePrice} />
+            </div>
+          </Section>
+
+          <Section label={`Invoices (${invoices.length})`}>
+            <div style={{ padding: '14px 0' }}>
+              <InvoiceSection
+                eventId={event.id}
+                eventDate={event.event_date}
+                invoices={invoices}
+                prefillItems={prefillItems}
+                invoiceSettings={invoiceSettings}
+              />
+            </div>
           </Section>
 
           {event.raw_email && (

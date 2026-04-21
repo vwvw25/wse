@@ -146,7 +146,7 @@ export async function GET(req: NextRequest) {
   const { data: slots, error } = await supabase
     .from('event_musicians')
     .select('*, musician:musicians(*), event:events(*)')
-    .eq('availability', 'tbc')
+    .eq('availability', 'email_sent')
     .not('email_sent_at', 'is', null)
     .is('reminder_sent_at', null)
 

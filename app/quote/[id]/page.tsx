@@ -26,14 +26,32 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
 
   const { data, error } = await supabase
     .from('quotes')
-    .select('*, event:events(location, request_details)')
+    .select('*, event:events(location, venue_name, venue_address, arrival_time, finish_time, load_out_time, guests, request_details)')
     .eq('id', id)
     .single()
 
   if (error || !data) notFound()
 
-  const quote = data as QuoteRecord & { event?: { location?: string | null; request_details?: { band_size_requested?: string | null; sets_requested?: string | null } | null } | null }
+  type EventSnippet = {
+    location?: string | null
+    venue_name?: string | null
+    venue_address?: string | null
+    arrival_time?: string | null
+    finish_time?: string | null
+    load_out_time?: string | null
+    guests?: number | null
+    request_details?: {
+      band_size_requested?: string | null
+      sets_requested?: string | null
+      special_requirements?: string | null
+      sound_requirements?: string | null
+      notes?: string | null
+    } | null
+  } | null
+
+  const quote = data as QuoteRecord & { event?: EventSnippet }
   const eventData = quote.event
+  const rd = eventData?.request_details
   let { inputs, calculated } = quote
 
   // If stored prices are broken (null/NaN), recalculate and save
@@ -108,13 +126,38 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
                 value={allBookingTypes.map(t => BOOKING_TYPE_LABELS[t] ?? t.replace(/_/g, ' ')).join(', ')}
               />
             )}
-            <Detail label="Location" value={inputs.location || eventData?.location || '—'} />
+            {(inputs.location || eventData?.location) && (
+              <Detail label="Location" value={inputs.location || eventData?.location || ''} />
+            )}
+            {eventData?.venue_address && <Detail label="Address" value={eventData.venue_address} />}
+            {eventData?.guests && <Detail label="Guests" value={String(eventData.guests)} />}
+            {(eventData?.arrival_time || inputs.arrival_time) && (
+              <Detail label="Arrival" value={eventData?.arrival_time ?? inputs.arrival_time ?? ''} />
+            )}
             {inputs.start_time && <Detail label="Start time" value={inputs.start_time} />}
-            {inputs.finish_time && <Detail label="Finish time" value={inputs.finish_time} />}
-            {inputs.set_configs?.length > 0 && <Detail label="Set configs" value={inputs.set_configs.map(c => formatSetConfig(c)).join(', ')} />}
-            <Detail label="Band size requested" value={inputs.band_size_requested || eventData?.request_details?.band_size_requested || '—'} />
-            <Detail label="Sets requested" value={inputs.sets_requested || eventData?.request_details?.sets_requested || '—'} />
+            {(eventData?.finish_time || inputs.finish_time) && (
+              <Detail label="Finish time" value={eventData?.finish_time ?? inputs.finish_time ?? ''} />
+            )}
+            {(eventData?.load_out_time || inputs.load_out_time) && (
+              <Detail label="Load out" value={eventData?.load_out_time ?? inputs.load_out_time ?? ''} />
+            )}
+            {inputs.set_configs?.length > 0 && (
+              <Detail label="Set configs" value={inputs.set_configs.map(c => formatSetConfig(c)).join(', ')} />
+            )}
+            {(inputs.band_size_requested || rd?.band_size_requested) && (
+              <Detail label="Band size" value={inputs.band_size_requested ?? rd?.band_size_requested ?? ''} />
+            )}
+            {(inputs.sets_requested || rd?.sets_requested) && (
+              <Detail label="Sets" value={inputs.sets_requested ?? rd?.sets_requested ?? ''} />
+            )}
           </div>
+          {(rd?.sound_requirements || rd?.special_requirements || rd?.notes) && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 24px', marginTop: 8 }}>
+              {rd?.sound_requirements && <Detail label="Sound" value={rd.sound_requirements} wide />}
+              {rd?.special_requirements && <Detail label="Requirements" value={rd.special_requirements} wide />}
+              {rd?.notes && <Detail label="Notes" value={rd.notes} wide />}
+            </div>
+          )}
         </Card>
 
         {inputs.is_multi_day && inputs.number_of_days > 1 && (
@@ -233,11 +276,11 @@ function Card({ label, children }: { label: string; children: React.ReactNode })
   )
 }
 
-function Detail({ label, value }: { label: string; value: string }) {
+function Detail({ label, value, wide }: { label: string; value: string; wide?: boolean }) {
   return (
-    <div>
-      <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 2, textTransform: 'capitalize' }}>{label}</div>
-      <div style={{ fontSize: 13, color: 'var(--text)', textTransform: 'capitalize' }}>{value}</div>
+    <div style={wide ? { gridColumn: '1 / -1' } : undefined}>
+      <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</div>
+      <div style={{ fontSize: 13, color: 'var(--text)' }}>{value}</div>
     </div>
   )
 }
