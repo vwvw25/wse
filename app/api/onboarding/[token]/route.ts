@@ -64,6 +64,11 @@ export async function POST(
       'dietary_requirements',
       'primary_instrument',
       'secondary_instrument',
+      'address_line1',
+      'address_line2',
+      'address_city',
+      'address_county',
+      'address_postcode',
       'car_registration',
       'car_make',
       'car_model',
@@ -74,12 +79,24 @@ export async function POST(
       'covid_booster',
     ])
 
+    // Expand 'address' shorthand into individual DB columns
+    function expandFields(keys: string[]): string[] {
+      const ADDRESS_KEYS = ['address_line1','address_line2','address_city','address_county','address_postcode']
+      const result: string[] = []
+      for (const k of keys) {
+        if (k === 'address') result.push(...ADDRESS_KEYS)
+        else result.push(k)
+      }
+      return result
+    }
+    const expandedFieldsRequested = expandFields(fieldsRequested)
+
     const update: Record<string, unknown> = {}
 
     if (type === 'general') {
       // General onboard: accept the standard base fields plus any extras
-      const generalBase = ['phone', 'home_city', 'default_fee', 'dietary_requirements', 'primary_instrument', 'secondary_instrument']
-      const allowedForGeneral = new Set([...generalBase, ...fieldsRequested])
+      const generalBase = ['phone', 'dietary_requirements', 'primary_instrument', 'secondary_instrument']
+      const allowedForGeneral = new Set([...generalBase, ...expandedFieldsRequested])
       for (const [key, value] of Object.entries(body)) {
         if (ALLOWED_FIELDS.has(key) && allowedForGeneral.has(key)) {
           update[key] = value
@@ -87,7 +104,7 @@ export async function POST(
       }
     } else {
       // Info request: only accept the specifically requested fields
-      const allowedForInfoRequest = new Set(fieldsRequested)
+      const allowedForInfoRequest = new Set(expandedFieldsRequested)
       for (const [key, value] of Object.entries(body)) {
         if (ALLOWED_FIELDS.has(key) && allowedForInfoRequest.has(key)) {
           update[key] = value

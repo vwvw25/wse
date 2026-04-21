@@ -7,6 +7,7 @@ import {
   upsertMusician, deleteMusician,
   createBandTemplate, renameBandTemplate, deleteBandTemplate,
   addTemplateSlot, deleteTemplateSlot,
+  createMusicianForOnboarding,
 } from './actions'
 import { addToPreferenceOrder, removeFromPreferenceOrder, reorderPreference } from './preference-actions'
 
@@ -92,6 +93,13 @@ function MusicianModal({ musician, onClose }: { musician: Partial<Musician> | nu
   const [homeCity, setHomeCity] = useState(musician?.home_city ?? '')
   const [dietary, setDietary] = useState<Set<string>>(new Set(musician?.dietary_requirements ?? []))
 
+  // Address
+  const [addrLine1, setAddrLine1] = useState(musician?.address_line1 ?? '')
+  const [addrLine2, setAddrLine2] = useState(musician?.address_line2 ?? '')
+  const [addrCity, setAddrCity] = useState(musician?.address_city ?? '')
+  const [addrCounty, setAddrCounty] = useState(musician?.address_county ?? '')
+  const [addrPostcode, setAddrPostcode] = useState(musician?.address_postcode ?? '')
+
   // Vehicle
   const [carReg, setCarReg] = useState(musician?.car_registration ?? '')
   const [carMake, setCarMake] = useState(musician?.car_make ?? '')
@@ -133,6 +141,11 @@ function MusicianModal({ musician, onClose }: { musician: Partial<Musician> | nu
         default_fee: parseFloat(fee) || 0,
         notes: notes.trim() || null,
         home_city: homeCity.trim() || null,
+        address_line1: addrLine1.trim() || null,
+        address_line2: addrLine2.trim() || null,
+        address_city: addrCity.trim() || null,
+        address_county: addrCounty.trim() || null,
+        address_postcode: addrPostcode.trim() || null,
         dietary_requirements: Array.from(dietary),
         car_registration: carReg.trim() || null,
         car_make: carMake.trim() || null,
@@ -224,6 +237,31 @@ function MusicianModal({ musician, onClose }: { musician: Partial<Musician> | nu
           </div>
         </div>
 
+        {/* Address */}
+        <p style={sectionDividerStyle}>Address</p>
+        <div>
+          <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Address line 1</label>
+          <input style={inputStyle} value={addrLine1} onChange={e => setAddrLine1(e.target.value)} placeholder="e.g. 12 Main Street" />
+        </div>
+        <div>
+          <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Address line 2</label>
+          <input style={inputStyle} value={addrLine2} onChange={e => setAddrLine2(e.target.value)} placeholder="e.g. Flat 3" />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div>
+            <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Town / City</label>
+            <input style={inputStyle} value={addrCity} onChange={e => setAddrCity(e.target.value)} placeholder="e.g. Manchester" />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>County</label>
+            <input style={inputStyle} value={addrCounty} onChange={e => setAddrCounty(e.target.value)} placeholder="e.g. Greater Manchester" />
+          </div>
+        </div>
+        <div>
+          <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Postcode</label>
+          <input style={{ ...inputStyle, width: 160 }} value={addrPostcode} onChange={e => setAddrPostcode(e.target.value)} placeholder="e.g. M1 1AA" />
+        </div>
+
         {/* Vehicle */}
         <p style={sectionDividerStyle}>Vehicle</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -288,19 +326,15 @@ function MusicianModal({ musician, onClose }: { musician: Partial<Musician> | nu
 }
 
 // ── Onboard musician modal (general) ─────────────────────────────────────────
-function OnboardMusicianModal({ musicians, onClose }: { musicians: Musician[]; onClose: () => void }) {
-  const [selectedId, setSelectedId] = useState('')
+function OnboardMusicianModal({ onClose }: { onClose: () => void }) {
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [checked, setChecked] = useState<Set<string>>(new Set())
   const [deadline, setDeadline] = useState('')
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
-
-  function selectMusician(id: string) {
-    setSelectedId(id)
-    const m = musicians.find(m => m.id === id)
-    setEmail(m?.email ?? '')
-  }
+  const [error, setError] = useState<string | null>(null)
 
   function toggleField(key: string) {
     setChecked(prev => {
@@ -318,26 +352,32 @@ function OnboardMusicianModal({ musicians, onClose }: { musicians: Musician[]; o
     groups[field.group].push(field)
   }
 
-  const canSend = selectedId.length > 0 && email.trim().length > 0 && deadline.length > 0
+  const canSend = firstName.trim().length > 0 && email.trim().length > 0 && deadline.length > 0
 
   async function handleSend() {
     setSending(true)
+    setError(null)
     try {
-      // Save email to musician record if missing or changed
-      const m = musicians.find(m => m.id === selectedId)
-      if (m && email.trim() !== (m.email ?? '')) {
-        await upsertMusician({ ...m, email: email.trim() })
+      const musicianId = await createMusicianForOnboarding(firstName.trim(), lastName.trim(), email.trim())
+      if (!musicianId) {
+        setError('Failed to create musician record. Please try again.')
+        return
       }
-      await fetch('/api/musicians/send-onboard', {
+      const res = await fetch('/api/musicians/send-onboard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          musicianId: selectedId,
+          musicianId,
           type: 'general',
           fieldsRequested: Array.from(checked),
           deadlineAt: new Date(deadline).toISOString(),
         }),
       })
+      if (!res.ok) {
+        const data = await res.json() as { error?: string }
+        setError(data.error ?? 'Failed to send onboarding email.')
+        return
+      }
       setSent(true)
       setTimeout(() => onClose(), 1500)
     } finally {
@@ -347,62 +387,38 @@ function OnboardMusicianModal({ musicians, onClose }: { musicians: Musician[]; o
 
   return (
     <Overlay onClose={onClose} width={520}>
-      <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 20 }}>Onboard musician</div>
+      <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>Onboard musician</div>
+      <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>Creates a new musician record and sends an onboarding email.</div>
 
-      {/* Musician selector */}
-      <div style={{ marginBottom: 12 }}>
-        <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
-          Musician *
-        </label>
-        <select
-          value={selectedId}
-          onChange={e => selectMusician(e.target.value)}
-          style={inputStyle}
-        >
-          <option value="">— select musician —</option>
-          {musicians.map(m => (
-            <option key={m.id} value={m.id}>{musicianFullName(m)}</option>
-          ))}
-        </select>
+      {/* Name */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+        <div>
+          <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>First name *</label>
+          <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} style={inputStyle} autoFocus />
+        </div>
+        <div>
+          <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Last name</label>
+          <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} style={inputStyle} />
+        </div>
       </div>
 
       {/* Email */}
       <div style={{ marginBottom: 20 }}>
-        <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
-          Email address *
-        </label>
-        <input
-          type="email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          placeholder="musician@example.com"
-          style={inputStyle}
-        />
-        {selectedId && !musicians.find(m => m.id === selectedId)?.email && (
-          <div style={{ fontSize: 12, color: '#d97706', marginTop: 4 }}>No email on file — enter one above and it will be saved to their profile.</div>
-        )}
+        <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Email address *</label>
+        <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="musician@example.com" style={inputStyle} />
       </div>
 
       {/* Optional extra fields */}
       {Object.keys(groups).length > 0 && (
         <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8 }}>
-            Additional fields (optional)
-          </div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8 }}>Additional fields to request (optional)</div>
           {Object.entries(groups).map(([group, fields]) => (
-            <div key={group} style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
-                {group}
-              </div>
+            <div key={group} style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{group}</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {fields.map(f => (
                   <label key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--text)', cursor: 'pointer', userSelect: 'none' }}>
-                    <input
-                      type="checkbox"
-                      checked={checked.has(f.key)}
-                      onChange={() => toggleField(f.key)}
-                      style={{ width: 14, height: 14 }}
-                    />
+                    <input type="checkbox" checked={checked.has(f.key)} onChange={() => toggleField(f.key)} style={{ width: 14, height: 14 }} />
                     {f.label}
                   </label>
                 ))}
@@ -414,17 +430,15 @@ function OnboardMusicianModal({ musicians, onClose }: { musicians: Musician[]; o
 
       {/* Deadline */}
       <div style={{ marginBottom: 20 }}>
-        <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
-          Response deadline *
-        </label>
-        <input
-          type="datetime-local"
-          value={deadline}
-          onChange={e => setDeadline(e.target.value)}
-          style={{ ...inputStyle, width: 240 }}
-          required
-        />
+        <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Response deadline *</label>
+        <input type="datetime-local" value={deadline} onChange={e => setDeadline(e.target.value)} style={{ ...inputStyle, width: 240 }} />
       </div>
+
+      {error && (
+        <div style={{ padding: '10px 14px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, color: '#991b1b', fontSize: 13, marginBottom: 16 }}>
+          {error}
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
         <button type="button" onClick={onClose} style={cancelBtn}>Cancel</button>
@@ -643,7 +657,7 @@ function RosterTab({ musicians }: { musicians: Musician[] }) {
         <MusicianModal musician={modal} onClose={() => setModal(false)} />
       )}
       {onboardModal && (
-        <OnboardMusicianModal musicians={musicians} onClose={() => setOnboardModal(false)} />
+        <OnboardMusicianModal onClose={() => setOnboardModal(false)} />
       )}
       {requestInfoModal && (
         <RequestInfoModal musician={requestInfoModal} onClose={() => setRequestInfoModal(null)} />

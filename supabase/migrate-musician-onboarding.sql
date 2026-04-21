@@ -10,6 +10,12 @@ alter table musicians add column if not exists passport_number text;
 alter table musicians add column if not exists covid_vaccinated boolean;
 alter table musicians add column if not exists covid_booster boolean;
 
+alter table musicians add column if not exists address_line1 text;
+alter table musicians add column if not exists address_line2 text;
+alter table musicians add column if not exists address_city text;
+alter table musicians add column if not exists address_county text;
+alter table musicians add column if not exists address_postcode text;
+
 -- Onboarding tokens
 create table if not exists musician_onboarding_tokens (
   id uuid primary key default gen_random_uuid(),

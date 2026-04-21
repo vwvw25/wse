@@ -71,8 +71,13 @@ export default function OnboardingForm({ token, musician, type, fieldsRequested 
 
   // Personal / contact
   const [phone, setPhone] = useState(musician.phone ?? '')
-  const [homeCity, setHomeCity] = useState(musician.home_city ?? '')
-  const [defaultFee, setDefaultFee] = useState(musician.default_fee > 0 ? String(musician.default_fee) : '')
+
+  // Address
+  const [addrLine1, setAddrLine1] = useState(musician.address_line1 ?? '')
+  const [addrLine2, setAddrLine2] = useState(musician.address_line2 ?? '')
+  const [addrCity, setAddrCity] = useState(musician.address_city ?? '')
+  const [addrCounty, setAddrCounty] = useState(musician.address_county ?? '')
+  const [addrPostcode, setAddrPostcode] = useState(musician.address_postcode ?? '')
 
   // Instruments
   const [primaryInstrument, setPrimaryInstrument] = useState(musician.primary_instrument ?? '')
@@ -113,8 +118,7 @@ export default function OnboardingForm({ token, musician, type, fieldsRequested 
   }
 
   const showPhone = isGeneral || req.has('phone')
-  const showHomeCity = isGeneral || req.has('home_city')
-  const showFee = isGeneral || req.has('default_fee')
+  const showAddress = req.has('address')
   const showInstruments = isGeneral
   const showDietary = isGeneral || req.has('dietary_requirements')
   const showVehicle = isGeneral
@@ -123,7 +127,7 @@ export default function OnboardingForm({ token, musician, type, fieldsRequested 
   const showIdentity = req.has('date_of_birth') || req.has('passport_number')
   const showHealth = req.has('covid_vaccinated') || req.has('covid_booster')
 
-  const showContactSection = showPhone || showHomeCity || showFee
+  const showContactSection = showPhone
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -133,8 +137,13 @@ export default function OnboardingForm({ token, musician, type, fieldsRequested 
     const body: Record<string, unknown> = {}
 
     if (showPhone) body.phone = phone.trim() || null
-    if (showHomeCity) body.home_city = homeCity.trim() || null
-    if (showFee) body.default_fee = parseFloat(defaultFee) || 0
+    if (showAddress) {
+      body.address_line1 = addrLine1.trim() || null
+      body.address_line2 = addrLine2.trim() || null
+      body.address_city = addrCity.trim() || null
+      body.address_county = addrCounty.trim() || null
+      body.address_postcode = addrPostcode.trim() || null
+    }
     if (showInstruments) {
       body.primary_instrument = primaryInstrument || null
       body.secondary_instrument = secondaryInstrument || null
@@ -226,31 +235,30 @@ export default function OnboardingForm({ token, musician, type, fieldsRequested 
                     />
                   </Field>
                 )}
-                {showHomeCity && (
-                  <Field label="Home city">
-                    <input
-                      style={inputStyle}
-                      value={homeCity}
-                      onChange={e => setHomeCity(e.target.value)}
-                      placeholder="e.g. London"
-                      required
-                    />
+              </div>
+            )}
+
+            {/* Address section */}
+            {showAddress && (
+              <div style={{ marginBottom: 24 }}>
+                <SectionTitle>Address</SectionTitle>
+                <Field label="Address line 1">
+                  <input style={inputStyle} value={addrLine1} onChange={e => setAddrLine1(e.target.value)} placeholder="e.g. 12 Main Street" required />
+                </Field>
+                <Field label="Address line 2 (optional)">
+                  <input style={inputStyle} value={addrLine2} onChange={e => setAddrLine2(e.target.value)} placeholder="e.g. Flat 3" />
+                </Field>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <Field label="Town / City">
+                    <input style={inputStyle} value={addrCity} onChange={e => setAddrCity(e.target.value)} placeholder="e.g. Manchester" required />
                   </Field>
-                )}
-                {showFee && (
-                  <Field label="Standard fee (£)">
-                    <input
-                      style={{ ...inputStyle, width: 160 }}
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={defaultFee}
-                      onChange={e => setDefaultFee(e.target.value)}
-                      placeholder="0.00"
-                      required
-                    />
+                  <Field label="County (optional)">
+                    <input style={inputStyle} value={addrCounty} onChange={e => setAddrCounty(e.target.value)} placeholder="e.g. Greater Manchester" />
                   </Field>
-                )}
+                </div>
+                <Field label="Postcode">
+                  <input style={{ ...inputStyle, width: 160 }} value={addrPostcode} onChange={e => setAddrPostcode(e.target.value)} placeholder="e.g. M1 1AA" required />
+                </Field>
               </div>
             )}
 

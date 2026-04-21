@@ -28,6 +28,11 @@ export interface Musician {
   notes: string | null
   created_at: string
   home_city: string | null
+  address_line1: string | null
+  address_line2: string | null
+  address_city: string | null
+  address_county: string | null
+  address_postcode: string | null
   dietary_requirements: string[]   // e.g. ['vegan', 'gluten_intolerant']
   car_registration: string | null
   car_make: string | null
@@ -92,6 +97,7 @@ export type OnboardingType = 'general' | 'info_request'
 // All fields that can be requested (shown as checkboxes in send modal)
 // key = DB column name, label = what the musician sees
 export const ONBOARDING_OPTIONAL_FIELDS = [
+  { key: 'address',          label: 'Address',          group: 'Contact' },
   { key: 'car_registration', label: 'Car registration', group: 'Vehicle' },
   { key: 'car_make',         label: 'Car make',         group: 'Vehicle' },
   { key: 'car_model',        label: 'Car model',        group: 'Vehicle' },
@@ -105,14 +111,13 @@ export const ONBOARDING_OPTIONAL_FIELDS = [
 // In info_request mode, these base fields are also optionally requestable
 export const ONBOARDING_BASE_FIELDS = [
   { key: 'phone',                 label: 'Phone number',         group: 'Contact' },
-  { key: 'home_city',             label: 'Home city',            group: 'Contact' },
-  { key: 'default_fee',           label: 'Standard fee',         group: 'Contact' },
   { key: 'dietary_requirements',  label: 'Dietary requirements', group: 'Dietary' },
 ] as const
 
 export type OnboardingFieldKey =
   | typeof ONBOARDING_OPTIONAL_FIELDS[number]['key']
   | typeof ONBOARDING_BASE_FIELDS[number]['key']
+  | 'address'
 
 export interface OnboardingToken {
   id: string
