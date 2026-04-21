@@ -119,8 +119,8 @@ export default function SettingsPage() {
     { key: 'gig_confirmation', label: 'Gig confirmation' },
     { key: 'general_onboard', label: 'General onboard' },
     { key: 'info_request', label: 'Information request' },
-    { key: 'onboarding_reminder_1', label: 'Onboarding reminder (1st)' },
-    { key: 'onboarding_reminder_urgent', label: 'Onboarding reminder (urgent)' },
+    { key: 'onboarding_reminder_1', label: 'Onboarding / Info Request reminder (1st)' },
+    { key: 'onboarding_reminder_urgent', label: 'Onboarding / Info Request reminder (urgent)' },
   ]
 
   useEffect(() => {
