@@ -12,3 +12,4 @@ Significant decisions made during the design and development of the WSE quoting 
 | [ADR-006](ADR-006-invoicing.md) | Invoicing system | Accepted | 2026-04-21 |
 | [ADR-007](ADR-007-client-model.md) | Client model — all bookings have a client record | Accepted | 2026-04-21 |
 | [ADR-008](ADR-008-email-monitoring.md) | Email monitoring and delivery logging | Accepted | 2026-04-21 |
+| [ADR-009](ADR-009-musician-availability-ux.md) | Musician availability UX — confirmation flow and celebration GIFs | Accepted | 2026-04-21 |
