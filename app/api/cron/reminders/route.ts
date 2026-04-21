@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { Resend } from 'resend'
 import { createServiceClient } from '@/lib/supabase'
 import { musicianFullName } from '@/types/musicians'
+import { sendEmail } from '@/lib/send-email'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-const FROM_ADDRESS = 'Ward Smith Entertainment <onboarding@resend.dev>'
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://wse.vercel.app'
 
 function formatDate(d: string | null) {
@@ -198,9 +196,10 @@ export async function GET(req: NextRequest) {
     })
 
     try {
-      await resend.emails.send({
-        from: FROM_ADDRESS,
+      await sendEmail({
+        type: 'availability_reminder',
         to: musician.email,
+        recipientName: musicianName,
         subject: `Reminder: availability request — ${eventLabel}, ${formatDate(event.event_date)}`,
         html,
       })

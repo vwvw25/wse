@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { Resend } from 'resend'
 import { createServiceClient } from '@/lib/supabase'
+import { sendEmail } from '@/lib/send-email'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-const FROM_ADDRESS = 'Ward Smith Entertainment <onboarding@resend.dev>'
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://wse.vercel.app'
 
 function formatDeadline(iso: string): string {
@@ -98,9 +96,10 @@ export async function GET(req: NextRequest) {
     // Reminder 2: 90% elapsed
     if (elapsed >= 0.9 && !token.reminder_2_sent_at) {
       try {
-        await resend.emails.send({
-          from: FROM_ADDRESS,
+        await sendEmail({
+          type: 'onboarding_reminder',
           to: musician.email,
+          recipientName: musician.first_name,
           subject: 'URGENT: Ward Smith Entertainment — details still needed',
           html: buildReminderEmailHtml({
             firstName: musician.first_name,
@@ -123,9 +122,10 @@ export async function GET(req: NextRequest) {
     // Reminder 1: 50% elapsed
     if (elapsed >= 0.5 && !token.reminder_1_sent_at) {
       try {
-        await resend.emails.send({
-          from: FROM_ADDRESS,
+        await sendEmail({
+          type: 'onboarding_reminder',
           to: musician.email,
+          recipientName: musician.first_name,
           subject: 'Reminder: Ward Smith Entertainment — details still needed',
           html: buildReminderEmailHtml({
             firstName: musician.first_name,

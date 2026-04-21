@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { Resend } from 'resend'
 import { createServiceClient } from '@/lib/supabase'
 import { renderToBuffer, Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer'
 import { invoiceSubtotal, invoiceVatTotal, invoiceTotal } from '@/types/invoice'
 import type { InvoiceLineItem } from '@/types/invoice'
-
-const resend = new Resend(process.env.RESEND_API_KEY)
-const FROM_ADDRESS = 'Ward Smith Entertainment <onboarding@resend.dev>'
+import { sendEmail } from '@/lib/send-email'
 
 function fmt(n: number) {
   return `£${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`
@@ -249,8 +246,8 @@ export async function GET(req: NextRequest) {
         ? (event?.agent_name ? `${event.agent_name} at ${event.agency_name}` : event.agency_name as string)
         : (event?.agent_name as string | null) ?? 'your event'
 
-      await resend.emails.send({
-        from: FROM_ADDRESS,
+      await sendEmail({
+        type: 'invoice',
         to: toEmail,
         subject: `Invoice ${inv.number} — Ward Smith Entertainment`,
         html: `
@@ -260,12 +257,6 @@ export async function GET(req: NextRequest) {
           ${inv.due_date ? `<p>Due: ${formatDate(inv.due_date)}</p>` : ''}
           <p>Thank you,<br>Ward Smith Entertainment</p>
         `,
-        attachments: [
-          {
-            filename: `${inv.number}.pdf`,
-            content: Buffer.from(pdfBuffer).toString('base64'),
-          },
-        ],
       })
 
       await supabase.from('invoices').update({ sent_at: now.toISOString() }).eq('id', inv.id)

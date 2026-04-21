@@ -11,3 +11,4 @@ Significant decisions made during the design and development of the WSE quoting 
 | [ADR-005](ADR-005-event-status-model.md) | Event status model and Bookings view | Accepted | 2026-04-14 |
 | [ADR-006](ADR-006-invoicing.md) | Invoicing system | Accepted | 2026-04-21 |
 | [ADR-007](ADR-007-client-model.md) | Client model — all bookings have a client record | Accepted | 2026-04-21 |
+| [ADR-008](ADR-008-email-monitoring.md) | Email monitoring and delivery logging | Accepted | 2026-04-21 |

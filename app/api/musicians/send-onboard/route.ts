@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { Resend } from 'resend'
 import { createServiceClient } from '@/lib/supabase'
 import { musicianFullName, ONBOARDING_OPTIONAL_FIELDS, ONBOARDING_BASE_FIELDS } from '@/types/musicians'
 import type { OnboardingType } from '@/types/musicians'
 import { createOnboardingToken } from '@/app/admin/musicians/actions'
+import { sendEmail } from '@/lib/send-email'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-const FROM_ADDRESS = 'Ward Smith Entertainment <onboarding@resend.dev>'
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://wse.vercel.app'
 
 const ALL_FIELDS = [...ONBOARDING_BASE_FIELDS, ...ONBOARDING_OPTIONAL_FIELDS]
@@ -200,9 +198,10 @@ export async function POST(req: NextRequest) {
       ? buildGeneralEmailHtml({ firstName, fieldsRequested, ctaUrl, deadlineAt })
       : buildInfoRequestEmailHtml({ firstName, fieldsRequested, ctaUrl, deadlineAt })
 
-    await resend.emails.send({
-      from: FROM_ADDRESS,
+    await sendEmail({
+      type: 'onboarding',
       to: musician.email,
+      recipientName: firstName,
       subject,
       html,
     })

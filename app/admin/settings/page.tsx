@@ -95,6 +95,12 @@ export default function SettingsPage() {
   const [invSaving, setInvSaving] = useState(false)
   const [invMessage, setInvMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
+  // Monitoring settings state
+  const [monSettings, setMonSettings] = useState<{ alert_email?: string; delivery_threshold_minutes?: number; pending_threshold_minutes?: number }>({})
+  const [monLoading, setMonLoading] = useState(true)
+  const [monSaving, setMonSaving] = useState(false)
+  const [monMessage, setMonMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
   useEffect(() => {
     fetch('/api/admin/settings')
       .then(r => r.json())
@@ -104,6 +110,10 @@ export default function SettingsPage() {
       .then(r => r.json())
       .then(data => { setInvSettings(data); setInvLoading(false) })
       .catch(() => { setInvLoading(false) })
+    fetch('/api/admin/monitoring-settings')
+      .then(r => r.json())
+      .then(data => { setMonSettings(data); setMonLoading(false) })
+      .catch(() => { setMonLoading(false) })
   }, [])
 
   function handleChange(key: string, val: number) {
@@ -114,6 +124,28 @@ export default function SettingsPage() {
   function handleInvChange(key: keyof InvoiceSettings, val: unknown) {
     setInvSettings(prev => ({ ...prev, [key]: val }))
     setInvMessage(null)
+  }
+
+  async function handleMonSave() {
+    setMonSaving(true)
+    setMonMessage(null)
+    try {
+      const res = await fetch('/api/admin/monitoring-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(monSettings),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        setMonMessage({ type: 'error', text: err.error ?? 'Failed to save' })
+      } else {
+        setMonMessage({ type: 'success', text: 'Monitoring settings saved.' })
+      }
+    } catch {
+      setMonMessage({ type: 'error', text: 'Network error.' })
+    } finally {
+      setMonSaving(false)
+    }
   }
 
   async function handleInvSave() {
@@ -340,6 +372,68 @@ export default function SettingsPage() {
             {invMessage && (
               <span style={{ fontSize: 13, color: invMessage.type === 'success' ? '#166534' : '#b91c1c' }}>
                 {invMessage.text}
+              </span>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Email monitoring */}
+      <div style={{ ...sectionHeaderStyle, marginTop: 40 }}>Email monitoring</div>
+      {monLoading ? (
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Loading…</p>
+      ) : (
+        <>
+          <div style={rowStyle}>
+            <span style={labelStyle}>Alert email <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>(gets notified of delivery issues)</span></span>
+            <input
+              type="email"
+              style={{ ...inputStyle, width: 220 }}
+              value={monSettings.alert_email ?? ''}
+              onChange={e => { setMonSettings(prev => ({ ...prev, alert_email: e.target.value || undefined })); setMonMessage(null) }}
+              placeholder="you@example.com"
+            />
+          </div>
+          <div style={rowStyle}>
+            <span style={labelStyle}>Delivery alert threshold <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>(minutes before flagging undelivered)</span></span>
+            <input
+              type="number"
+              style={inputStyle}
+              value={monSettings.delivery_threshold_minutes ?? 30}
+              onChange={e => { setMonSettings(prev => ({ ...prev, delivery_threshold_minutes: parseInt(e.target.value) || 30 })); setMonMessage(null) }}
+              min={5}
+            />
+          </div>
+          <div style={{ ...rowStyle, borderBottom: 'none' }}>
+            <span style={labelStyle}>Email logs</span>
+            <a
+              href="/admin/email-logs"
+              style={{
+                padding: '6px 14px', fontSize: 13, fontWeight: 500,
+                background: 'var(--bg)', color: 'var(--text)',
+                border: '0.5px solid var(--border-hover)',
+                borderRadius: 'var(--radius-sm)', textDecoration: 'none',
+              }}
+            >
+              View logs
+            </a>
+          </div>
+          <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 16 }}>
+            <button
+              onClick={handleMonSave}
+              disabled={monSaving}
+              style={{
+                padding: '9px 20px', background: 'var(--accent)', color: '#fff',
+                border: 'none', borderRadius: 'var(--radius-sm)', fontSize: 14,
+                fontWeight: 500, fontFamily: 'var(--font)',
+                cursor: monSaving ? 'not-allowed' : 'pointer', opacity: monSaving ? 0.7 : 1,
+              }}
+            >
+              {monSaving ? 'Saving…' : 'Save monitoring settings'}
+            </button>
+            {monMessage && (
+              <span style={{ fontSize: 13, color: monMessage.type === 'success' ? '#166534' : '#b91c1c' }}>
+                {monMessage.text}
               </span>
             )}
           </div>
