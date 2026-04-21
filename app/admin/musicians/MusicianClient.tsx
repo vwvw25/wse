@@ -290,10 +290,17 @@ function MusicianModal({ musician, onClose }: { musician: Partial<Musician> | nu
 // ── Onboard musician modal (general) ─────────────────────────────────────────
 function OnboardMusicianModal({ musicians, onClose }: { musicians: Musician[]; onClose: () => void }) {
   const [selectedId, setSelectedId] = useState('')
+  const [email, setEmail] = useState('')
   const [checked, setChecked] = useState<Set<string>>(new Set())
   const [deadline, setDeadline] = useState('')
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
+
+  function selectMusician(id: string) {
+    setSelectedId(id)
+    const m = musicians.find(m => m.id === id)
+    setEmail(m?.email ?? '')
+  }
 
   function toggleField(key: string) {
     setChecked(prev => {
@@ -311,11 +318,16 @@ function OnboardMusicianModal({ musicians, onClose }: { musicians: Musician[]; o
     groups[field.group].push(field)
   }
 
-  const canSend = selectedId.length > 0 && deadline.length > 0
+  const canSend = selectedId.length > 0 && email.trim().length > 0 && deadline.length > 0
 
   async function handleSend() {
     setSending(true)
     try {
+      // Save email to musician record if missing or changed
+      const m = musicians.find(m => m.id === selectedId)
+      if (m && email.trim() !== (m.email ?? '')) {
+        await upsertMusician({ ...m, email: email.trim() })
+      }
       await fetch('/api/musicians/send-onboard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -338,13 +350,13 @@ function OnboardMusicianModal({ musicians, onClose }: { musicians: Musician[]; o
       <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 20 }}>Onboard musician</div>
 
       {/* Musician selector */}
-      <div style={{ marginBottom: 20 }}>
+      <div style={{ marginBottom: 12 }}>
         <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
           Musician *
         </label>
         <select
           value={selectedId}
-          onChange={e => setSelectedId(e.target.value)}
+          onChange={e => selectMusician(e.target.value)}
           style={inputStyle}
         >
           <option value="">— select musician —</option>
@@ -352,6 +364,23 @@ function OnboardMusicianModal({ musicians, onClose }: { musicians: Musician[]; o
             <option key={m.id} value={m.id}>{musicianFullName(m)}</option>
           ))}
         </select>
+      </div>
+
+      {/* Email */}
+      <div style={{ marginBottom: 20 }}>
+        <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+          Email address *
+        </label>
+        <input
+          type="email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          placeholder="musician@example.com"
+          style={inputStyle}
+        />
+        {selectedId && !musicians.find(m => m.id === selectedId)?.email && (
+          <div style={{ fontSize: 12, color: '#d97706', marginTop: 4 }}>No email on file — enter one above and it will be saved to their profile.</div>
+        )}
       </div>
 
       {/* Optional extra fields */}
