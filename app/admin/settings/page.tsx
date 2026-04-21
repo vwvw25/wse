@@ -111,6 +111,7 @@ export default function SettingsPage() {
   const [newGifUrl, setNewGifUrl] = useState('')
   const [gifAdding, setGifAdding] = useState(false)
   const [gifDeleting, setGifDeleting] = useState<string | null>(null)
+  const [gifError, setGifError] = useState<string | null>(null)
 
   const TEMPLATES = [
     { key: 'availability_request', label: 'Availability request' },
@@ -176,17 +177,22 @@ export default function SettingsPage() {
   async function addGif() {
     if (!newGifUrl.trim()) return
     setGifAdding(true)
+    setGifError(null)
     try {
       const res = await fetch('/api/admin/celebration-gifs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: newGifUrl.trim() }),
       })
+      const data = await res.json()
       if (res.ok) {
-        const gif = await res.json()
-        setGifs(prev => [gif, ...prev])
+        setGifs(prev => [data, ...prev])
         setNewGifUrl('')
+      } else {
+        setGifError(data.error ?? 'Failed to add GIF')
       }
+    } catch {
+      setGifError('Network error')
     } finally {
       setGifAdding(false)
     }
@@ -606,6 +612,10 @@ export default function SettingsPage() {
           {gifAdding ? 'Adding…' : 'Add'}
         </button>
       </div>
+
+      {gifError && (
+        <p style={{ fontSize: 12, color: '#b91c1c', margin: '-8px 0 12px' }}>{gifError}</p>
+      )}
 
       {/* GIF list */}
       {gifsLoading ? (
