@@ -136,11 +136,17 @@ export default function SettingsPage() {
       .then(r => r.json())
       .then(data => { setMonSettings(data); setMonLoading(false) })
       .catch(() => { setMonLoading(false) })
+    loadGifs()
+  }, [])
+
+  function loadGifs() {
+    setGifsLoading(true)
     fetch('/api/admin/celebration-gifs')
       .then(r => r.json())
-      .then(data => { setGifs(Array.isArray(data) ? data : []); setGifsLoading(false) })
-      .catch(() => { setGifsLoading(false) })
-  }, [])
+      .then(data => { setGifs(Array.isArray(data) ? data : []) })
+      .catch(() => {})
+      .finally(() => setGifsLoading(false))
+  }
 
   function handleChange(key: string, val: number) {
     setSettings(prev => prev ? { ...prev, [key]: val } : prev)
@@ -186,8 +192,8 @@ export default function SettingsPage() {
       })
       const data = await res.json()
       if (res.ok) {
-        setGifs(prev => [data, ...prev])
         setNewGifUrl('')
+        loadGifs()
       } else {
         setGifError(data.error ?? 'Failed to add GIF')
       }
@@ -202,7 +208,7 @@ export default function SettingsPage() {
     setGifDeleting(id)
     try {
       await fetch(`/api/admin/celebration-gifs/${id}`, { method: 'DELETE' })
-      setGifs(prev => prev.filter(g => g.id !== id))
+      loadGifs()
     } finally {
       setGifDeleting(null)
     }
