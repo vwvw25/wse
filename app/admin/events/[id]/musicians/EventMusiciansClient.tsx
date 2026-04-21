@@ -32,8 +32,8 @@ const AVAILABILITY_CONFIG = {
   yes:            { label: 'Confirmed',      color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
   no:             { label: 'Unavailable',    color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
   tbc:            { label: 'TBC',            color: '#92400e', bg: '#fffbeb', border: '#fde68a' },
-  email_sent:     { label: 'Email Sent',     color: '#1d4ed8', bg: '#eff6ff', border: '#bfdbfe' },
-  reminder_sent:  { label: 'Reminder Sent',  color: '#6d28d9', bg: '#f5f3ff', border: '#ddd6fe' },
+  email_sent:     { label: 'Invite sent',    color: '#1d4ed8', bg: '#eff6ff', border: '#bfdbfe' },
+  reminder_sent:  { label: 'Reminder sent', color: '#6d28d9', bg: '#f5f3ff', border: '#ddd6fe' },
 }
 
 // ── Availability badge ────────────────────────────────────────────────────────
