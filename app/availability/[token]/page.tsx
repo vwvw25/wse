@@ -127,17 +127,15 @@ export default async function AvailabilityPage({
 
   const supabase = createServiceClient()
 
-  const [{ data: slot }, { data: monSettings }] = await Promise.all([
+  const [{ data: slot }, { data: gifs }] = await Promise.all([
     supabase
       .from('event_musicians')
       .select('*, musician:musicians(*), event:events(*)')
       .eq('token', token)
       .single(),
     supabase
-      .from('monitoring_settings')
-      .select('celebration_gif_urls')
-      .eq('id', 1)
-      .single(),
+      .from('celebration_gifs')
+      .select('url'),
   ])
 
   if (!slot) notFound()
@@ -150,7 +148,7 @@ export default async function AvailabilityPage({
     ? (event.agent_name ? `${event.agent_name} at ${event.agency_name}` : event.agency_name)
     : (event.agent_name ?? 'Event')
 
-  const gifUrls = (monSettings?.celebration_gif_urls as string[] | null) ?? []
+  const gifUrls = (gifs ?? []).map((g: { url: string }) => g.url)
   const randomGif = gifUrls.length > 0
     ? gifUrls[Math.floor(Math.random() * gifUrls.length)]
     : null
