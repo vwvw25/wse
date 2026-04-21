@@ -27,6 +27,16 @@ export interface Musician {
   default_fee: number
   notes: string | null
   created_at: string
+  home_city: string | null
+  dietary_requirements: string[]   // e.g. ['vegan', 'gluten_intolerant']
+  car_registration: string | null
+  car_make: string | null
+  car_model: string | null
+  car_colour: string | null
+  date_of_birth: string | null     // ISO date string
+  passport_number: string | null
+  covid_vaccinated: boolean | null
+  covid_booster: boolean | null
 }
 
 export function musicianFullName(m: Pick<Musician, 'first_name' | 'last_name'>): string {
@@ -75,4 +85,45 @@ export interface PreferenceOrder {
   rank: number
   created_at: string
   musician?: Musician
+}
+
+export type OnboardingType = 'general' | 'info_request'
+
+// All fields that can be requested (shown as checkboxes in send modal)
+// key = DB column name, label = what the musician sees
+export const ONBOARDING_OPTIONAL_FIELDS = [
+  { key: 'car_registration', label: 'Car registration', group: 'Vehicle' },
+  { key: 'car_make',         label: 'Car make',         group: 'Vehicle' },
+  { key: 'car_model',        label: 'Car model',        group: 'Vehicle' },
+  { key: 'car_colour',       label: 'Car colour',       group: 'Vehicle' },
+  { key: 'date_of_birth',    label: 'Date of birth',    group: 'Identity' },
+  { key: 'passport_number',  label: 'Passport number',  group: 'Identity' },
+  { key: 'covid_vaccinated', label: 'COVID vaccinated',  group: 'Health' },
+  { key: 'covid_booster',    label: 'COVID booster',    group: 'Health' },
+] as const
+
+// In info_request mode, these base fields are also optionally requestable
+export const ONBOARDING_BASE_FIELDS = [
+  { key: 'phone',                 label: 'Phone number',         group: 'Contact' },
+  { key: 'home_city',             label: 'Home city',            group: 'Contact' },
+  { key: 'default_fee',           label: 'Standard fee',         group: 'Contact' },
+  { key: 'dietary_requirements',  label: 'Dietary requirements', group: 'Dietary' },
+] as const
+
+export type OnboardingFieldKey =
+  | typeof ONBOARDING_OPTIONAL_FIELDS[number]['key']
+  | typeof ONBOARDING_BASE_FIELDS[number]['key']
+
+export interface OnboardingToken {
+  id: string
+  musician_id: string
+  token: string
+  type: OnboardingType
+  fields_requested: string[]
+  deadline_at: string
+  reminder_1_sent_at: string | null
+  reminder_2_sent_at: string | null
+  completed_at: string | null
+  created_at: string
+  musician?: Musician | null
 }

@@ -1,8 +1,8 @@
 'use client'
 
 import React, { useState, useTransition } from 'react'
-import type { Musician, BandTemplate, BandTemplateSlot, PreferenceOrder } from '@/types/musicians'
-import { INSTRUMENTS, musicianFullName } from '@/types/musicians'
+import type { Musician, BandTemplate, BandTemplateSlot, PreferenceOrder, OnboardingType, OnboardingToken } from '@/types/musicians'
+import { INSTRUMENTS, musicianFullName, ONBOARDING_OPTIONAL_FIELDS, ONBOARDING_BASE_FIELDS } from '@/types/musicians'
 import {
   upsertMusician, deleteMusician,
   createBandTemplate, renameBandTemplate, deleteBandTemplate,
@@ -10,12 +10,13 @@ import {
 } from './actions'
 import { addToPreferenceOrder, removeFromPreferenceOrder, reorderPreference } from './preference-actions'
 
-type Tab = 'roster' | 'templates' | 'preference'
+type Tab = 'roster' | 'templates' | 'preference' | 'onboarding'
 
 interface Props {
   musicians: Musician[]
   templates: (BandTemplate & { slots: BandTemplateSlot[] })[]
   preferenceOrders: PreferenceOrder[]
+  onboardingTokens: OnboardingToken[]
 }
 
 // ── Shared styles ─────────────────────────────────────────────────────────────
@@ -69,6 +70,13 @@ function InstrumentSelect({ value, onChange, placeholder }: { value: string; onC
   )
 }
 
+const DIETARY_OPTIONS = [
+  { key: 'lactose_intolerant', label: 'Lactose intolerant' },
+  { key: 'gluten_intolerant', label: 'Gluten intolerant' },
+  { key: 'vegan', label: 'Vegan' },
+  { key: 'vegetarian', label: 'Vegetarian' },
+]
+
 // ── Musician modal ────────────────────────────────────────────────────────────
 function MusicianModal({ musician, onClose }: { musician: Partial<Musician> | null; onClose: () => void }) {
   const [firstName, setFirstName] = useState(musician?.first_name ?? '')
@@ -79,7 +87,37 @@ function MusicianModal({ musician, onClose }: { musician: Partial<Musician> | nu
   const [phone, setPhone] = useState(musician?.phone ?? '')
   const [fee, setFee] = useState(String(musician?.default_fee ?? 0))
   const [notes, setNotes] = useState(musician?.notes ?? '')
+
+  // Additional info
+  const [homeCity, setHomeCity] = useState(musician?.home_city ?? '')
+  const [dietary, setDietary] = useState<Set<string>>(new Set(musician?.dietary_requirements ?? []))
+
+  // Vehicle
+  const [carReg, setCarReg] = useState(musician?.car_registration ?? '')
+  const [carMake, setCarMake] = useState(musician?.car_make ?? '')
+  const [carModel, setCarModel] = useState(musician?.car_model ?? '')
+  const [carColour, setCarColour] = useState(musician?.car_colour ?? '')
+
+  // Identity & Health
+  const [dob, setDob] = useState(musician?.date_of_birth ?? '')
+  const [passport, setPassport] = useState(musician?.passport_number ?? '')
+  const [covidVaccinated, setCovidVaccinated] = useState<string>(
+    musician?.covid_vaccinated === true ? 'yes' : musician?.covid_vaccinated === false ? 'no' : '',
+  )
+  const [covidBooster, setCovidBooster] = useState<string>(
+    musician?.covid_booster === true ? 'yes' : musician?.covid_booster === false ? 'no' : '',
+  )
+
   const [pending, startTransition] = useTransition()
+
+  function toggleDietary(key: string) {
+    setDietary(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -94,15 +132,30 @@ function MusicianModal({ musician, onClose }: { musician: Partial<Musician> | nu
         phone: phone.trim() || null,
         default_fee: parseFloat(fee) || 0,
         notes: notes.trim() || null,
+        home_city: homeCity.trim() || null,
+        dietary_requirements: Array.from(dietary),
+        car_registration: carReg.trim() || null,
+        car_make: carMake.trim() || null,
+        car_model: carModel.trim() || null,
+        car_colour: carColour.trim() || null,
+        date_of_birth: dob || null,
+        passport_number: passport.trim() || null,
+        covid_vaccinated: covidVaccinated === 'yes' ? true : covidVaccinated === 'no' ? false : null,
+        covid_booster: covidBooster === 'yes' ? true : covidBooster === 'no' ? false : null,
       })
       onClose()
     })
   }
 
   const canSubmit = firstName.trim().length > 0
+  const sectionDividerStyle: React.CSSProperties = {
+    fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase',
+    letterSpacing: '0.07em', margin: '8px 0 4px', paddingBottom: 6,
+    borderBottom: '0.5px solid var(--border)',
+  }
 
   return (
-    <Overlay onClose={onClose}>
+    <Overlay onClose={onClose} width={560}>
       <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 20 }}>
         {musician?.id ? 'Edit musician' : 'Add musician'}
       </div>
@@ -145,6 +198,84 @@ function MusicianModal({ musician, onClose }: { musician: Partial<Musician> | nu
           <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Notes</label>
           <input style={inputStyle} value={notes} onChange={e => setNotes(e.target.value)} />
         </div>
+
+        {/* Additional info */}
+        <p style={sectionDividerStyle}>Additional info</p>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ flex: 1 }}>
+            <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Home city</label>
+            <input style={inputStyle} value={homeCity} onChange={e => setHomeCity(e.target.value)} placeholder="e.g. London" />
+          </div>
+        </div>
+        <div>
+          <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Dietary requirements</label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+            {DIETARY_OPTIONS.map(opt => (
+              <label key={opt.key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--text)', cursor: 'pointer', userSelect: 'none' }}>
+                <input
+                  type="checkbox"
+                  checked={dietary.has(opt.key)}
+                  onChange={() => toggleDietary(opt.key)}
+                  style={{ width: 14, height: 14 }}
+                />
+                {opt.label}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Vehicle */}
+        <p style={sectionDividerStyle}>Vehicle</p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div>
+            <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Registration</label>
+            <input style={inputStyle} value={carReg} onChange={e => setCarReg(e.target.value)} placeholder="e.g. AB12 CDE" />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Make</label>
+            <input style={inputStyle} value={carMake} onChange={e => setCarMake(e.target.value)} placeholder="e.g. Ford" />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Model</label>
+            <input style={inputStyle} value={carModel} onChange={e => setCarModel(e.target.value)} placeholder="e.g. Focus" />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Colour</label>
+            <input style={inputStyle} value={carColour} onChange={e => setCarColour(e.target.value)} placeholder="e.g. Silver" />
+          </div>
+        </div>
+
+        {/* Identity & Health */}
+        <p style={sectionDividerStyle}>Identity & Health</p>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ flex: 1 }}>
+            <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Date of birth</label>
+            <input style={inputStyle} type="date" value={dob} onChange={e => setDob(e.target.value)} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Passport number</label>
+            <input style={inputStyle} value={passport} onChange={e => setPassport(e.target.value)} />
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ flex: 1 }}>
+            <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>COVID vaccinated</label>
+            <select style={inputStyle} value={covidVaccinated} onChange={e => setCovidVaccinated(e.target.value)}>
+              <option value="">Unknown</option>
+              <option value="yes">Yes</option>
+              <option value="no">No</option>
+            </select>
+          </div>
+          <div style={{ flex: 1 }}>
+            <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>COVID booster</label>
+            <select style={inputStyle} value={covidBooster} onChange={e => setCovidBooster(e.target.value)}>
+              <option value="">Unknown</option>
+              <option value="yes">Yes</option>
+              <option value="no">No</option>
+            </select>
+          </div>
+        </div>
+
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
           <button type="button" onClick={onClose} style={cancelBtn}>Cancel</button>
           <button type="submit" disabled={pending || !canSubmit} style={{ ...primaryBtn, opacity: (pending || !canSubmit) ? 0.5 : 1 }}>
@@ -156,9 +287,153 @@ function MusicianModal({ musician, onClose }: { musician: Partial<Musician> | nu
   )
 }
 
+// ── Send onboard modal ────────────────────────────────────────────────────────
+function SendOnboardModal({ musician, onClose }: { musician: Musician; onClose: () => void }) {
+  const [type, setType] = useState<OnboardingType>('general')
+  const [checked, setChecked] = useState<Set<string>>(new Set())
+  const [deadline, setDeadline] = useState('')
+  const [sending, setSending] = useState(false)
+  const [sent, setSent] = useState(false)
+
+  const name = musicianFullName(musician)
+
+  function toggleField(key: string) {
+    setChecked(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  // For general: show optional extras only. For info_request: show all fields.
+  const fieldsToShow = type === 'general' ? ONBOARDING_OPTIONAL_FIELDS : [...ONBOARDING_BASE_FIELDS, ...ONBOARDING_OPTIONAL_FIELDS]
+
+  // Group them
+  const groups: Record<string, typeof fieldsToShow[number][]> = {}
+  for (const field of fieldsToShow) {
+    if (!groups[field.group]) groups[field.group] = []
+    groups[field.group].push(field)
+  }
+
+  const canSend = (type === 'general' || checked.size > 0) && deadline.length > 0
+
+  async function handleSend() {
+    setSending(true)
+    try {
+      await fetch('/api/musicians/send-onboard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          musicianId: musician.id,
+          type,
+          fieldsRequested: Array.from(checked),
+          deadlineAt: new Date(deadline).toISOString(),
+        }),
+      })
+      setSent(true)
+      setTimeout(() => onClose(), 1500)
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <Overlay onClose={onClose} width={520}>
+      <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>Send onboarding email</div>
+      <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>{name}</div>
+
+      {/* Type toggle */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
+        {(['general', 'info_request'] as const).map(t => {
+          const active = type === t
+          return (
+            <button
+              key={t}
+              type="button"
+              onClick={() => { setType(t); setChecked(new Set()) }}
+              style={{
+                padding: '12px 14px', textAlign: 'left', cursor: 'pointer',
+                background: active ? 'var(--accent)' : 'var(--bg-secondary)',
+                color: active ? '#fff' : 'var(--text)',
+                border: `0.5px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font)',
+              }}
+            >
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
+                {t === 'general' ? 'General onboard' : 'Information request'}
+              </div>
+              <div style={{ fontSize: 12, opacity: active ? 0.85 : 0.7, lineHeight: 1.4 }}>
+                {t === 'general'
+                  ? 'For new musicians. Asks for phone, home city, dietary, instruments, and fee. Tick any additional fields below.'
+                  : 'For existing musicians. Only sends the fields you tick.'}
+              </div>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Field checkboxes */}
+      <div style={{ marginBottom: 20 }}>
+        {Object.entries(groups).map(([group, fields]) => (
+          <div key={group} style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+              {group}
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {fields.map(f => (
+                <label key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--text)', cursor: 'pointer', userSelect: 'none' }}>
+                  <input
+                    type="checkbox"
+                    checked={checked.has(f.key)}
+                    onChange={() => toggleField(f.key)}
+                    style={{ width: 14, height: 14 }}
+                  />
+                  {f.label}
+                </label>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Deadline */}
+      <div style={{ marginBottom: 20 }}>
+        <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+          Response deadline *
+        </label>
+        <input
+          type="datetime-local"
+          value={deadline}
+          onChange={e => setDeadline(e.target.value)}
+          style={{ ...inputStyle, width: 240 }}
+          required
+        />
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <button type="button" onClick={onClose} style={cancelBtn}>Cancel</button>
+        <button
+          type="button"
+          disabled={!canSend || sending || sent}
+          onClick={handleSend}
+          style={{
+            ...primaryBtn,
+            opacity: (!canSend || sending || sent) ? 0.5 : 1,
+            minWidth: 80,
+          }}
+        >
+          {sent ? 'Sent ✓' : sending ? 'Sending…' : 'Send'}
+        </button>
+      </div>
+    </Overlay>
+  )
+}
+
 // ── Roster tab ────────────────────────────────────────────────────────────────
 function RosterTab({ musicians }: { musicians: Musician[] }) {
   const [modal, setModal] = useState<Partial<Musician> | null | false>(false)
+  const [onboardModal, setOnboardModal] = useState<Musician | null>(null)
   const [, startTransition] = useTransition()
 
   return (
@@ -193,6 +468,10 @@ function RosterTab({ musicians }: { musicians: Musician[] }) {
                 </td>
                 <td style={{ padding: '9px 0', textAlign: 'right', whiteSpace: 'nowrap' }}>
                   <button
+                    onClick={() => setOnboardModal(m)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--text-secondary)', padding: '2px 8px', fontFamily: 'var(--font)' }}
+                  >Send onboard</button>
+                  <button
                     onClick={() => setModal(m)}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--text-secondary)', padding: '2px 8px', fontFamily: 'var(--font)' }}
                   >Edit</button>
@@ -209,6 +488,9 @@ function RosterTab({ musicians }: { musicians: Musician[] }) {
 
       {modal !== false && (
         <MusicianModal musician={modal} onClose={() => setModal(false)} />
+      )}
+      {onboardModal && (
+        <SendOnboardModal musician={onboardModal} onClose={() => setOnboardModal(null)} />
       )}
     </div>
   )
@@ -473,8 +755,75 @@ function PreferenceTab({ musicians, preferenceOrders }: { musicians: Musician[];
   )
 }
 
+// ── Onboarding tab ────────────────────────────────────────────────────────────
+function OnboardingTab({ tokens, musicians }: { tokens: OnboardingToken[]; musicians: Musician[] }) {
+  function getStatus(t: OnboardingToken): { label: string; color: string } {
+    if (t.completed_at) return { label: 'Complete', color: '#16a34a' }
+    if (t.reminder_2_sent_at) return { label: 'Reminder 2 sent', color: '#d97706' }
+    if (t.reminder_1_sent_at) return { label: 'Reminder 1 sent', color: '#ca8a04' }
+    return { label: 'Sent', color: '#6b7280' }
+  }
+
+  function formatDate(iso: string | null) {
+    if (!iso) return '—'
+    return new Date(iso).toLocaleString('en-GB', {
+      day: 'numeric', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    })
+  }
+
+  return (
+    <div>
+      {tokens.length === 0 ? (
+        <div style={{ padding: '32px 24px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 13, border: '0.5px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
+          No onboarding requests sent yet.
+        </div>
+      ) : (
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid var(--border)' }}>
+              {['Musician', 'Type', 'Sent', 'Deadline', 'Status'].map((h, i) => (
+                <th key={i} style={{ textAlign: 'left', padding: '6px 12px 6px 0', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {tokens.map(t => {
+              const m = t.musician as { first_name: string; last_name: string } | null
+              const name = m ? [m.first_name, m.last_name].filter(Boolean).join(' ') : '—'
+              const status = getStatus(t)
+              const isPastDeadline = !t.completed_at && new Date(t.deadline_at) < new Date()
+              return (
+                <tr key={t.id} style={{ borderBottom: '0.5px solid var(--border)' }}>
+                  <td style={{ padding: '9px 12px 9px 0', fontSize: 13, color: 'var(--text)', fontWeight: 500 }}>{name}</td>
+                  <td style={{ padding: '9px 12px 9px 0', fontSize: 13, color: 'var(--text-secondary)' }}>
+                    {t.type === 'general' ? 'General' : 'Info request'}
+                  </td>
+                  <td style={{ padding: '9px 12px 9px 0', fontSize: 13, color: 'var(--text-secondary)' }}>{formatDate(t.created_at)}</td>
+                  <td style={{ padding: '9px 12px 9px 0', fontSize: 13, color: isPastDeadline ? '#dc2626' : 'var(--text-secondary)' }}>
+                    {formatDate(t.deadline_at)}
+                  </td>
+                  <td style={{ padding: '9px 0', fontSize: 13 }}>
+                    <span style={{
+                      display: 'inline-block', padding: '2px 8px', borderRadius: 10,
+                      fontSize: 12, fontWeight: 500, color: status.color,
+                      background: `${status.color}18`,
+                    }}>
+                      {status.label}
+                    </span>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
+  )
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
-export default function MusicianClient({ musicians, templates, preferenceOrders }: Props) {
+export default function MusicianClient({ musicians, templates, preferenceOrders, onboardingTokens }: Props) {
   const [tab, setTab] = useState<Tab>('roster')
 
   const tabStyle = (active: boolean): React.CSSProperties => ({
@@ -498,12 +847,16 @@ export default function MusicianClient({ musicians, templates, preferenceOrders 
           <button style={tabStyle(tab === 'preference')} onClick={() => setTab('preference')}>
             Preference orders
           </button>
+          <button style={tabStyle(tab === 'onboarding')} onClick={() => setTab('onboarding')}>
+            Onboarding ({onboardingTokens.length})
+          </button>
         </div>
       </div>
 
       {tab === 'roster' && <RosterTab musicians={musicians} />}
       {tab === 'templates' && <TemplatesTab templates={templates} />}
       {tab === 'preference' && <PreferenceTab musicians={musicians} preferenceOrders={preferenceOrders} />}
+      {tab === 'onboarding' && <OnboardingTab tokens={onboardingTokens} musicians={musicians} />}
     </div>
   )
 }

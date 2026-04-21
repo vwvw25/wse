@@ -84,3 +84,20 @@ export async function reorderTemplateSlots(
   )
   revalidatePath('/admin/musicians')
 }
+
+// ── Onboarding tokens ─────────────────────────────────────────────────────────
+
+export async function createOnboardingToken(
+  musicianId: string,
+  type: 'general' | 'info_request',
+  fieldsRequested: string[],
+  deadlineAt: string,
+): Promise<string | null> {
+  const supabase = createServiceClient()
+  const { data } = await supabase
+    .from('musician_onboarding_tokens')
+    .insert({ musician_id: musicianId, type, fields_requested: fieldsRequested, deadline_at: deadlineAt })
+    .select('token')
+    .single()
+  return data?.token ?? null
+}
