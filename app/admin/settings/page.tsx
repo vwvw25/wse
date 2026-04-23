@@ -587,9 +587,27 @@ export default function SettingsPage() {
 
       {/* Celebration GIFs */}
       <div style={{ ...sectionHeaderStyle, marginTop: 40 }}>Celebration GIFs</div>
-      <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 16px' }}>
+      <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 12px' }}>
         Shown at random when a musician confirms availability.
       </p>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <a
+          href="/availability/preview?state=yes"
+          target="_blank"
+          rel="noreferrer"
+          style={{ padding: '5px 14px', fontSize: 12, fontWeight: 500, background: 'var(--bg)', color: 'var(--text)', border: '0.5px solid var(--border-hover)', borderRadius: 'var(--radius-sm)', textDecoration: 'none' }}
+        >
+          Preview accepted ↗
+        </a>
+        <a
+          href="/availability/preview?state=no"
+          target="_blank"
+          rel="noreferrer"
+          style={{ padding: '5px 14px', fontSize: 12, fontWeight: 500, background: 'var(--bg)', color: 'var(--text)', border: '0.5px solid var(--border-hover)', borderRadius: 'var(--radius-sm)', textDecoration: 'none' }}
+        >
+          Preview declined ↗
+        </a>
+      </div>
 
       {/* Add new GIF */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
