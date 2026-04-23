@@ -29,10 +29,7 @@ const STATUS_STYLE: Record<string, React.CSSProperties> = {
 function StatusBadge({ status }: { status: string }) {
   const s = STATUS_STYLE[status] ?? STATUS_STYLE.sent
   return (
-    <span style={{
-      ...s, fontSize: 11, fontWeight: 600, padding: '2px 8px',
-      borderRadius: 4, textTransform: 'capitalize',
-    }}>
+    <span style={{ ...s, fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 4, textTransform: 'capitalize' }}>
       {status}
     </span>
   )
@@ -41,6 +38,14 @@ function StatusBadge({ status }: { status: string }) {
 function fmt(n: number) { return '£' + Math.round(n).toLocaleString('en-GB') }
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+function optionLabel(opt: PriceOption): string {
+  return [
+    opt.line_up || opt.band_size,
+    opt.set_config?.replace('x', '×'),
+    opt.total_price != null ? fmt(opt.total_price) : null,
+  ].filter(Boolean).join(' — ')
 }
 
 export default function EventQuotesClient({
@@ -52,9 +57,7 @@ export default function EventQuotesClient({
 }) {
   const [quotes, setQuotes] = useState(initial)
   const [creatingFrom, setCreatingFrom] = useState<string | null>(null)
-  const [acceptingId, setAcceptingId] = useState<string | null>(null)
-  const [selectedOption, setSelectedOption] = useState('')
-  const [accepting, setAccepting] = useState(false)
+  const [accepting, setAccepting] = useState<string | null>(null) // "quoteId:optionLabel"
 
   async function handleNewVersion(quoteId: string) {
     setCreatingFrom(quoteId)
@@ -69,24 +72,21 @@ export default function EventQuotesClient({
     }
   }
 
-  async function handleAccept(quoteId: string) {
-    if (!selectedOption) return
-    setAccepting(true)
+  async function handleAccept(quoteId: string, label: string) {
+    setAccepting(`${quoteId}:${label}`)
     try {
       const res = await fetch(`/api/quotes/${quoteId}/accept`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accepted_option: selectedOption }),
+        body: JSON.stringify({ accepted_option: label }),
       })
       if (res.ok) {
         setQuotes(prev => prev.map(q =>
-          q.id === quoteId ? { ...q, status: 'accepted', accepted_option: selectedOption } : q
+          q.id === quoteId ? { ...q, status: 'accepted', accepted_option: label } : q
         ))
-        setAcceptingId(null)
-        setSelectedOption('')
       }
     } finally {
-      setAccepting(false)
+      setAccepting(null)
     }
   }
 
@@ -110,13 +110,11 @@ export default function EventQuotesClient({
   return (
     <div style={{ padding: '8px 0' }}>
       {quotes.map((q, i) => {
-        const prices = (q.calculated.price_options ?? []).map(o => o.total_price).filter(p => p != null)
-        const minP = prices.length ? Math.min(...prices) : null
-        const maxP = prices.length ? Math.max(...prices) : null
-        const priceStr = minP == null || maxP == null ? '—' : minP === maxP ? fmt(minP) : `${fmt(minP)} – ${fmt(maxP)}`
+        const options = q.calculated.price_options ?? []
         const isSuperseded = q.status === 'superseded'
         const isAccepted = q.status === 'accepted'
         const isNewest = i === 0
+        const canAccept = !isSuperseded && !isAccepted
 
         return (
           <div
@@ -124,14 +122,14 @@ export default function EventQuotesClient({
             style={{
               border: `0.5px solid ${isAccepted ? '#bbf7d0' : 'var(--border)'}`,
               borderRadius: 'var(--radius-md)',
-              padding: '14px 16px',
-              marginBottom: 10,
+              marginBottom: 12,
               background: isAccepted ? '#f0fdf4' : isSuperseded ? 'var(--bg-secondary)' : 'var(--bg)',
               opacity: isSuperseded ? 0.6 : 1,
+              overflow: 'hidden',
             }}
           >
-            {/* Row 1: version + status + date + price */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
+            {/* Card header */}
+            <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', borderBottom: '0.5px solid var(--border)' }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
                 Version {q.version}
               </span>
@@ -141,42 +139,68 @@ export default function EventQuotesClient({
               </span>
             </div>
 
-            {/* Row 2: price + options count */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 10 }}>
-              <span style={{ fontSize: 13, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
-                {priceStr}
-              </span>
-              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                {(q.calculated.price_options ?? []).length} option{(q.calculated.price_options ?? []).length !== 1 ? 's' : ''}
-              </span>
+            {/* Price options — one row per option */}
+            <div>
+              {options.map((opt, idx) => {
+                const label = optionLabel(opt)
+                const isThisAccepted = isAccepted && q.accepted_option === label
+                const isThisAccepting = accepting === `${q.id}:${label}`
+
+                return (
+                  <div
+                    key={idx}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '10px 16px',
+                      borderBottom: idx < options.length - 1 ? '0.5px solid var(--border)' : undefined,
+                      background: isThisAccepted ? '#dcfce7' : undefined,
+                    }}
+                  >
+                    {/* Option label */}
+                    <span style={{ flex: 1, fontSize: 13, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
+                      {opt.line_up || opt.band_size.replace(/_/g, ' ')}
+                      <span style={{ color: 'var(--text-secondary)' }}> · {opt.set_config?.replace('x', '×')}</span>
+                    </span>
+                    {/* Price */}
+                    <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', fontVariantNumeric: 'tabular-nums', minWidth: 70, textAlign: 'right' }}>
+                      {opt.total_price != null ? fmt(opt.total_price) : '—'}
+                    </span>
+                    {/* Accepted badge or accept button */}
+                    {isThisAccepted ? (
+                      <span style={{ fontSize: 12, fontWeight: 600, color: '#16a34a', minWidth: 90, textAlign: 'right' }}>
+                        ✓ Accepted
+                      </span>
+                    ) : canAccept ? (
+                      <button
+                        onClick={() => handleAccept(q.id, label)}
+                        disabled={!!accepting}
+                        style={{
+                          fontSize: 12, color: '#16a34a',
+                          background: 'none', border: '0.5px solid #bbf7d0',
+                          borderRadius: 4, padding: '3px 10px',
+                          cursor: accepting ? 'not-allowed' : 'pointer',
+                          opacity: accepting && !isThisAccepting ? 0.5 : 1,
+                          fontFamily: 'var(--font)', minWidth: 90,
+                        }}
+                      >
+                        {isThisAccepting ? 'Saving…' : 'Mark accepted'}
+                      </button>
+                    ) : (
+                      <span style={{ minWidth: 90 }} />
+                    )}
+                  </div>
+                )
+              })}
             </div>
 
-            {/* Accepted option display */}
-            {isAccepted && q.accepted_option && (
-              <div style={{
-                fontSize: 12, color: '#16a34a', fontWeight: 500,
-                marginBottom: 10,
-              }}>
-                ✓ Accepted: {q.accepted_option}
-              </div>
-            )}
-
-            {/* Actions */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <a
-                href={`/quote/${q.id}`}
-                style={{ fontSize: 12, color: 'var(--accent)', textDecoration: 'none', fontWeight: 500 }}
-              >
+            {/* Card footer: actions */}
+            <div style={{ padding: '10px 16px', borderTop: '0.5px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <a href={`/quote/${q.id}`} style={{ fontSize: 12, color: 'var(--accent)', textDecoration: 'none', fontWeight: 500 }}>
                 View quote →
               </a>
-              <a
-                href={`/admin/quotes/${q.id}`}
-                style={{ fontSize: 12, color: 'var(--text-secondary)', textDecoration: 'none' }}
-              >
+              <a href={`/admin/quotes/${q.id}`} style={{ fontSize: 12, color: 'var(--text-secondary)', textDecoration: 'none' }}>
                 Audit
               </a>
-
-              {/* New version — only on the latest non-superseded quote */}
               {isNewest && !isSuperseded && (
                 <button
                   onClick={() => handleNewVersion(q.id)}
@@ -185,84 +209,13 @@ export default function EventQuotesClient({
                     fontSize: 12, color: 'var(--text-secondary)', background: 'none',
                     border: '0.5px solid var(--border)', borderRadius: 4,
                     padding: '3px 10px', cursor: 'pointer', fontFamily: 'var(--font)',
+                    marginLeft: 'auto',
                   }}
                 >
                   {creatingFrom === q.id ? 'Creating…' : 'New version'}
                 </button>
               )}
-
-              {/* Mark as accepted — only if not already accepted/superseded */}
-              {!isAccepted && !isSuperseded && acceptingId !== q.id && (
-                <button
-                  onClick={() => { setAcceptingId(q.id); setSelectedOption('') }}
-                  style={{
-                    fontSize: 12, color: '#16a34a', background: 'none',
-                    border: '0.5px solid #bbf7d0', borderRadius: 4,
-                    padding: '3px 10px', cursor: 'pointer', fontFamily: 'var(--font)',
-                  }}
-                >
-                  Mark as accepted
-                </button>
-              )}
             </div>
-
-            {/* Accept form */}
-            {acceptingId === q.id && (
-              <div style={{
-                marginTop: 12, padding: '12px 14px',
-                background: 'var(--bg-secondary)', border: '0.5px solid var(--border)',
-                borderRadius: 6,
-              }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>
-                  Which option did the client go for?
-                </div>
-                <select
-                  value={selectedOption}
-                  onChange={e => setSelectedOption(e.target.value)}
-                  style={{
-                    width: '100%', padding: '7px 10px', fontSize: 13,
-                    border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)',
-                    background: 'var(--bg)', color: 'var(--text)', fontFamily: 'var(--font)',
-                    marginBottom: 10, outline: 'none',
-                  }}
-                >
-                  <option value="">Select an option…</option>
-                  {(q.calculated.price_options ?? []).map((opt, idx) => {
-                    const label = [
-                      opt.line_up || opt.band_size,
-                      opt.set_config?.replace('x', '×'),
-                      opt.total_price != null ? fmt(opt.total_price) : null,
-                    ].filter(Boolean).join(' — ')
-                    return <option key={idx} value={label}>{label}</option>
-                  })}
-                </select>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button
-                    onClick={() => handleAccept(q.id)}
-                    disabled={!selectedOption || accepting}
-                    style={{
-                      padding: '6px 16px', fontSize: 13, fontWeight: 500,
-                      background: '#16a34a', color: '#fff', border: 'none',
-                      borderRadius: 'var(--radius-sm)', cursor: !selectedOption || accepting ? 'not-allowed' : 'pointer',
-                      opacity: !selectedOption || accepting ? 0.6 : 1, fontFamily: 'var(--font)',
-                    }}
-                  >
-                    {accepting ? 'Saving…' : 'Confirm'}
-                  </button>
-                  <button
-                    onClick={() => { setAcceptingId(null); setSelectedOption('') }}
-                    style={{
-                      padding: '6px 14px', fontSize: 13,
-                      background: 'none', color: 'var(--text-secondary)',
-                      border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)',
-                      cursor: 'pointer', fontFamily: 'var(--font)',
-                    }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         )
       })}
