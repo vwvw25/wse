@@ -251,28 +251,7 @@ export default async function AvailabilityPage({
   const alreadyResponded = slot.availability !== 'tbc'
   const responseWas = confirmed ?? (alreadyResponded ? slot.availability : null)
 
-  // ── 'Yes' success: just show a celebration GIF ──────────────────────────
-  if (responseWas === 'yes') {
-    return (
-      <div style={{ minHeight: '100vh', background: '#111827', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif' }}>
-        {randomGif ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={randomGif}
-            alt="Celebration"
-            style={{ maxWidth: '100%', maxHeight: '80vh', borderRadius: 8, display: 'block' }}
-          />
-        ) : (
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
-            <p style={{ fontSize: 20, fontWeight: 700, color: '#fff', margin: 0 }}>You&apos;re booked in!</p>
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  // ── 'No' response / pending ──────────────────────────────────────────────
+  // ── Shared card layout for all states ───────────────────────────────────
   return (
     <div style={{ minHeight: '100vh', background: '#f9fafb', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif' }}>
       <div style={{ background: '#fff', borderRadius: 10, boxShadow: '0 2px 12px rgba(0,0,0,0.1)', width: '100%', maxWidth: 480, overflow: 'hidden' }}>
@@ -288,6 +267,29 @@ export default async function AvailabilityPage({
         </div>
 
         <div style={{ padding: '24px 28px' }}>
+
+          {/* 'Yes' confirmation banner + GIF */}
+          {responseWas === 'yes' && (
+            <>
+              <div style={{
+                padding: '14px 16px', borderRadius: 6, marginBottom: 20,
+                background: '#f0fdf4', border: '1px solid #bbf7d0',
+                color: '#14532d', fontSize: 14, fontWeight: 500,
+              }}>
+                ✓ You&apos;re booked in! A confirmation email with a calendar invite is on its way to you.
+              </div>
+              {randomGif ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={randomGif}
+                  alt="Celebration"
+                  style={{ width: '100%', borderRadius: 6, display: 'block', marginBottom: 20 }}
+                />
+              ) : (
+                <div style={{ textAlign: 'center', fontSize: 48, marginBottom: 20 }}>🎉</div>
+              )}
+            </>
+          )}
 
           {/* 'No' confirmation banner */}
           {responseWas === 'no' && (
