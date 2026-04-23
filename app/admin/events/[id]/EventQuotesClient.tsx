@@ -48,6 +48,32 @@ function optionLabel(opt: PriceOption): string {
   ].filter(Boolean).join(' — ')
 }
 
+function AcceptedBreakdown({ opt }: { opt: PriceOption }) {
+  const rows: [string, number][] = [
+    ['Musician fees', opt.sum_musician_fees],
+    ['Performance fee', opt.performance_fee],
+    ['PA', opt.pa_cost ?? 0],
+    ['Travel', opt.travel_cost ?? 0],
+  ]
+  return (
+    <div style={{ margin: '0 16px 14px', background: 'var(--bg)', border: '0.5px solid #bbf7d0', borderRadius: 6, overflow: 'hidden' }}>
+      <div style={{ padding: '8px 12px', background: '#16a34a', fontSize: 12, fontWeight: 600, color: '#fff' }}>
+        {opt.line_up || opt.band_size} · {opt.set_config?.replace('x', '×')}
+      </div>
+      {rows.filter(([, v]) => v !== 0).map(([label, value]) => (
+        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 12px', borderBottom: '0.5px solid #dcfce7', fontSize: 13 }}>
+          <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
+          <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(value)}</span>
+        </div>
+      ))}
+      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', fontSize: 14, fontWeight: 700 }}>
+        <span>Total</span>
+        <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(opt.total_price)}</span>
+      </div>
+    </div>
+  )
+}
+
 export default function EventQuotesClient({
   eventId,
   quotes: initial,
@@ -57,7 +83,8 @@ export default function EventQuotesClient({
 }) {
   const [quotes, setQuotes] = useState(initial)
   const [creatingFrom, setCreatingFrom] = useState<string | null>(null)
-  const [accepting, setAccepting] = useState<string | null>(null) // "quoteId:optionLabel"
+  const [accepting, setAccepting] = useState<string | null>(null)
+  const [unaccepting, setUnaccepting] = useState<string | null>(null)
 
   async function handleNewVersion(quoteId: string) {
     setCreatingFrom(quoteId)
@@ -72,7 +99,7 @@ export default function EventQuotesClient({
     }
   }
 
-  async function handleAccept(quoteId: string, label: string) {
+  async function handleAccept(quoteId: string, label: string, opt: PriceOption) {
     setAccepting(`${quoteId}:${label}`)
     try {
       const res = await fetch(`/api/quotes/${quoteId}/accept`, {
@@ -82,11 +109,25 @@ export default function EventQuotesClient({
       })
       if (res.ok) {
         setQuotes(prev => prev.map(q =>
-          q.id === quoteId ? { ...q, status: 'accepted', accepted_option: label } : q
-        ))
+          q.id === quoteId ? { ...q, status: 'accepted', accepted_option: label, _acceptedOpt: opt } : q
+        ) as QuoteSummary[])
       }
     } finally {
       setAccepting(null)
+    }
+  }
+
+  async function handleUnaccept(quoteId: string) {
+    setUnaccepting(quoteId)
+    try {
+      const res = await fetch(`/api/quotes/${quoteId}/accept`, { method: 'DELETE' })
+      if (res.ok) {
+        setQuotes(prev => prev.map(q =>
+          q.id === quoteId ? { ...q, status: 'sent', accepted_option: null } : q
+        ))
+      }
+    } finally {
+      setUnaccepting(null)
     }
   }
 
@@ -116,6 +157,11 @@ export default function EventQuotesClient({
         const isNewest = i === 0
         const canAccept = !isSuperseded && !isAccepted
 
+        // Find the accepted PriceOption object
+        const acceptedOpt = isAccepted && q.accepted_option
+          ? options.find(o => optionLabel(o) === q.accepted_option) ?? null
+          : null
+
         return (
           <div
             key={q.id}
@@ -139,61 +185,59 @@ export default function EventQuotesClient({
               </span>
             </div>
 
-            {/* Price options — one row per option */}
-            <div>
-              {options.map((opt, idx) => {
-                const label = optionLabel(opt)
-                const isThisAccepted = isAccepted && q.accepted_option === label
-                const isThisAccepting = accepting === `${q.id}:${label}`
+            {/* Accepted: show just the breakdown of the accepted option */}
+            {isAccepted && acceptedOpt ? (
+              <div style={{ paddingTop: 14 }}>
+                <AcceptedBreakdown opt={acceptedOpt} />
+              </div>
+            ) : (
+              /* Not accepted: show all options as rows */
+              <div>
+                {options.map((opt, idx) => {
+                  const label = optionLabel(opt)
+                  const isThisAccepting = accepting === `${q.id}:${label}`
 
-                return (
-                  <div
-                    key={idx}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 10,
-                      padding: '10px 16px',
-                      borderBottom: idx < options.length - 1 ? '0.5px solid var(--border)' : undefined,
-                      background: isThisAccepted ? '#dcfce7' : undefined,
-                    }}
-                  >
-                    {/* Option label */}
-                    <span style={{ flex: 1, fontSize: 13, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
-                      {opt.line_up || opt.band_size.replace(/_/g, ' ')}
-                      <span style={{ color: 'var(--text-secondary)' }}> · {opt.set_config?.replace('x', '×')}</span>
-                    </span>
-                    {/* Price */}
-                    <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', fontVariantNumeric: 'tabular-nums', minWidth: 70, textAlign: 'right' }}>
-                      {opt.total_price != null ? fmt(opt.total_price) : '—'}
-                    </span>
-                    {/* Accepted badge or accept button */}
-                    {isThisAccepted ? (
-                      <span style={{ fontSize: 12, fontWeight: 600, color: '#16a34a', minWidth: 90, textAlign: 'right' }}>
-                        ✓ Accepted
+                  return (
+                    <div
+                      key={idx}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '10px 16px',
+                        borderBottom: idx < options.length - 1 ? '0.5px solid var(--border)' : undefined,
+                      }}
+                    >
+                      <span style={{ flex: 1, fontSize: 13, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
+                        {opt.line_up || opt.band_size.replace(/_/g, ' ')}
+                        <span style={{ color: 'var(--text-secondary)' }}> · {opt.set_config?.replace('x', '×')}</span>
                       </span>
-                    ) : canAccept ? (
-                      <button
-                        onClick={() => handleAccept(q.id, label)}
-                        disabled={!!accepting}
-                        style={{
-                          fontSize: 12, color: '#16a34a',
-                          background: 'none', border: '0.5px solid #bbf7d0',
-                          borderRadius: 4, padding: '3px 10px',
-                          cursor: accepting ? 'not-allowed' : 'pointer',
-                          opacity: accepting && !isThisAccepting ? 0.5 : 1,
-                          fontFamily: 'var(--font)', minWidth: 90,
-                        }}
-                      >
-                        {isThisAccepting ? 'Saving…' : 'Mark accepted'}
-                      </button>
-                    ) : (
-                      <span style={{ minWidth: 90 }} />
-                    )}
-                  </div>
-                )
-              })}
-            </div>
+                      <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', fontVariantNumeric: 'tabular-nums', minWidth: 70, textAlign: 'right' }}>
+                        {opt.total_price != null ? fmt(opt.total_price) : '—'}
+                      </span>
+                      {canAccept ? (
+                        <button
+                          onClick={() => handleAccept(q.id, label, opt)}
+                          disabled={!!accepting}
+                          style={{
+                            fontSize: 12, color: '#16a34a',
+                            background: 'none', border: '0.5px solid #bbf7d0',
+                            borderRadius: 4, padding: '3px 10px',
+                            cursor: accepting ? 'not-allowed' : 'pointer',
+                            opacity: accepting && !isThisAccepting ? 0.5 : 1,
+                            fontFamily: 'var(--font)', minWidth: 90,
+                          }}
+                        >
+                          {isThisAccepting ? 'Saving…' : 'Mark accepted'}
+                        </button>
+                      ) : (
+                        <span style={{ minWidth: 90 }} />
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
 
-            {/* Card footer: actions */}
+            {/* Card footer */}
             <div style={{ padding: '10px 16px', borderTop: '0.5px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <a href={`/quote/${q.id}`} style={{ fontSize: 12, color: 'var(--accent)', textDecoration: 'none', fontWeight: 500 }}>
                 View quote →
@@ -201,7 +245,7 @@ export default function EventQuotesClient({
               <a href={`/admin/quotes/${q.id}`} style={{ fontSize: 12, color: 'var(--text-secondary)', textDecoration: 'none' }}>
                 Audit
               </a>
-              {isNewest && !isSuperseded && (
+              {isNewest && !isSuperseded && !isAccepted && (
                 <button
                   onClick={() => handleNewVersion(q.id)}
                   disabled={creatingFrom === q.id}
@@ -213,6 +257,20 @@ export default function EventQuotesClient({
                   }}
                 >
                   {creatingFrom === q.id ? 'Creating…' : 'New version'}
+                </button>
+              )}
+              {isAccepted && (
+                <button
+                  onClick={() => handleUnaccept(q.id)}
+                  disabled={unaccepting === q.id}
+                  style={{
+                    fontSize: 12, color: 'var(--text-secondary)', background: 'none',
+                    border: '0.5px solid var(--border)', borderRadius: 4,
+                    padding: '3px 10px', cursor: 'pointer', fontFamily: 'var(--font)',
+                    marginLeft: 'auto',
+                  }}
+                >
+                  {unaccepting === q.id ? 'Undoing…' : 'Change accepted quote'}
                 </button>
               )}
             </div>

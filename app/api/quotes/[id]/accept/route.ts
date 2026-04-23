@@ -23,3 +23,21 @@ export async function POST(
 
   return NextResponse.json({ ok: true })
 }
+
+// Undo accepted — revert to 'sent' and clear accepted_option
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params
+  const supabase = createServiceClient()
+
+  const { error } = await supabase
+    .from('quotes')
+    .update({ status: 'sent', accepted_option: null })
+    .eq('id', id)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  return NextResponse.json({ ok: true })
+}
