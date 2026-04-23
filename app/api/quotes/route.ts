@@ -27,6 +27,8 @@ export async function POST(req: NextRequest) {
         inputs,
         calculated,
         settings_snapshot: settings,
+        version: 1,
+        status: 'sent',
         ...(event_id ? { event_id } : {}),
       })
       .select('id')

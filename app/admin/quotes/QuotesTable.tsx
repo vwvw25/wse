@@ -63,7 +63,8 @@ export default function QuotesTable({ quotes }: { quotes: QuoteRecord[] }) {
               <th style={th}>Client / agency</th>
               <th style={th}>Band</th>
               <th style={th}>Prices</th>
-              <th style={th}>Options</th>
+              <th style={th}>Ver</th>
+              <th style={th}>Status</th>
               <th style={th}></th>
             </tr>
           </thead>
@@ -100,7 +101,27 @@ export default function QuotesTable({ quotes }: { quotes: QuoteRecord[] }) {
                     </span>
                   </td>
                   <td style={{ ...td, fontVariantNumeric: 'tabular-nums' }}>{priceStr}</td>
-                  <td style={td}>{(calc.price_options ?? []).length}</td>
+                  <td style={td}>
+                    <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                      v{(q as QuoteRecord & { version?: number }).version ?? 1}
+                    </span>
+                  </td>
+                  <td style={td}>
+                    {(() => {
+                      const status = (q as QuoteRecord & { status?: string }).status ?? 'sent'
+                      const styles: Record<string, React.CSSProperties> = {
+                        accepted:   { background: '#f0fdf4', color: '#16a34a', border: '0.5px solid #bbf7d0' },
+                        superseded: { background: '#f9fafb', color: '#9ca3af', border: '0.5px solid #e5e7eb' },
+                        draft:      { background: '#f3f4f6', color: '#374151', border: '0.5px solid #e5e7eb' },
+                        sent:       { background: '#eff6ff', color: '#1d4ed8', border: '0.5px solid #bfdbfe' },
+                      }
+                      return (
+                        <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 4, textTransform: 'capitalize', ...(styles[status] ?? styles.sent) }}>
+                          {status}
+                        </span>
+                      )
+                    })()}
+                  </td>
                   <td style={{ ...td, textAlign: 'right' }}>
                     <a
                       href={`/admin/quotes/${q.id}`}

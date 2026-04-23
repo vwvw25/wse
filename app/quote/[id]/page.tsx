@@ -6,6 +6,7 @@ import { getQuoteItems, autoArrivalTime } from '@/lib/quote-items'
 import type { QuoteItem } from '@/lib/quote-items'
 import type { QuoteRecord, PriceOption, BookingType, Settings } from '@/types/quote'
 import AuditButton from './AuditButton'
+import NewVersionButton from './NewVersionButton'
 import { BAND_SIZE_LABELS, BAND_TYPE_LABELS } from '@/lib/lineups'
 
 const BOOKING_TYPE_LABELS: Record<BookingType, string> = {
@@ -49,7 +50,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
     } | null
   } | null
 
-  const quote = data as QuoteRecord & { event?: EventSnippet }
+  const quote = data as QuoteRecord & { event?: EventSnippet; version?: number; status?: string; event_id?: string }
   const eventData = quote.event
   const rd = eventData?.request_details
   let { inputs, calculated } = quote
@@ -101,13 +102,40 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
               {inputs.venue_name && <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{inputs.venue_name}</p>}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
-              <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textAlign: 'right' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {quote.version && (
+                    <span style={{ fontSize: 11, fontWeight: 600, padding: '1px 7px', borderRadius: 4, background: 'var(--bg-secondary)', border: '0.5px solid var(--border)', color: 'var(--text-secondary)' }}>
+                      v{quote.version}
+                    </span>
+                  )}
+                  {quote.status && quote.status !== 'sent' && (
+                    <span style={{
+                      fontSize: 11, fontWeight: 600, padding: '1px 7px', borderRadius: 4, textTransform: 'capitalize',
+                      ...(quote.status === 'accepted' ? { background: '#f0fdf4', color: '#16a34a', border: '0.5px solid #bbf7d0' }
+                        : quote.status === 'superseded' ? { background: '#f9fafb', color: '#9ca3af', border: '0.5px solid #e5e7eb' }
+                        : quote.status === 'draft' ? { background: '#f3f4f6', color: '#374151', border: '0.5px solid #e5e7eb' }
+                        : {}),
+                    }}>
+                      {quote.status}
+                    </span>
+                  )}
+                </div>
                 <div>Ref: {id.slice(0, 8).toUpperCase()}</div>
                 <div>{new Date(quote.created_at).toLocaleDateString('en-GB')}</div>
+                {quote.event_id && (
+                  <a href={`/admin/events/${quote.event_id}?tab=quotes`} style={{ fontSize: 11, color: 'var(--accent)', textDecoration: 'none' }}>
+                    ← Back to event
+                  </a>
+                )}
               </div>
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 <a href={`/quote/builder?prefill=${id}`} style={headerBtnStyle}>Live builder →</a>
-                <a href={`/quote/new/details?edit=${id}`} style={headerBtnStyle}>Edit →</a>
+                {quote.event_id && quote.status !== 'superseded' ? (
+                  <NewVersionButton quoteId={id} />
+                ) : (
+                  <a href={`/quote/new/details?edit=${id}`} style={headerBtnStyle}>Edit →</a>
+                )}
                 <a href={`/quote/new/details?prefill=${id}`} style={headerBtnStyle}>Duplicate →</a>
                 <a href={`/quote/${id}/text`} style={headerBtnStyle}>Email version →</a>
                 <a href={`/quote/${id}/email`} style={{ ...headerBtnStyle, background: 'var(--accent)', color: '#fff', borderColor: 'var(--accent)' }}>Send email →</a>

@@ -10,6 +10,7 @@ import CopyEventDetailsButton from './CopyEventDetailsButton'
 import ContractSection from './ContractSection'
 import InvoiceSection from './InvoiceSection'
 import ClientLinkSection from './ClientLinkSection'
+import EventQuotesClient from './EventQuotesClient'
 
 function formatDate(d: string | null) {
   if (!d) return '—'
@@ -41,7 +42,7 @@ function FullRow({ label, value }: { label: string; value: string | null | undef
   )
 }
 
-type Tab = 'information' | 'musicians'
+type Tab = 'information' | 'musicians' | 'quotes'
 
 export default async function EventDetailPage({
   params,
@@ -52,13 +53,13 @@ export default async function EventDetailPage({
 }) {
   const { id } = await params
   const { tab: tabParam } = await searchParams
-  const tab: Tab = tabParam === 'musicians' ? 'musicians' : 'information'
+  const tab: Tab = tabParam === 'musicians' ? 'musicians' : tabParam === 'quotes' ? 'quotes' : 'information'
 
   const supabase = createServiceClient()
 
   const [{ data: eventData }, { data: quotesData }, { data: invoicesData }, { data: invoiceSettingsData }, { data: allClientsData }] = await Promise.all([
     supabase.from('events').select('*').eq('id', id).single(),
-    supabase.from('quotes').select('id, created_at, inputs, calculated').eq('event_id', id).order('created_at', { ascending: false }),
+    supabase.from('quotes').select('id, created_at, inputs, calculated, version, status, accepted_option').eq('event_id', id).order('version', { ascending: false }),
     supabase.from('invoices').select('*, line_items:invoice_line_items(*)').eq('event_id', id).order('created_at'),
     supabase.from('invoice_settings').select('*').single(),
     supabase.from('clients').select('*').order('name'),
@@ -67,7 +68,7 @@ export default async function EventDetailPage({
   if (!eventData) notFound()
 
   const event = eventData as EventRecord
-  const quotes = (quotesData ?? []) as Pick<QuoteRecord, 'id' | 'created_at' | 'inputs' | 'calculated'>[]
+  const quotes = (quotesData ?? []) as (Pick<QuoteRecord, 'id' | 'created_at' | 'inputs' | 'calculated'> & { version: number; status: string; accepted_option: string | null })[]
   const invoices = (invoicesData ?? []) as (Invoice & { line_items: InvoiceLineItem[] })[]
   const invoiceSettings = (invoiceSettingsData ?? null) as InvoiceSettings | null
   const allClients = (allClientsData ?? []) as Client[]
@@ -178,6 +179,9 @@ export default async function EventDetailPage({
       <div style={{ display: 'flex', borderBottom: '0.5px solid var(--border)', marginBottom: 28, gap: 0 }}>
         <a href={`/admin/events/${id}`} style={tabStyle(tab === 'information')}>Information</a>
         <a href={`/admin/events/${id}?tab=musicians`} style={tabStyle(tab === 'musicians')}>Musicians</a>
+        <a href={`/admin/events/${id}?tab=quotes`} style={tabStyle(tab === 'quotes')}>
+          Quotes{quotes.length > 0 ? ` (${quotes.length})` : ''}
+        </a>
       </div>
 
       {/* ── Information tab ── */}
@@ -227,36 +231,20 @@ export default async function EventDetailPage({
             </Section>
           )}
 
-          <Section label={`Quotes (${quotes.length})`}>
-            {quotes.length === 0 ? (
-              <p style={{ fontSize: 13, color: 'var(--text-tertiary)', margin: '8px 0 12px' }}>No quotes yet.</p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 0' }}>
-                {quotes.map(q => {
-                  const inp = q.inputs as { agency_name?: string | null; event_date?: string | null }
-                  return (
-                    <a
-                      key={q.id}
-                      href={`/quote/${q.id}`}
-                      style={{
-                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                        padding: '10px 14px', textDecoration: 'none',
-                        background: 'var(--bg-secondary)', border: '0.5px solid var(--border)',
-                        borderRadius: 'var(--radius-md)',
-                      }}
-                    >
-                      <span style={{ fontSize: 13, color: 'var(--text)' }}>
-                        Quote — {formatDate(inp.event_date ?? null)}
-                      </span>
-                      <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
-                        {formatCreated(q.created_at)}
-                      </span>
-                    </a>
-                  )
-                })}
+          {quotes.length > 0 && (
+            <Section label={`Quotes (${quotes.length})`}>
+              <div style={{ padding: '8px 0', fontSize: 13, color: 'var(--text-secondary)' }}>
+                <a href={`/admin/events/${id}?tab=quotes`} style={{ color: 'var(--accent)', textDecoration: 'none' }}>
+                  View all {quotes.length} quote{quotes.length !== 1 ? 's' : ''} →
+                </a>
+                {quotes.find(q => q.status === 'accepted') && (
+                  <span style={{ marginLeft: 12, fontSize: 12, color: '#16a34a', fontWeight: 500 }}>
+                    ✓ {quotes.find(q => q.status === 'accepted')?.accepted_option}
+                  </span>
+                )}
               </div>
-            )}
-          </Section>
+            </Section>
+          )}
 
           <Section label="Contract">
             <div style={{ padding: '12px 0' }}>
@@ -296,6 +284,13 @@ export default async function EventDetailPage({
             </details>
           )}
         </>
+      )}
+
+      {/* ── Quotes tab ── */}
+      {tab === 'quotes' && (
+        <div style={{ maxWidth: 640 }}>
+          <EventQuotesClient eventId={id} quotes={quotes} />
+        </div>
       )}
 
       {/* ── Musicians tab ── */}
