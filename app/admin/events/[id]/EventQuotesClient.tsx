@@ -163,7 +163,7 @@ export default function EventQuotesClient({
           : null
 
         return (
-          <div key={q.id} style={{ position: 'relative', marginBottom: 12 }}>
+          <div key={q.id} style={{ position: 'relative', marginBottom: 12, paddingTop: isAccepted ? 32 : 0 }}>
 
             {/* "Change" button floated above top-right of card */}
             {isAccepted && (
@@ -171,7 +171,7 @@ export default function EventQuotesClient({
                 onClick={() => handleUnaccept(q.id)}
                 disabled={unaccepting === q.id}
                 style={{
-                  position: 'absolute', top: -26, right: 0,
+                  position: 'absolute', top: 0, right: 0,
                   fontSize: 12, color: 'var(--text-secondary)',
                   background: 'none', border: '0.5px solid var(--border)',
                   borderRadius: 4, padding: '3px 10px',
