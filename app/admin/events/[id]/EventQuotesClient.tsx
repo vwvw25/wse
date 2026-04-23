@@ -56,19 +56,19 @@ function AcceptedBreakdown({ opt }: { opt: PriceOption }) {
     ['Travel', opt.travel_cost ?? 0],
   ]
   return (
-    <div style={{ margin: '0 16px 14px', background: 'var(--bg)', border: '0.5px solid #bbf7d0', borderRadius: 6, overflow: 'hidden' }}>
-      <div style={{ padding: '8px 12px', background: '#16a34a', fontSize: 12, fontWeight: 600, color: '#fff' }}>
+    <div style={{ margin: '0 16px 14px', borderRadius: 6, overflow: 'hidden', border: '0.5px solid rgba(255,255,255,0.1)' }}>
+      <div style={{ padding: '8px 12px', background: 'rgba(255,255,255,0.06)', borderBottom: '0.5px solid rgba(255,255,255,0.1)', fontSize: 12, fontWeight: 600, color: '#fff', letterSpacing: '0.01em' }}>
         {opt.line_up || opt.band_size} · {opt.set_config?.replace('x', '×')}
       </div>
       {rows.filter(([, v]) => v !== 0).map(([label, value]) => (
-        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 12px', borderBottom: '0.5px solid #dcfce7', fontSize: 13 }}>
-          <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
-          <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(value)}</span>
+        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 12px', borderBottom: '0.5px solid rgba(255,255,255,0.07)', fontSize: 13 }}>
+          <span style={{ color: '#9ca3af' }}>{label}</span>
+          <span style={{ fontVariantNumeric: 'tabular-nums', color: '#e5e7eb' }}>{fmt(value)}</span>
         </div>
       ))}
-      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', fontSize: 14, fontWeight: 700 }}>
-        <span>Total</span>
-        <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(opt.total_price)}</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 12px', fontSize: 14, fontWeight: 700, borderTop: '0.5px solid rgba(255,255,255,0.15)' }}>
+        <span style={{ color: '#fff' }}>Total</span>
+        <span style={{ fontVariantNumeric: 'tabular-nums', color: '#fff' }}>{fmt(opt.total_price)}</span>
       </div>
     </div>
   )
@@ -163,24 +163,40 @@ export default function EventQuotesClient({
           : null
 
         return (
+          <div key={q.id} style={{ position: 'relative', marginBottom: 12 }}>
+
+            {/* "Change" button floated above top-right of card */}
+            {isAccepted && (
+              <button
+                onClick={() => handleUnaccept(q.id)}
+                disabled={unaccepting === q.id}
+                style={{
+                  position: 'absolute', top: -22, right: 0,
+                  fontSize: 11, color: '#9ca3af', background: 'none', border: 'none',
+                  padding: 0, cursor: unaccepting === q.id ? 'not-allowed' : 'pointer',
+                  fontFamily: 'var(--font)', opacity: unaccepting === q.id ? 0.5 : 1,
+                }}
+              >
+                {unaccepting === q.id ? 'Undoing…' : 'Change accepted quote'}
+              </button>
+            )}
+
           <div
-            key={q.id}
             style={{
-              border: `0.5px solid ${isAccepted ? '#bbf7d0' : 'var(--border)'}`,
+              border: isAccepted ? '0.5px solid #374151' : `0.5px solid var(--border)`,
               borderRadius: 'var(--radius-md)',
-              marginBottom: 12,
-              background: isAccepted ? '#f0fdf4' : isSuperseded ? 'var(--bg-secondary)' : 'var(--bg)',
+              background: isAccepted ? '#111827' : isSuperseded ? 'var(--bg-secondary)' : 'var(--bg)',
               opacity: isSuperseded ? 0.6 : 1,
               overflow: 'hidden',
             }}
           >
             {/* Card header */}
-            <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', borderBottom: '0.5px solid var(--border)' }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
+            <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', borderBottom: `0.5px solid ${isAccepted ? 'rgba(255,255,255,0.08)' : 'var(--border)'}` }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: isAccepted ? '#fff' : 'var(--text)' }}>
                 Version {q.version}
               </span>
               <StatusBadge status={q.status} />
-              <span style={{ fontSize: 12, color: 'var(--text-tertiary)', marginLeft: 'auto' }}>
+              <span style={{ fontSize: 12, color: isAccepted ? '#6b7280' : 'var(--text-tertiary)', marginLeft: 'auto' }}>
                 {fmtDate(q.created_at)}
               </span>
             </div>
@@ -238,11 +254,11 @@ export default function EventQuotesClient({
             )}
 
             {/* Card footer */}
-            <div style={{ padding: '10px 16px', borderTop: '0.5px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <a href={`/quote/${q.id}`} style={{ fontSize: 12, color: 'var(--accent)', textDecoration: 'none', fontWeight: 500 }}>
+            <div style={{ padding: '10px 16px', borderTop: `0.5px solid ${isAccepted ? 'rgba(255,255,255,0.08)' : 'var(--border)'}`, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <a href={`/quote/${q.id}`} style={{ fontSize: 12, color: isAccepted ? '#9ca3af' : 'var(--accent)', textDecoration: 'none', fontWeight: 500 }}>
                 View quote →
               </a>
-              <a href={`/admin/quotes/${q.id}`} style={{ fontSize: 12, color: 'var(--text-secondary)', textDecoration: 'none' }}>
+              <a href={`/admin/quotes/${q.id}`} style={{ fontSize: 12, color: isAccepted ? '#6b7280' : 'var(--text-secondary)', textDecoration: 'none' }}>
                 Audit
               </a>
               {isNewest && !isSuperseded && !isAccepted && (
@@ -259,21 +275,8 @@ export default function EventQuotesClient({
                   {creatingFrom === q.id ? 'Creating…' : 'New version'}
                 </button>
               )}
-              {isAccepted && (
-                <button
-                  onClick={() => handleUnaccept(q.id)}
-                  disabled={unaccepting === q.id}
-                  style={{
-                    fontSize: 12, color: 'var(--text-secondary)', background: 'none',
-                    border: '0.5px solid var(--border)', borderRadius: 4,
-                    padding: '3px 10px', cursor: 'pointer', fontFamily: 'var(--font)',
-                    marginLeft: 'auto',
-                  }}
-                >
-                  {unaccepting === q.id ? 'Undoing…' : 'Change accepted quote'}
-                </button>
-              )}
             </div>
+          </div>
           </div>
         )
       })}
