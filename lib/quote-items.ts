@@ -64,9 +64,9 @@ export function getQuoteItems(
 
   const rawInclusions: QuoteItem[] = [
     { show: hasRegularBackgroundPA, text: 'Background PA' },
-    { show: hasExtendedBackgroundPA, text: 'Extended Background PA' },
+    { show: false, text: 'Extended Background PA' },
     { show: hasExtendedPaEngineer, text: 'Extended PA + sound engineer' },
-    { show: bt === 'background' && !inputs.client_provides_pa && paEngineerRate > 0, text: `If dancing with more than 40 guests, full PA + sound engineer required — add ${fmt(paEngineerRate)}` },
+    { show: bt === 'background' && !inputs.client_provides_pa && paEngineerRate > 0, text: `If dancefloor focus with more than 40 guests, full PA + sound engineer required — add ${fmt(paEngineerRate)}` },
     { show: !inputs.finish_time, text: 'Based on a finish of 11pm or earlier' },
     { show: showIpadMusic, text: 'Music via iPad/PA during intervals' },
     { show: !showSpecificTimes, text: 'Arrival one hour before performance start (1.5hrs if Extended PA + sound engineer)' },
@@ -82,7 +82,7 @@ export function getQuoteItems(
     { show: isInternational && ((inputs.outgoing_uk_transfer_cost ?? 0) + (inputs.outgoing_dest_transfer_cost ?? 0)) > 0, text: 'Airport transfers' },
     { show: isInternational && (inputs.local_transport_cost ?? 0) > 0, text: 'Local transport' },
     { show: isInternational && (inputs.visa_cost ?? 0) > 0, text: 'Visa costs' },
-    { show: !hasMicHire, text: 'Does not include client use of mic — please book mic hire option if any use of mic is required' },
+    { show: !hasMicHire, text: 'Does not include client use of mic — please book mic hire option if client requires a mic for speeches' },
     { show: hasMicHire, text: 'Includes mic hire for use during agreed performance times (i.e. not during break)' },
   ]
 
