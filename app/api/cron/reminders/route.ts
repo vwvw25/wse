@@ -17,7 +17,6 @@ function formatTime(t: string | null) {
 function buildReminderHtml({
   musicianName,
   instrument,
-  eventLabel,
   eventDate,
   venueName,
   venueAddress,
@@ -31,7 +30,6 @@ function buildReminderHtml({
 }: {
   musicianName: string
   instrument: string
-  eventLabel: string
   eventDate: string | null
   venueName: string | null
   venueAddress: string | null
@@ -71,11 +69,7 @@ function buildReminderHtml({
       <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:20px;margin-bottom:24px;">
         <table style="width:100%;border-collapse:collapse;">
           <tr>
-            <td style="padding:5px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;width:110px;">Event</td>
-            <td style="padding:5px 0;font-size:13px;color:#111827;font-weight:500;">${eventLabel}</td>
-          </tr>
-          <tr>
-            <td style="padding:5px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Date</td>
+            <td style="padding:5px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;width:110px;">Date</td>
             <td style="padding:5px 0;font-size:13px;color:#111827;">${formatDate(eventDate)}</td>
           </tr>
           ${venueName ? `<tr>
@@ -169,10 +163,6 @@ export async function GET(req: NextRequest) {
 
     const event = slot.event
     const musicianName = musicianFullName(musician)
-    const eventLabel = event.agency_name
-      ? (event.agent_name ? `${event.agent_name} at ${event.agency_name}` : event.agency_name)
-      : (event.agent_name ?? 'Event')
-
     const sentAt = new Date(slot.email_sent_at)
     const deadlineAt = new Date(sentAt.getTime() + (slot.deadline_hours ?? 24) * 60 * 60 * 1000)
     const token = slot.token
@@ -182,7 +172,6 @@ export async function GET(req: NextRequest) {
     const html = buildReminderHtml({
       musicianName,
       instrument: slot.instrument,
-      eventLabel,
       eventDate: event.event_date,
       venueName: event.venue_name,
       venueAddress: event.venue_address,
@@ -200,7 +189,7 @@ export async function GET(req: NextRequest) {
         type: 'availability_reminder',
         to: musician.email,
         recipientName: musicianName,
-        subject: `Reminder: availability request — ${eventLabel}, ${formatDate(event.event_date)}`,
+        subject: `Availability reminder — ${formatDate(event.event_date)}`,
         html,
       })
 

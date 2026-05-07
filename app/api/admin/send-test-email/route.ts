@@ -9,7 +9,6 @@ const FAKE = {
   musicianName: 'Jamie Wilson',
   firstName: 'Jamie',
   instrument: 'Guitar',
-  eventLabel: 'Sarah & Tom at Prestige Events',
   eventDate: '2026-09-13',
   eventDateFormatted: '13 September 2026',
   venueName: 'The Grand Pavilion',
@@ -43,8 +42,7 @@ function availabilityRequestHtml() {
       </p>
       <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:20px;margin-bottom:24px;">
         <table style="width:100%;border-collapse:collapse;">
-          <tr><td style="padding:5px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;width:110px;">Event</td><td style="padding:5px 0;font-size:13px;color:#111827;font-weight:500;">${FAKE.eventLabel}</td></tr>
-          <tr><td style="padding:5px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Date</td><td style="padding:5px 0;font-size:13px;color:#111827;">${FAKE.eventDateFormatted}</td></tr>
+          <tr><td style="padding:5px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;width:110px;">Date</td><td style="padding:5px 0;font-size:13px;color:#111827;">${FAKE.eventDateFormatted}</td></tr>
           <tr><td style="padding:5px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Venue</td><td style="padding:5px 0;font-size:13px;color:#111827;">${FAKE.venueName}, ${FAKE.location}</td></tr>
           <tr><td style="padding:5px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Address</td><td style="padding:5px 0;font-size:13px;color:#111827;">${FAKE.venueAddress}</td></tr>
           <tr><td style="padding:5px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Arrival</td><td style="padding:5px 0;font-size:13px;color:#111827;">${FAKE.arrivalTime}</td></tr>
@@ -82,8 +80,7 @@ function availabilityReminderHtml() {
       </p>
       <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:20px;margin-bottom:24px;">
         <table style="width:100%;border-collapse:collapse;">
-          <tr><td style="padding:5px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;width:110px;">Event</td><td style="padding:5px 0;font-size:13px;color:#111827;font-weight:500;">${FAKE.eventLabel}</td></tr>
-          <tr><td style="padding:5px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Date</td><td style="padding:5px 0;font-size:13px;color:#111827;">${FAKE.eventDateFormatted}</td></tr>
+          <tr><td style="padding:5px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;width:110px;">Date</td><td style="padding:5px 0;font-size:13px;color:#111827;">${FAKE.eventDateFormatted}</td></tr>
           <tr><td style="padding:5px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Venue</td><td style="padding:5px 0;font-size:13px;color:#111827;">${FAKE.venueName}, ${FAKE.location}</td></tr>
           <tr><td style="padding:5px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Start / Finish</td><td style="padding:5px 0;font-size:13px;color:#111827;">${FAKE.startTime} – ${FAKE.finishTime}</td></tr>
           <tr><td style="padding:5px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Your role</td><td style="padding:5px 0;font-size:13px;color:#111827;font-weight:600;">${FAKE.instrument}</td></tr>
@@ -117,8 +114,7 @@ function gigConfirmationHtml() {
       <p style="font-size:14px;color:#374151;margin:0 0 24px;">Thanks for confirming — you're booked in for the following event.</p>
       <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:20px;margin-bottom:24px;">
         <table style="width:100%;border-collapse:collapse;">
-          <tr><td style="padding:5px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;width:110px;vertical-align:top;">Event</td><td style="padding:5px 0;font-size:13px;color:#111827;">${FAKE.eventLabel}</td></tr>
-          <tr><td style="padding:5px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;vertical-align:top;">Date</td><td style="padding:5px 0;font-size:13px;color:#111827;">${FAKE.eventDateFormatted}</td></tr>
+          <tr><td style="padding:5px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;width:110px;vertical-align:top;">Date</td><td style="padding:5px 0;font-size:13px;color:#111827;">${FAKE.eventDateFormatted}</td></tr>
           <tr><td style="padding:5px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;vertical-align:top;">Venue</td><td style="padding:5px 0;font-size:13px;color:#111827;">${FAKE.venueName}, ${FAKE.location}</td></tr>
           <tr><td style="padding:5px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;vertical-align:top;">Address</td><td style="padding:5px 0;font-size:13px;color:#111827;">${FAKE.venueAddress}</td></tr>
           <tr><td style="padding:5px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;vertical-align:top;">Arrival</td><td style="padding:5px 0;font-size:13px;color:#111827;">${FAKE.arrivalTime}</td></tr>
@@ -256,17 +252,17 @@ function onboardingReminderHtml(isUrgent: boolean) {
 
 const TEMPLATES: Record<string, { subject: string; type: EmailType; html: () => string }> = {
   availability_request: {
-    subject: `[TEST] Availability request — ${FAKE.eventLabel}, ${FAKE.eventDateFormatted}`,
+    subject: `[TEST] Event Invite — ${FAKE.eventDateFormatted}`,
     type: 'availability',
     html: availabilityRequestHtml,
   },
   availability_reminder: {
-    subject: `[TEST] Reminder: availability request — ${FAKE.eventLabel}, ${FAKE.eventDateFormatted}`,
+    subject: `[TEST] Availability reminder — ${FAKE.eventDateFormatted}`,
     type: 'availability_reminder',
     html: availabilityReminderHtml,
   },
   gig_confirmation: {
-    subject: `[TEST] Gig confirmed — ${FAKE.eventLabel}, ${FAKE.eventDateFormatted}`,
+    subject: `[TEST] Gig confirmed — ${FAKE.eventDateFormatted}`,
     type: 'confirmation',
     html: gigConfirmationHtml,
   },

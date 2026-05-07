@@ -22,7 +22,6 @@ function deadlineText(sentAt: Date, deadlineHours: number) {
 function buildEmailHtml({
   musicianName,
   instrument,
-  eventLabel,
   eventDate,
   venueName,
   venueAddress,
@@ -37,7 +36,6 @@ function buildEmailHtml({
 }: {
   musicianName: string
   instrument: string
-  eventLabel: string
   eventDate: string | null
   venueName: string | null
   venueAddress: string | null
@@ -75,11 +73,7 @@ function buildEmailHtml({
       <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:20px;margin-bottom:24px;">
         <table style="width:100%;border-collapse:collapse;">
           <tr>
-            <td style="padding:5px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;width:110px;">Event</td>
-            <td style="padding:5px 0;font-size:13px;color:#111827;font-weight:500;">${eventLabel}</td>
-          </tr>
-          <tr>
-            <td style="padding:5px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Date</td>
+            <td style="padding:5px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;width:110px;">Date</td>
             <td style="padding:5px 0;font-size:13px;color:#111827;">${formatDate(eventDate)}</td>
           </tr>
           ${venueName ? `<tr>
@@ -151,10 +145,6 @@ export async function POST(req: NextRequest) {
 
     const event = slot.event
     const musicianName = musicianFullName(musician)
-    const eventLabel = event.agency_name
-      ? (event.agent_name ? `${event.agent_name} at ${event.agency_name}` : event.agency_name)
-      : (event.agent_name ?? 'Event')
-
     const sentAt = new Date()
     const token = slot.token
     const yesUrl = `${BASE_URL}/availability/${token}?response=yes`
@@ -163,7 +153,6 @@ export async function POST(req: NextRequest) {
     const html = buildEmailHtml({
       musicianName,
       instrument: slot.instrument,
-      eventLabel,
       eventDate: event.event_date,
       venueName: event.venue_name,
       venueAddress: event.venue_address,
@@ -181,7 +170,7 @@ export async function POST(req: NextRequest) {
       type: 'availability',
       to: musician.email,
       recipientName: musicianName,
-      subject: `Availability request — ${eventLabel}, ${formatDate(event.event_date)}`,
+      subject: `Event Invite — ${formatDate(event.event_date)}`,
       html,
     })
 
