@@ -196,7 +196,7 @@ export async function GET(req: NextRequest) {
     })
 
     try {
-      await sendEmail({
+      const result = await sendEmail({
         type: 'availability_reminder',
         to: musician.email,
         recipientName: musicianName,
@@ -206,7 +206,12 @@ export async function GET(req: NextRequest) {
 
       await supabase
         .from('event_musicians')
-        .update({ reminder_sent_at: now.toISOString(), availability: 'reminder_sent' })
+        .update({
+          reminder_sent_at: now.toISOString(),
+          availability: 'reminder_sent',
+          reminder_status: result.ok ? 'sent' : 'failed',
+          reminder_email_log_id: result.emailLogId || null,
+        })
         .eq('id', slot.id)
         .eq('availability', 'email_sent') // only update if still at email_sent stage
 

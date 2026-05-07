@@ -37,6 +37,21 @@ export async function POST(req: NextRequest) {
     .select('id, recipient_email, recipient_name, subject, type')
     .single()
 
+  // Propagate failure to musician invite/reminder status
+  if ((newStatus === 'bounced' || newStatus === 'failed') && logRow) {
+    if (logRow.type === 'availability') {
+      await supabase
+        .from('event_musicians')
+        .update({ invite_status: 'failed' })
+        .eq('invite_email_log_id', logRow.id)
+    } else if (logRow.type === 'availability_reminder') {
+      await supabase
+        .from('event_musicians')
+        .update({ reminder_status: 'failed' })
+        .eq('reminder_email_log_id', logRow.id)
+    }
+  }
+
   // Create notification for bounced, complained, or failed
   if ((newStatus === 'bounced' || newStatus === 'complained' || newStatus === 'failed') && logRow) {
     const label = newStatus === 'bounced' ? 'bounced' : newStatus === 'complained' ? 'marked as spam' : 'failed'

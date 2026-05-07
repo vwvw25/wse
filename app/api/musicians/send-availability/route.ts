@@ -177,7 +177,7 @@ export async function POST(req: NextRequest) {
       noUrl,
     })
 
-    await sendEmail({
+    const result = await sendEmail({
       type: 'availability',
       to: musician.email,
       recipientName: musicianName,
@@ -185,10 +185,15 @@ export async function POST(req: NextRequest) {
       html,
     })
 
-    // Mark email as sent and update availability status
+    // Mark email as sent and update availability + invite status
     await supabase
       .from('event_musicians')
-      .update({ email_sent_at: sentAt.toISOString(), availability: 'email_sent' })
+      .update({
+        email_sent_at: sentAt.toISOString(),
+        availability: 'email_sent',
+        invite_status: result.ok ? 'sent' : 'failed',
+        invite_email_log_id: result.emailLogId || null,
+      })
       .eq('id', slotId)
       .eq('availability', 'tbc') // don't overwrite a real response
 

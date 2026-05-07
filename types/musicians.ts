@@ -49,6 +49,7 @@ export function musicianFullName(m: Pick<Musician, 'first_name' | 'last_name'>):
 }
 
 export type MusicianAvailability = 'yes' | 'no' | 'tbc' | 'email_sent' | 'reminder_sent'
+export type MusicianEmailStatus = '—' | 'sent' | 'accepted' | 'declined' | 'replied' | 'failed'
 
 export interface EventMusician {
   id: string
@@ -65,6 +66,11 @@ export interface EventMusician {
   deadline_hours: DeadlineHours
   email_sent_at: string | null
   reminder_sent_at: string | null
+  // Email status tracking (auto-set)
+  invite_status: MusicianEmailStatus
+  reminder_status: MusicianEmailStatus
+  invite_email_log_id: string | null
+  reminder_email_log_id: string | null
   // Joined
   musician?: Musician | null
 }

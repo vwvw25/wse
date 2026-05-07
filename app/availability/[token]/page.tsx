@@ -160,9 +160,15 @@ export default async function AvailabilityPage({
     // Only update if not already responded (tbc, email_sent, reminder_sent are all pending states)
     const pendingStates = ['tbc', 'email_sent', 'reminder_sent']
     if (pendingStates.includes(slot.availability)) {
+      const emailStatus = availability === 'yes' ? 'accepted' : 'declined'
+      // Update the most-recent email status (reminder if sent, otherwise invite)
+      const statusUpdate = slot.reminder_sent_at
+        ? { reminder_status: emailStatus }
+        : { invite_status: emailStatus }
+
       await supabase
         .from('event_musicians')
-        .update({ availability })
+        .update({ availability, ...statusUpdate })
         .eq('token', token)
 
       // If declined and preference order exists, contact next musician

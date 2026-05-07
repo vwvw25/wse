@@ -84,6 +84,29 @@ function AvailabilityBadge({ value, onChange }: { value: MusicianAvailability; o
 
 const DEADLINE_OPTIONS = [6, 12, 24, 48]
 
+// ── Email status badge (read-only) ────────────────────────────────────────────
+const EMAIL_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  '—':        { label: '—',        color: 'var(--text-tertiary)', bg: 'transparent' },
+  sent:       { label: 'Sent',     color: '#1d4ed8', bg: '#eff6ff' },
+  accepted:   { label: 'Accepted', color: '#16a34a', bg: '#f0fdf4' },
+  declined:   { label: 'Declined', color: '#dc2626', bg: '#fef2f2' },
+  replied:    { label: 'Replied',  color: '#92400e', bg: '#fffbeb' },
+  failed:     { label: 'Failed',   color: '#dc2626', bg: '#fef2f2' },
+}
+
+function EmailStatusBadge({ value }: { value: string }) {
+  const cfg = EMAIL_STATUS_CONFIG[value] ?? EMAIL_STATUS_CONFIG['—']
+  if (value === '—') return <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>—</span>
+  return (
+    <span style={{
+      display: 'inline-block', padding: '2px 7px', borderRadius: 4,
+      fontSize: 11, fontWeight: 500, background: cfg.bg, color: cfg.color,
+    }}>
+      {cfg.label}
+    </span>
+  )
+}
+
 // ── Musician slot row ─────────────────────────────────────────────────────────
 function SlotRow({
   slot,
@@ -185,6 +208,14 @@ function SlotRow({
       {/* Availability */}
       <td style={{ padding: '10px 12px 10px 0' }}>
         <AvailabilityBadge value={slot.availability} onChange={handleAvailability} />
+      </td>
+      {/* Invite status */}
+      <td style={{ padding: '10px 12px 10px 0' }}>
+        <EmailStatusBadge value={slot.invite_status ?? '—'} />
+      </td>
+      {/* Reminder status */}
+      <td style={{ padding: '10px 12px 10px 0' }}>
+        <EmailStatusBadge value={slot.reminder_status ?? '—'} />
       </td>
       {/* Deadline */}
       <td style={{ padding: '10px 12px 10px 0' }}>
@@ -408,7 +439,7 @@ export default function EventMusiciansClient({ eventId, eventLabel, slots, music
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
-                {['Musician', 'Instrument', 'Date added', 'Available', 'Deadline', 'Email', 'Fee', 'Additional costs', 'Total fee', ''].map((h, i) => (
+                {['Musician', 'Instrument', 'Date added', 'Available', 'Invite', 'Reminder', 'Deadline', 'Email', 'Fee', 'Additional costs', 'Total fee', ''].map((h, i) => (
                   <th key={i} style={{ textAlign: 'left', padding: '8px 12px 8px 0', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', paddingLeft: i === 0 ? 16 : 0 }}>{h}</th>
                 ))}
               </tr>
