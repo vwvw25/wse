@@ -34,7 +34,7 @@ export async function sendEmail({
 }): Promise<{ ok: boolean; emailLogId: string }> {
   const supabase = createServiceClient()
 
-  // Write pending row before attempting send
+  // Write pending row before attempting send, storing html for later viewing
   const { data: logRow } = await supabase
     .from('email_logs')
     .insert({
@@ -43,6 +43,7 @@ export async function sendEmail({
       recipient_name: recipientName ?? null,
       subject,
       status: 'pending',
+      html,
     })
     .select('id')
     .single()

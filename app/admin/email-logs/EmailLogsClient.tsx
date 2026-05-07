@@ -13,6 +13,7 @@ interface EmailLog {
   error_message: string | null
   resend_id: string | null
   alerted_at: string | null
+  html: string | null
 }
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
@@ -30,6 +31,7 @@ function formatDate(iso: string) {
 
 export default function EmailLogsClient({ logs }: { logs: EmailLog[] }) {
   const [showAll, setShowAll] = useState(false)
+  const [preview, setPreview] = useState<EmailLog | null>(null)
 
   const filtered = showAll ? logs : logs.filter(l => l.status !== 'delivered')
 
@@ -63,12 +65,16 @@ export default function EmailLogsClient({ logs }: { logs: EmailLog[] }) {
               {filtered.map(log => {
                 const statusStyle = STATUS_COLORS[log.status] ?? STATUS_COLORS.pending
                 return (
-                  <tr key={log.id} style={{ borderBottom: '0.5px solid var(--border)' }}>
+                  <tr
+                    key={log.id}
+                    style={{ borderBottom: '0.5px solid var(--border)', cursor: log.html ? 'pointer' : 'default' }}
+                    onClick={() => log.html && setPreview(log)}
+                  >
                     <td style={{ padding: '8px 12px 8px 0', fontSize: 13, color: 'var(--text)' }}>
                       <div style={{ fontWeight: 500 }}>{log.recipient_name ?? log.recipient_email}</div>
                       {log.recipient_name && <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{log.recipient_email}</div>}
                     </td>
-                    <td style={{ padding: '8px 12px 8px 0', fontSize: 12, color: 'var(--text-secondary)' }}>{log.type.replace('_', ' ')}</td>
+                    <td style={{ padding: '8px 12px 8px 0', fontSize: 12, color: 'var(--text-secondary)' }}>{log.type.replace(/_/g, ' ')}</td>
                     <td style={{ padding: '8px 12px 8px 0', fontSize: 13, color: 'var(--text-secondary)', maxWidth: 260 }}>
                       <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.subject}</div>
                       {log.error_message && <div style={{ fontSize: 11, color: '#dc2626', marginTop: 2 }}>{log.error_message}</div>}
@@ -86,6 +92,57 @@ export default function EmailLogsClient({ logs }: { logs: EmailLog[] }) {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Email preview modal */}
+      {preview && (
+        <div
+          onClick={() => setPreview(null)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+            zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 24,
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'var(--bg)', borderRadius: 'var(--radius-lg)',
+              border: '0.5px solid var(--border)', boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+              width: '100%', maxWidth: 680, maxHeight: '90vh',
+              display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            }}
+          >
+            {/* Header */}
+            <div style={{
+              padding: '14px 20px', borderBottom: '0.5px solid var(--border)',
+              display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12,
+            }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', marginBottom: 3 }}>{preview.subject}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                  To: {preview.recipient_name ? `${preview.recipient_name} <${preview.recipient_email}>` : preview.recipient_email}
+                  <span style={{ margin: '0 8px', opacity: 0.4 }}>·</span>
+                  {formatDate(preview.created_at)}
+                  <span style={{ margin: '0 8px', opacity: 0.4 }}>·</span>
+                  {preview.type.replace(/_/g, ' ')}
+                </div>
+              </div>
+              <button
+                onClick={() => setPreview(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--text-secondary)', lineHeight: 1, padding: 0, flexShrink: 0 }}
+              >
+                ✕
+              </button>
+            </div>
+            {/* Email body in iframe for isolation */}
+            <iframe
+              srcDoc={preview.html ?? ''}
+              style={{ flex: 1, border: 'none', minHeight: 480 }}
+              title="Email preview"
+            />
+          </div>
         </div>
       )}
     </div>
