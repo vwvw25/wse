@@ -114,18 +114,25 @@ export default function EventsClient({ events }: { events: EventRecord[] }) {
   const [view, setView] = useState<'list' | 'kanban'>('list')
   const [filter, setFilter] = useState<FilterMode>('live')
   const [includePast, setIncludePast] = useState(false)
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  const filtered = events.filter(ev => {
-    const statuses = filter === 'live' ? LIVE_ENQUIRY_STATUSES : CONFIRMED_STATUSES
-    if (!statuses.includes(ev.status as EventStatus)) return false
-    if (filter === 'confirmed' && !includePast) {
-      if (ev.event_date && new Date(ev.event_date) < today) return false
-    }
-    return true
-  })
+  const filtered = events
+    .filter(ev => {
+      const statuses = filter === 'live' ? LIVE_ENQUIRY_STATUSES : CONFIRMED_STATUSES
+      if (!statuses.includes(ev.status as EventStatus)) return false
+      if (filter === 'confirmed' && !includePast) {
+        if (ev.event_date && new Date(ev.event_date) < today) return false
+      }
+      return true
+    })
+    .sort((a, b) => {
+      const da = a.event_date ?? ''
+      const db = b.event_date ?? ''
+      return sortDir === 'asc' ? da.localeCompare(db) : db.localeCompare(da)
+    })
 
   const btnBase: React.CSSProperties = {
     padding: '6px 14px', fontSize: 13, fontWeight: 500, cursor: 'pointer',
@@ -207,7 +214,12 @@ export default function EventsClient({ events }: { events: EventRecord[] }) {
             fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)',
             textTransform: 'uppercase', letterSpacing: '0.06em',
           }}>
-            <div>Date</div>
+            <div
+              onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
+              style={{ cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', gap: 4 }}
+            >
+              Date {sortDir === 'asc' ? '↑' : '↓'}
+            </div>
             <div>Agency / Agent</div>
             <div>Request</div>
             <div>Times</div>

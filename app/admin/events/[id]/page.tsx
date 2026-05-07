@@ -154,6 +154,16 @@ export default async function EventDetailPage({
             notes: rd?.notes ?? null,
           }} />
           <a
+            href={`/admin/events/${event.id}/edit`}
+            style={{
+              display: 'inline-block', padding: '8px 18px', fontSize: 13, fontWeight: 500,
+              background: 'var(--bg-secondary)', color: 'var(--text)',
+              border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)', textDecoration: 'none',
+            }}
+          >
+            Edit
+          </a>
+          <a
             href={`/admin/events/${event.id}/email`}
             style={{
               display: 'inline-block', padding: '8px 18px', fontSize: 13, fontWeight: 500,
