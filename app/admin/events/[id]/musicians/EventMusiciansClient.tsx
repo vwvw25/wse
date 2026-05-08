@@ -1,13 +1,12 @@
 'use client'
 
 import React, { useState, useTransition } from 'react'
-import type { EventMusician, Musician, BandTemplate, BandTemplateSlot, MusicianAvailability } from '@/types/musicians'
+import type { EventMusician, Musician, BandTemplate, BandTemplateSlot } from '@/types/musicians'
 import { musicianFullName } from '@/types/musicians'
 import {
   applyTemplateToEvent,
   addEventMusicianSlot,
   assignMusicianToSlot,
-  updateSlotAvailability,
   updateSlotFees,
   updateSlotDeadline,
   removeEventMusicianSlot,
@@ -28,75 +27,29 @@ const inputStyle: React.CSSProperties = {
   fontFamily: 'var(--font)', outline: 'none',
 }
 
-const AVAILABILITY_CONFIG = {
-  yes:            { label: 'Confirmed',      color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
-  no:             { label: 'Unavailable',    color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
-  tbc:            { label: 'TBC',            color: '#92400e', bg: '#fffbeb', border: '#fde68a' },
-  email_sent:     { label: 'Invite sent',    color: '#1d4ed8', bg: '#eff6ff', border: '#bfdbfe' },
-  reminder_sent:  { label: 'Reminder sent', color: '#6d28d9', bg: '#f5f3ff', border: '#ddd6fe' },
-}
-
-// ── Availability badge ────────────────────────────────────────────────────────
-function AvailabilityBadge({ value, onChange }: { value: MusicianAvailability; onChange: (v: MusicianAvailability) => void }) {
-  const cfg = AVAILABILITY_CONFIG[value]
-  const [open, setOpen] = useState(false)
-
-  return (
-    <div style={{ position: 'relative' }}>
-      <button
-        onClick={() => setOpen(v => !v)}
-        style={{
-          padding: '3px 8px', fontSize: 12, fontWeight: 500,
-          borderRadius: 4, cursor: 'pointer', fontFamily: 'var(--font)',
-          background: cfg.bg, color: cfg.color,
-          border: `0.5px solid ${cfg.border}`,
-        }}
-      >
-        {cfg.label} ▾
-      </button>
-      {open && (
-        <div style={{
-          position: 'absolute', top: '100%', left: 0, zIndex: 50, marginTop: 2,
-          background: 'var(--bg)', border: '0.5px solid var(--border)',
-          borderRadius: 'var(--radius-sm)', boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
-          minWidth: 130, overflow: 'hidden',
-        }}>
-          {(Object.entries(AVAILABILITY_CONFIG) as [typeof value, typeof cfg][]).map(([k, c]) => (
-            <button
-              key={k}
-              onClick={() => { onChange(k); setOpen(false) }}
-              style={{
-                display: 'block', width: '100%', textAlign: 'left',
-                padding: '7px 12px', fontSize: 12, cursor: 'pointer',
-                background: k === value ? 'var(--bg-secondary)' : 'transparent',
-                color: c.color, fontFamily: 'var(--font)', border: 'none',
-                fontWeight: k === value ? 600 : 400,
-              }}
-            >
-              {c.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
 const DEADLINE_OPTIONS = [6, 12, 24, 48]
 
 // ── Email status badge (read-only) ────────────────────────────────────────────
 const EMAIL_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  '—':        { label: '—',          color: 'var(--text-tertiary)', bg: 'transparent' },
-  sent:       { label: 'Sent',       color: '#1d4ed8', bg: '#eff6ff' },
-  delivered:  { label: 'Delivered',  color: '#16a34a', bg: '#f0fdf4' },
-  accepted:   { label: 'Accepted',   color: '#16a34a', bg: '#f0fdf4' },
-  declined:   { label: 'Declined',   color: '#dc2626', bg: '#fef2f2' },
-  replied:    { label: 'Replied',    color: '#92400e', bg: '#fffbeb' },
-  failed:     { label: 'Failed',     color: '#dc2626', bg: '#fef2f2' },
+  '—':         { label: '—',          color: 'var(--text-tertiary)', bg: 'transparent' },
+  sent:        { label: 'Sent',       color: '#1d4ed8', bg: '#eff6ff' },
+  delivered:   { label: 'Sent',       color: '#1d4ed8', bg: '#eff6ff' },
+  accepted:    { label: 'Accepted',   color: '#16a34a', bg: '#f0fdf4' },
+  declined:    { label: 'Declined',   color: '#dc2626', bg: '#fef2f2' },
+  failed:      { label: 'Failed',     color: '#dc2626', bg: '#fef2f2' },
+  bounced:     { label: 'Bounced',    color: '#dc2626', bg: '#fef2f2' },
+  complained:  { label: 'Complained', color: '#ea580c', bg: '#fff7ed' },
+}
+
+// Derive what to show in Invite/Reminder columns from availability + raw status
+function resolveStatus(availability: string, rawStatus: string | null): string {
+  if (availability === 'yes') return 'accepted'
+  if (availability === 'no') return 'declined'
+  return rawStatus ?? '—'
 }
 
 function EmailStatusBadge({ value }: { value: string }) {
-  const cfg = EMAIL_STATUS_CONFIG[value] ?? EMAIL_STATUS_CONFIG['—']
+  const cfg = EMAIL_STATUS_CONFIG[value] ?? { label: value, color: '#6b7280', bg: '#f3f4f6' }
   if (value === '—') return <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>—</span>
   return (
     <span style={{
@@ -135,12 +88,6 @@ function SlotRow({
     setFee(String(newFee))
     startTransition(async () => {
       await assignMusicianToSlot(slot.id, eventId, musicianId || null, newFee)
-    })
-  }
-
-  function handleAvailability(v: MusicianAvailability) {
-    startTransition(async () => {
-      await updateSlotAvailability(slot.id, eventId, v)
     })
   }
 
@@ -206,17 +153,13 @@ function SlotRow({
       <td style={{ padding: '10px 12px 10px 0', fontSize: 12, color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
         {dateStr}
       </td>
-      {/* Availability */}
-      <td style={{ padding: '10px 12px 10px 0' }}>
-        <AvailabilityBadge value={slot.availability} onChange={handleAvailability} />
-      </td>
       {/* Invite status */}
       <td style={{ padding: '10px 12px 10px 0' }}>
-        <EmailStatusBadge value={slot.invite_status ?? '—'} />
+        <EmailStatusBadge value={resolveStatus(slot.availability, slot.invite_status ?? null)} />
       </td>
       {/* Reminder status */}
       <td style={{ padding: '10px 12px 10px 0' }}>
-        <EmailStatusBadge value={slot.reminder_status ?? '—'} />
+        <EmailStatusBadge value={resolveStatus(slot.availability, slot.reminder_status ?? null)} />
       </td>
       {/* Deadline */}
       <td style={{ padding: '10px 12px 10px 0' }}>
@@ -440,7 +383,7 @@ export default function EventMusiciansClient({ eventId, eventLabel, slots, music
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
-                {['Musician', 'Instrument', 'Date added', 'Available', 'Invite', 'Reminder', 'Deadline', 'Email', 'Fee', 'Additional costs', 'Total fee', ''].map((h, i) => (
+                {['Musician', 'Instrument', 'Date added', 'Invite', 'Reminder', 'Deadline', 'Email', 'Fee', 'Additional costs', 'Total fee', ''].map((h, i) => (
                   <th key={i} style={{ textAlign: 'left', padding: '8px 12px 8px 0', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', paddingLeft: i === 0 ? 16 : 0 }}>{h}</th>
                 ))}
               </tr>
