@@ -1,19 +1,33 @@
--- Run this entire script in the Supabase SQL editor to apply all pending migrations.
--- It is safe to run multiple times (all statements use IF NOT EXISTS or ON CONFLICT DO NOTHING).
+-- ============================================================
+-- CRITICAL: Run this entire script in the Supabase SQL editor.
+-- Go to: Supabase dashboard → SQL Editor → New query → paste → Run
+-- ============================================================
 
--- 1. Add html column to email_logs (needed for email log to work)
-alter table email_logs add column if not exists html text;
+-- 1. FIX AVAILABILITY CHECK CONSTRAINT
+--    The original constraint only allows 'yes', 'no', 'tbc'
+--    but the code also uses 'email_sent' and 'reminder_sent'.
+--    Without this fix, every status update silently fails.
+ALTER TABLE event_musicians DROP CONSTRAINT IF EXISTS event_musicians_availability_check;
+ALTER TABLE event_musicians
+  ADD CONSTRAINT event_musicians_availability_check
+  CHECK (availability IN ('yes', 'no', 'tbc', 'email_sent', 'reminder_sent'));
 
--- 2. Add invite/reminder status + log ID columns to event_musicians (needed for Invite/Reminder columns)
-alter table event_musicians
-  add column if not exists invite_status   text not null default '—',
-  add column if not exists reminder_status text not null default '—',
-  add column if not exists invite_email_log_id   uuid references email_logs(id) on delete set null,
-  add column if not exists reminder_email_log_id uuid references email_logs(id) on delete set null;
+-- 2. ADD html COLUMN TO email_logs
+--    Without this, every email log INSERT fails silently and nothing gets logged.
+ALTER TABLE email_logs ADD COLUMN IF NOT EXISTS html text;
 
--- 3. Add link_clicked_at to event_musicians (tracks when musician clicked accept/decline)
-alter table event_musicians
-  add column if not exists link_clicked_at timestamptz;
+-- 3. ADD INVITE/REMINDER STATUS COLUMNS TO event_musicians
+--    Without these, the Invite and Reminder columns always show '—'.
+ALTER TABLE event_musicians
+  ADD COLUMN IF NOT EXISTS invite_status   text NOT NULL DEFAULT '—',
+  ADD COLUMN IF NOT EXISTS reminder_status text NOT NULL DEFAULT '—',
+  ADD COLUMN IF NOT EXISTS invite_email_log_id   uuid REFERENCES email_logs(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS reminder_email_log_id uuid REFERENCES email_logs(id) ON DELETE SET NULL;
 
--- 4. Add reply_to_email to monitoring_settings (configurable reply-to address)
-alter table monitoring_settings add column if not exists reply_to_email text;
+-- 4. ADD LINK-CLICK TRACKING
+--    Records when a musician clicks accept/decline in their email.
+ALTER TABLE event_musicians
+  ADD COLUMN IF NOT EXISTS link_clicked_at timestamptz;
+
+-- 5. ADD REPLY-TO ADDRESS SETTING
+ALTER TABLE monitoring_settings ADD COLUMN IF NOT EXISTS reply_to_email text;
