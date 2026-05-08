@@ -144,16 +144,31 @@ function SlotRow({
     <tr style={{ borderBottom: '0.5px solid var(--border)' }}>
       {/* Musician name / assign */}
       <td style={{ padding: '10px 12px 10px 0' }}>
-        <select
-          value={slot.musician_id ?? ''}
-          onChange={e => handleMusicianChange(e.target.value)}
-          style={{ ...inputStyle, width: 160 }}
-        >
-          <option value="">— unassigned —</option>
-          {musicians.map(m => (
-            <option key={m.id} value={m.id}>{musicianFullName(m)}</option>
-          ))}
-        </select>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <select
+            value={slot.musician_id ?? ''}
+            onChange={e => handleMusicianChange(e.target.value)}
+            style={{ ...inputStyle, width: 150 }}
+          >
+            <option value="">— unassigned —</option>
+            {musicians.map(m => (
+              <option key={m.id} value={m.id}>{musicianFullName(m)}</option>
+            ))}
+          </select>
+          {slot.musician_id && (
+            <button
+              onClick={() => handleMusicianChange('')}
+              title="Remove musician"
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                fontSize: 14, color: 'var(--text-tertiary)', padding: '0 2px',
+                lineHeight: 1, fontFamily: 'var(--font)',
+              }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
       </td>
       {/* Instrument */}
       <td style={{ padding: '10px 12px 10px 0', fontSize: 13, color: 'var(--text-secondary)' }}>
