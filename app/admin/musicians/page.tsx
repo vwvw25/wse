@@ -26,7 +26,7 @@ export default async function MusiciansPage() {
 
   return (
     <div>
-      <div style={{ padding: '32px 32px 0', maxWidth: 920 }}>
+      <div style={{ padding: '32px 32px 0' }}>
         <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0 0 4px', color: 'var(--text)' }}>Musicians</h1>
         <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>
           Manage your musician roster and band lineup templates.
