@@ -7,7 +7,7 @@ function getResend() {
   return new Resend(process.env.RESEND_API_KEY)
 }
 
-export const FROM_ADDRESS = 'Ward Smith Entertainment <onboarding@resend.dev>'
+export const FROM_ADDRESS = 'Ward Smith Entertainment <noreply@wardsmithmusic.co.uk>'
 
 export type EmailType =
   | 'availability'
