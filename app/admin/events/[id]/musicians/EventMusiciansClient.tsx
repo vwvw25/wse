@@ -9,6 +9,7 @@ import {
   assignMusicianToSlot,
   updateSlotFees,
   updateSlotDeadline,
+  updateSlotAvailability,
   removeEventMusicianSlot,
 } from './actions'
 
@@ -34,6 +35,7 @@ const EMAIL_STATUS_CONFIG: Record<string, { label: string; color: string; bg: st
   '—':         { label: '—',          color: 'var(--text-tertiary)', bg: 'transparent' },
   sent:        { label: 'Sent',       color: '#1d4ed8', bg: '#eff6ff' },
   delivered:   { label: 'Sent',       color: '#1d4ed8', bg: '#eff6ff' },
+  clicked:     { label: 'Viewed',     color: '#92400e', bg: '#fffbeb' },
   accepted:    { label: 'Accepted',   color: '#16a34a', bg: '#f0fdf4' },
   declined:    { label: 'Declined',   color: '#dc2626', bg: '#fef2f2' },
   failed:      { label: 'Failed',     color: '#dc2626', bg: '#fef2f2' },
@@ -41,10 +43,11 @@ const EMAIL_STATUS_CONFIG: Record<string, { label: string; color: string; bg: st
   complained:  { label: 'Complained', color: '#ea580c', bg: '#fff7ed' },
 }
 
-// Derive what to show in Invite/Reminder columns from availability + raw status
-function resolveStatus(availability: string, rawStatus: string | null): string {
+// Derive what to show in Invite column from availability + raw status + link click
+function resolveStatus(availability: string, rawStatus: string | null, linkClickedAt?: string | null): string {
   if (availability === 'yes') return 'accepted'
   if (availability === 'no') return 'declined'
+  if (linkClickedAt) return 'clicked'  // viewed the link but hasn't responded yet
   return rawStatus ?? '—'
 }
 
@@ -76,6 +79,7 @@ function SlotRow({
   const [extra, setExtra] = useState(String(slot.additional_costs))
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
+  const [availUpdating, setAvailUpdating] = useState(false)
   const [, startTransition] = useTransition()
 
   const total = (parseFloat(fee) || 0) + (parseFloat(extra) || 0)
@@ -102,6 +106,12 @@ function SlotRow({
     startTransition(async () => {
       await updateSlotDeadline(slot.id, eventId, hours)
     })
+  }
+
+  async function handleAvailabilityChange(value: string) {
+    setAvailUpdating(true)
+    await updateSlotAvailability(slot.id, eventId, value as 'yes' | 'no' | 'tbc' | 'email_sent' | 'reminder_sent')
+    setAvailUpdating(false)
   }
 
   async function handleSend() {
@@ -155,11 +165,31 @@ function SlotRow({
       </td>
       {/* Invite status */}
       <td style={{ padding: '10px 12px 10px 0' }}>
-        <EmailStatusBadge value={resolveStatus(slot.availability, slot.invite_status ?? null)} />
+        <EmailStatusBadge value={resolveStatus(slot.availability, slot.invite_status ?? null, slot.link_clicked_at)} />
       </td>
       {/* Reminder status */}
       <td style={{ padding: '10px 12px 10px 0' }}>
         <EmailStatusBadge value={resolveStatus(slot.availability, slot.reminder_status ?? null)} />
+      </td>
+      {/* Response (manual override) */}
+      <td style={{ padding: '10px 12px 10px 0' }}>
+        <select
+          value={slot.availability}
+          onChange={e => handleAvailabilityChange(e.target.value)}
+          disabled={availUpdating}
+          style={{
+            ...inputStyle, width: 100,
+            opacity: availUpdating ? 0.5 : 1,
+            color: slot.availability === 'yes' ? '#16a34a' : slot.availability === 'no' ? '#dc2626' : undefined,
+            fontWeight: slot.availability === 'yes' || slot.availability === 'no' ? 600 : undefined,
+          }}
+        >
+          <option value="tbc">TBC</option>
+          <option value="email_sent">Email sent</option>
+          <option value="reminder_sent">Reminder sent</option>
+          <option value="yes">✓ Yes</option>
+          <option value="no">✗ No</option>
+        </select>
       </td>
       {/* Deadline */}
       <td style={{ padding: '10px 12px 10px 0' }}>
@@ -383,7 +413,7 @@ export default function EventMusiciansClient({ eventId, eventLabel, slots, music
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
-                {['Musician', 'Instrument', 'Date added', 'Invite', 'Reminder', 'Deadline', 'Email', 'Fee', 'Additional costs', 'Total fee', ''].map((h, i) => (
+                {['Musician', 'Instrument', 'Date added', 'Invite', 'Reminder', 'Response', 'Deadline', 'Email', 'Fee', 'Additional costs', 'Total fee', ''].map((h, i) => (
                   <th key={i} style={{ textAlign: 'left', padding: '8px 12px 8px 0', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', paddingLeft: i === 0 ? 16 : 0 }}>{h}</th>
                 ))}
               </tr>
@@ -395,7 +425,7 @@ export default function EventMusiciansClient({ eventId, eventLabel, slots, music
             </tbody>
             <tfoot>
               <tr style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
-                <td colSpan={8} style={{ padding: '8px 12px 8px 16px', fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>Totals</td>
+                <td colSpan={9} style={{ padding: '8px 12px 8px 16px', fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>Totals</td>
                 <td style={{ padding: '8px 12px', fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>£{totalFee.toFixed(2)}</td>
                 <td />
               </tr>

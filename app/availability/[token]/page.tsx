@@ -120,10 +120,10 @@ export default async function AvailabilityPage({
   searchParams,
 }: {
   params: Promise<{ token: string }>
-  searchParams: Promise<{ response?: string; confirmed?: string }>
+  searchParams: Promise<{ response?: string; confirmed?: string; error?: string }>
 }) {
   const { token } = await params
-  const { response, confirmed } = await searchParams
+  const { response, confirmed, error } = await searchParams
 
   const supabase = createServiceClient()
 
@@ -156,98 +156,116 @@ export default async function AvailabilityPage({
   // Handle response submission via URL param — server-side
   if (response === 'yes' || response === 'no') {
     const availability = response === 'yes' ? 'yes' : 'no'
+    const now = new Date().toISOString()
 
-    // Only update if not already responded (tbc, email_sent, reminder_sent are all pending states)
+    // Always stamp link_clicked_at so we have a record even if something goes wrong below
+    await supabase
+      .from('event_musicians')
+      .update({ link_clicked_at: now })
+      .eq('token', token)
+
     const pendingStates = ['tbc', 'email_sent', 'reminder_sent']
     if (pendingStates.includes(slot.availability)) {
-      const emailStatus = availability === 'yes' ? 'accepted' : 'declined'
-      // Update the most-recent email status (reminder if sent, otherwise invite)
-      const statusUpdate = slot.reminder_sent_at
-        ? { reminder_status: emailStatus }
-        : { invite_status: emailStatus }
+      try {
+        const emailStatus = availability === 'yes' ? 'accepted' : 'declined'
+        const statusUpdate = slot.reminder_sent_at
+          ? { reminder_status: emailStatus }
+          : { invite_status: emailStatus }
 
-      await supabase
-        .from('event_musicians')
-        .update({ availability, ...statusUpdate })
-        .eq('token', token)
+        const { error: updateError } = await supabase
+          .from('event_musicians')
+          .update({ availability, ...statusUpdate })
+          .eq('token', token)
 
-      // If declined and preference order exists, contact next musician
-      if (availability === 'no') {
-        const { data: prefOrder } = await supabase
-          .from('preference_orders')
-          .select('*, musician:musicians(*)')
-          .eq('instrument', slot.instrument)
-          .order('rank')
+        if (updateError) throw new Error(`DB update failed: ${updateError.message}`)
 
-        if (prefOrder && prefOrder.length > 0) {
-          const currentIdx = prefOrder.findIndex((p: { musician_id: string }) => p.musician_id === slot.musician_id)
-          const next = prefOrder[currentIdx + 1]
+        // If declined and preference order exists, contact next musician
+        if (availability === 'no') {
+          const { data: prefOrder } = await supabase
+            .from('preference_orders')
+            .select('*, musician:musicians(*)')
+            .eq('instrument', slot.instrument)
+            .order('rank')
 
-          if (next?.musician?.email) {
-            // Create a new slot for the next musician
-            const { data: newSlot } = await supabase
-              .from('event_musicians')
-              .insert({
-                event_id: slot.event_id,
-                musician_id: next.musician_id,
-                instrument: slot.instrument,
-                fee: next.musician.default_fee ?? 0,
-                additional_costs: 0,
-                availability: 'tbc',
-                deadline_hours: slot.deadline_hours ?? 24,
-              })
-              .select()
-              .single()
+          if (prefOrder && prefOrder.length > 0) {
+            const currentIdx = prefOrder.findIndex((p: { musician_id: string }) => p.musician_id === slot.musician_id)
+            const next = prefOrder[currentIdx + 1]
 
-            if (newSlot) {
-              // Fire send-availability email for the new slot
-              const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://wse.vercel.app'
-              fetch(`${baseUrl}/api/musicians/send-availability`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ slotId: newSlot.id }),
-              }).catch(() => {}) // fire and forget
+            if (next?.musician?.email) {
+              const { data: newSlot } = await supabase
+                .from('event_musicians')
+                .insert({
+                  event_id: slot.event_id,
+                  musician_id: next.musician_id,
+                  instrument: slot.instrument,
+                  fee: next.musician.default_fee ?? 0,
+                  additional_costs: 0,
+                  availability: 'tbc',
+                  deadline_hours: slot.deadline_hours ?? 24,
+                })
+                .select()
+                .single()
+
+              if (newSlot) {
+                fetch(`${BASE_URL}/api/musicians/send-availability`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ slotId: newSlot.id }),
+                }).catch(() => {})
+              }
             }
           }
         }
-      }
 
-      // Send confirmation autoresponder for 'yes' responses
-      if (availability === 'yes' && musician?.email) {
-        try {
-          const eventDate = event.event_date as string | null
-          const gcStart = toGCalDate(eventDate, event.start_time as string | null)
-          const gcEnd = toGCalDate(eventDate, event.finish_time as string | null)
-          const gcTitle = encodeURIComponent(`WSE — ${eventLabel}`)
-          const gcLocation = encodeURIComponent([event.venue_name, event.venue_address ?? event.location].filter(Boolean).join(', '))
-          const gcDetails = encodeURIComponent(`Your role: ${slot.instrument}`)
-          const googleCalUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${gcTitle}&dates=${gcStart}/${gcEnd}&location=${gcLocation}&details=${gcDetails}`
-          const icalUrl = `${BASE_URL}/api/ical/${token}`
+        // Confirmation email for 'yes'
+        if (availability === 'yes' && musician?.email) {
+          try {
+            const eventDate = event.event_date as string | null
+            const gcStart = toGCalDate(eventDate, event.start_time as string | null)
+            const gcEnd = toGCalDate(eventDate, event.finish_time as string | null)
+            const gcTitle = encodeURIComponent(`WSE — ${eventLabel}`)
+            const gcLocation = encodeURIComponent([event.venue_name, event.venue_address ?? event.location].filter(Boolean).join(', '))
+            const gcDetails = encodeURIComponent(`Your role: ${slot.instrument}`)
+            const googleCalUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${gcTitle}&dates=${gcStart}/${gcEnd}&location=${gcLocation}&details=${gcDetails}`
+            const icalUrl = `${BASE_URL}/api/ical/${token}`
 
-          await sendEmail({
-            type: 'confirmation',
-            to: musician.email as string,
-            recipientName: musicianName,
-            subject: `Gig confirmed — ${eventLabel}, ${formatDate(event.event_date as string | null)}`,
-            html: buildConfirmationEmail({
-              musicianName,
-              instrument: slot.instrument as string,
-              eventLabel,
-              eventDate: event.event_date as string | null,
-              venueName: event.venue_name as string | null,
-              venueAddress: event.venue_address as string | null,
-              location: event.location as string | null,
-              arrivalTime: event.arrival_time as string | null,
-              startTime: event.start_time as string | null,
-              finishTime: event.finish_time as string | null,
-              googleCalUrl,
-              icalUrl,
-            }),
-          })
-        } catch (e) {
-          console.error('confirmation email error:', e)
-          // Don't block the redirect if email fails
+            await sendEmail({
+              type: 'confirmation',
+              to: musician.email as string,
+              recipientName: musicianName,
+              subject: `Gig confirmed — ${formatDate(event.event_date as string | null)}`,
+              html: buildConfirmationEmail({
+                musicianName,
+                instrument: slot.instrument as string,
+                eventLabel,
+                eventDate: event.event_date as string | null,
+                venueName: event.venue_name as string | null,
+                venueAddress: event.venue_address as string | null,
+                location: event.location as string | null,
+                arrivalTime: event.arrival_time as string | null,
+                startTime: event.start_time as string | null,
+                finishTime: event.finish_time as string | null,
+                googleCalUrl,
+                icalUrl,
+              }),
+            })
+          } catch (e) {
+            console.error('confirmation email error:', e)
+          }
         }
+      } catch (err) {
+        // Something went wrong recording the response — alert admin immediately
+        console.error('availability response processing error:', err)
+        const errMsg = err instanceof Error ? err.message : String(err)
+        try {
+          await supabase.from('notifications').insert({
+            type: 'response_failed',
+            message: `⚠️ ${musicianName} (${slot.instrument}) clicked ${availability.toUpperCase()} but their response FAILED to record. Error: ${errMsg}. Token: ${token}`,
+            link: `/admin/events/${slot.event_id}/musicians`,
+          })
+        } catch { /* best-effort */ }
+        // Show the musician an error page rather than a false success
+        redirect(`/availability/${token}?error=1`)
       }
     }
 
@@ -305,6 +323,21 @@ export default async function AvailabilityPage({
               color: '#991b1b', fontSize: 14, fontWeight: 500,
             }}>
               ✗ You&apos;ve indicated you&apos;re not available. We&apos;ll be in touch if anything changes.
+            </div>
+          )}
+
+          {/* Error banner */}
+          {error === '1' && (
+            <div style={{
+              padding: '14px 16px', borderRadius: 6, marginBottom: 20,
+              background: '#fef2f2', border: '1px solid #fecaca',
+              color: '#991b1b', fontSize: 14,
+            }}>
+              <strong>Something went wrong recording your response.</strong>
+              <p style={{ margin: '6px 0 0', fontSize: 13 }}>
+                Please reply to the original email or contact us directly so we can confirm your availability manually.
+                We apologise for the inconvenience.
+              </p>
             </div>
           )}
 

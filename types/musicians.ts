@@ -71,6 +71,7 @@ export interface EventMusician {
   reminder_status: MusicianEmailStatus
   invite_email_log_id: string | null
   reminder_email_log_id: string | null
+  link_clicked_at: string | null
   // Joined
   musician?: Musician | null
 }
