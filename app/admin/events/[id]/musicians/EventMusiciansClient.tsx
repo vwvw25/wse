@@ -86,12 +86,13 @@ const DEADLINE_OPTIONS = [6, 12, 24, 48]
 
 // ── Email status badge (read-only) ────────────────────────────────────────────
 const EMAIL_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  '—':        { label: '—',        color: 'var(--text-tertiary)', bg: 'transparent' },
-  sent:       { label: 'Sent',     color: '#1d4ed8', bg: '#eff6ff' },
-  accepted:   { label: 'Accepted', color: '#16a34a', bg: '#f0fdf4' },
-  declined:   { label: 'Declined', color: '#dc2626', bg: '#fef2f2' },
-  replied:    { label: 'Replied',  color: '#92400e', bg: '#fffbeb' },
-  failed:     { label: 'Failed',   color: '#dc2626', bg: '#fef2f2' },
+  '—':        { label: '—',          color: 'var(--text-tertiary)', bg: 'transparent' },
+  sent:       { label: 'Sent',       color: '#1d4ed8', bg: '#eff6ff' },
+  delivered:  { label: 'Delivered',  color: '#16a34a', bg: '#f0fdf4' },
+  accepted:   { label: 'Accepted',   color: '#16a34a', bg: '#f0fdf4' },
+  declined:   { label: 'Declined',   color: '#dc2626', bg: '#fef2f2' },
+  replied:    { label: 'Replied',    color: '#92400e', bg: '#fffbeb' },
+  failed:     { label: 'Failed',     color: '#dc2626', bg: '#fef2f2' },
 }
 
 function EmailStatusBadge({ value }: { value: string }) {
