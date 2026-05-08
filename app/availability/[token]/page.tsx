@@ -343,7 +343,7 @@ export default async function AvailabilityPage({
             Ward Smith Entertainment
           </div>
           <div style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>
-            Availability request
+            Booking request
           </div>
         </div>
 

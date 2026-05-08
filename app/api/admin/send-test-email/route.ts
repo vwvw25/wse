@@ -31,7 +31,7 @@ function availabilityRequestHtml() {
   <div style="max-width:560px;margin:40px auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
     <div style="background:#111827;padding:24px 32px;">
       <div style="font-size:13px;font-weight:600;color:#9ca3af;letter-spacing:0.08em;text-transform:uppercase;">Ward Smith Entertainment</div>
-      <div style="font-size:20px;font-weight:700;color:#fff;margin-top:6px;">Availability request</div>
+      <div style="font-size:20px;font-weight:700;color:#fff;margin-top:6px;">Booking request</div>
     </div>
     <div style="padding:28px 32px;">
       <p style="font-size:14px;color:#374151;margin:0 0 20px;">Hi ${FAKE.musicianName},</p>

@@ -68,7 +68,7 @@ function buildEmailHtml({
     <!-- Header -->
     <div style="background:#111827;padding:24px 32px;">
       <div style="font-size:13px;font-weight:600;color:#9ca3af;letter-spacing:0.08em;text-transform:uppercase;">Ward Smith Entertainment</div>
-      <div style="font-size:20px;font-weight:700;color:#fff;margin-top:6px;">Availability request</div>
+      <div style="font-size:20px;font-weight:700;color:#fff;margin-top:6px;">Booking request</div>
     </div>
 
     <!-- Body -->

@@ -114,7 +114,7 @@ export default function SettingsPage() {
   const [gifError, setGifError] = useState<string | null>(null)
 
   const TEMPLATES = [
-    { key: 'availability_request', label: 'Availability request' },
+    { key: 'availability_request', label: 'Booking request' },
     { key: 'availability_reminder', label: 'Availability reminder' },
     { key: 'gig_confirmation', label: 'Gig confirmation' },
     { key: 'general_onboard', label: 'General onboard' },
