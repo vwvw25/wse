@@ -405,28 +405,30 @@ export default async function AvailabilityPage({
           {/* Event details */}
           <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 6, padding: '16px 20px', marginBottom: 24 }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              {[
-                ['Date', formatDate(event.event_date)],
-                event.venue_name ? ['Venue', `${event.venue_name}${event.location ? `, ${event.location}` : ''}`] : null,
-                event.venue_address ? ['Address', event.venue_address] : null,
-                ['Arrival', formatTime(event.arrival_time)],
-                ['Start / Finish', `${formatTime(event.start_time)} – ${formatTime(event.finish_time)}`],
-                (event.booked_template as { name: string } | null)?.name ? ['Band', (event.booked_template as { name: string }).name] : null,
-                event.booked_lineup ? ['Line-up', event.booked_lineup as string] : null,
-                event.booked_sets ? ['Sets', event.booked_sets as string] : null,
-                ['Food', (event.food as string | null) === 'yes' ? 'Yes' : (event.food as string | null) === 'no' ? 'No' : 'TBC'],
-                ['Your role', slot.instrument],
-                ['Fee', `£${((slot.fee as number | null) ?? 0).toFixed(2)}`],
-              ].filter((r): r is [string, string] => r !== null).map(([label, value], i) => (
-                <tr key={i}>
-                  <td style={{ padding: '5px 0', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', width: 110, verticalAlign: 'top' }}>
-                    {label}
-                  </td>
-                  <td style={{ padding: '5px 0', fontSize: 13, color: '#111827', fontWeight: label === 'Your role' ? 600 : 400 }}>
-                    {value}
-                  </td>
-                </tr>
-              ))}
+              <tbody>
+                {[
+                  ['Date', formatDate(event.event_date)],
+                  event.venue_name ? ['Venue', `${event.venue_name}${event.location ? `, ${event.location}` : ''}`] : null,
+                  event.venue_address ? ['Address', event.venue_address] : null,
+                  ['Arrival', formatTime(event.arrival_time)],
+                  ['Start / Finish', `${formatTime(event.start_time)} – ${formatTime(event.finish_time)}`],
+                  (event.booked_template as { name: string } | null)?.name ? ['Band', (event.booked_template as { name: string }).name] : null,
+                  event.booked_lineup ? ['Line-up', event.booked_lineup as string] : null,
+                  event.booked_sets ? ['Sets', event.booked_sets as string] : null,
+                  ['Food', (event.food as string | null) === 'yes' ? 'Yes' : (event.food as string | null) === 'no' ? 'No' : 'TBC'],
+                  ['Your role', slot.instrument],
+                  ['Fee', `£${((slot.fee as number | null) ?? 0).toFixed(2)}`],
+                ].filter((r): r is [string, string] => r !== null).map(([label, value], i) => (
+                  <tr key={i}>
+                    <td style={{ padding: '5px 0', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', width: 110, verticalAlign: 'top' }}>
+                      {label}
+                    </td>
+                    <td style={{ padding: '5px 0', fontSize: 13, color: '#111827', fontWeight: label === 'Your role' ? 600 : 400 }}>
+                      {value}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
             </table>
           </div>
 
