@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { musicianFullName } from '@/types/musicians'
 import { sendEmail } from '@/lib/send-email'
-
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://wse.vercel.app'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 function formatDate(d: string | null) {
   if (!d) return '—'
@@ -147,8 +146,9 @@ export async function POST(req: NextRequest) {
     const musicianName = musicianFullName(musician)
     const sentAt = new Date()
     const token = slot.token
-    const yesUrl = `${BASE_URL}/availability/${token}?response=yes`
-    const noUrl = `${BASE_URL}/availability/${token}?response=no`
+    const baseUrl = getBaseUrl(req)
+    const yesUrl = `${baseUrl}/availability/${token}?response=yes`
+    const noUrl = `${baseUrl}/availability/${token}?response=no`
 
     const html = buildEmailHtml({
       musicianName,

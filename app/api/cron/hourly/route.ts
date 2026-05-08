@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://wse.vercel.app'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 /**
  * Combined hourly cron — runs reminders, onboarding-reminders, and email-health
@@ -12,6 +11,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const baseUrl = getBaseUrl(req)
   const cronSecret = process.env.CRON_SECRET ?? ''
   const headers = {
     'Authorization': `Bearer ${cronSecret}`,
@@ -19,9 +19,9 @@ export async function GET(req: NextRequest) {
   }
 
   const [remindersRes, onboardingRes, healthRes] = await Promise.allSettled([
-    fetch(`${BASE_URL}/api/cron/reminders`, { headers }),
-    fetch(`${BASE_URL}/api/cron/onboarding-reminders`, { headers }),
-    fetch(`${BASE_URL}/api/cron/email-health`, { headers }),
+    fetch(`${baseUrl}/api/cron/reminders`, { headers }),
+    fetch(`${baseUrl}/api/cron/onboarding-reminders`, { headers }),
+    fetch(`${baseUrl}/api/cron/email-health`, { headers }),
   ])
 
   const results = {

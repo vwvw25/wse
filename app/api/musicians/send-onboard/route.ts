@@ -4,8 +4,7 @@ import { musicianFullName, ONBOARDING_OPTIONAL_FIELDS, ONBOARDING_BASE_FIELDS } 
 import type { OnboardingType } from '@/types/musicians'
 import { createOnboardingToken } from '@/app/admin/musicians/actions'
 import { sendEmail } from '@/lib/send-email'
-
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://wse.vercel.app'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 const ALL_FIELDS = [...ONBOARDING_BASE_FIELDS, ...ONBOARDING_OPTIONAL_FIELDS]
 
@@ -186,7 +185,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to create onboarding token' }, { status: 500 })
     }
 
-    const ctaUrl = `${BASE_URL}/onboarding/${token}`
+    const ctaUrl = `${getBaseUrl(req)}/onboarding/${token}`
     const firstName = musician.first_name ?? musicianFullName(musician)
 
     const isGeneral = type === 'general'

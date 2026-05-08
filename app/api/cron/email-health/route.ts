@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createServiceClient } from '@/lib/supabase'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 function getResend() { return new Resend(process.env.RESEND_API_KEY) }
 const FROM_ADDRESS = 'Ward Smith Entertainment <onboarding@resend.dev>'
@@ -61,7 +62,7 @@ export async function GET(req: NextRequest) {
             <h2 style="color:#111827;">Email delivery issue</h2>
             <p style="color:#374151;">${message}</p>
             <p style="color:#6b7280;font-size:13px;">Sent at: ${new Date(email.created_at as string).toLocaleString('en-GB')}</p>
-            <a href="${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://wse.vercel.app'}/admin/email-logs" style="display:inline-block;margin-top:16px;padding:10px 18px;background:#111827;color:#fff;border-radius:6px;text-decoration:none;font-size:14px;">
+            <a href="${getBaseUrl(req)}/admin/email-logs" style="display:inline-block;margin-top:16px;padding:10px 18px;background:#111827;color:#fff;border-radius:6px;text-decoration:none;font-size:14px;">
               View email logs →
             </a>
           </body></html>`,

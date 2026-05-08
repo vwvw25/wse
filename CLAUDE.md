@@ -17,6 +17,10 @@ Before implementing any feature that touches an external service, check the plan
 
 **General rule**: Before implementing any feature that generates ongoing usage or touches infrastructure, check the relevant plan limits first. This includes (but is not limited to): cron jobs, background tasks, webhooks, file/image storage, email sending, authentication features, realtime/websocket connections, analytics, and any new third-party API or service. If a limit would be exceeded or a feature requires a paid tier, flag it to the user before writing any code.
 
+## Commit and Push
+
+After completing any meaningful set of changes, always offer to commit and push without waiting to be asked. Propose a commit message and ask for confirmation, then commit and push to `main` in the same step. Commit at natural checkpoints mid-session — don't wait until the end.
+
 ## Stack
 
 - Next.js 14 (App Router)

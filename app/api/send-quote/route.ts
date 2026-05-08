@@ -6,10 +6,11 @@ import { getQuoteItems } from '@/lib/quote-items'
 import type { QuoteItem } from '@/lib/quote-items'
 import type { QuoteInputs, Settings, PriceOption, BookingType } from '@/types/quote'
 
+import { getBaseUrl } from '@/lib/get-base-url'
+
 function getResend() { return new Resend(process.env.RESEND_API_KEY) }
 
 const FROM_ADDRESS = 'Ward Smith Entertainment <onboarding@resend.dev>'
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://wse.vercel.app'
 
 function fmt(n: number) {
   return `£${Math.round(n).toLocaleString('en-GB')}`
@@ -21,8 +22,8 @@ function renderItemHtml(item: QuoteItem): string {
     + (item.linkSuffix ?? '')
 }
 
-function buildEmailHtml(inputs: QuoteInputs, priceOptions: PriceOption[], quoteId: string, paEngineerRate = 0): string {
-  const quoteUrl = `${BASE_URL}/quote/${quoteId}`
+function buildEmailHtml(inputs: QuoteInputs, priceOptions: PriceOption[], quoteId: string, baseUrl: string, paEngineerRate = 0): string {
+  const quoteUrl = `${baseUrl}/quote/${quoteId}`
 
   const eventDate = inputs.event_date
     ? new Date(inputs.event_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -176,7 +177,7 @@ export async function POST(req: NextRequest) {
     if (dbErr || !q?.id) throw dbErr ?? new Error('No quote ID returned')
 
     // Send email
-    const emailHtml = buildEmailHtml(inputs, calculated.price_options ?? [], q.id, settings.pa_sound_engineer_rate)
+    const emailHtml = buildEmailHtml(inputs, calculated.price_options ?? [], q.id, getBaseUrl(req), settings.pa_sound_engineer_rate)
 
     const { error: emailErr } = await getResend().emails.send({
       from: FROM_ADDRESS,

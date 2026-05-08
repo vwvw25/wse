@@ -1,9 +1,17 @@
 import { createServiceClient } from '@/lib/supabase'
 import { notFound, redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import { musicianFullName } from '@/types/musicians'
 import { sendEmail } from '@/lib/send-email'
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://wse.vercel.app'
+async function getSiteUrl(): Promise<string> {
+  const h = await headers()
+  const forwarded = h.get('x-forwarded-host')
+  const host = forwarded ?? h.get('host') ?? ''
+  const proto = h.get('x-forwarded-proto') ?? (host.includes('localhost') ? 'http' : 'https')
+  return `${proto}://${host}`
+}
+// Note: getSiteUrl() uses next/headers directly since this is a Server Component, not an API route
 
 function formatDate(d: string | null) {
   if (!d) return '—'
@@ -207,7 +215,8 @@ export default async function AvailabilityPage({
                 .single()
 
               if (newSlot) {
-                fetch(`${BASE_URL}/api/musicians/send-availability`, {
+                const nextBaseUrl = await getSiteUrl()
+                fetch(`${nextBaseUrl}/api/musicians/send-availability`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ slotId: newSlot.id }),
@@ -227,7 +236,8 @@ export default async function AvailabilityPage({
             const gcLocation = encodeURIComponent([event.venue_name, event.venue_address ?? event.location].filter(Boolean).join(', '))
             const gcDetails = encodeURIComponent(`Your role: ${slot.instrument}`)
             const googleCalUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${gcTitle}&dates=${gcStart}/${gcEnd}&location=${gcLocation}&details=${gcDetails}`
-            const icalUrl = `${BASE_URL}/api/ical/${token}`
+            const siteUrl = await getSiteUrl()
+            const icalUrl = `${siteUrl}/api/ical/${token}`
 
             await sendEmail({
               type: 'confirmation',

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { sendEmail } from '@/lib/send-email'
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://wse.vercel.app'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 function formatDeadline(iso: string): string {
   const d = new Date(iso)
@@ -91,7 +91,7 @@ export async function GET(req: NextRequest) {
 
     const elapsed = (now.getTime() - created.getTime()) / totalMs
 
-    const ctaUrl = `${BASE_URL}/onboarding/${token.token as string}`
+    const ctaUrl = `${getBaseUrl(req)}/onboarding/${token.token as string}`
 
     // Reminder 2: 90% elapsed
     if (elapsed >= 0.9 && !token.reminder_2_sent_at) {

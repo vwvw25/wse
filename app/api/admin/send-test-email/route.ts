@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sendEmail } from '@/lib/send-email'
 import type { EmailType } from '@/lib/send-email'
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://wse.vercel.app'
-
 // ── Fake data used across all templates ────────────────────────────────────
 const FAKE = {
   musicianName: 'Jamie Wilson',
@@ -20,7 +18,7 @@ const FAKE = {
   deadlineDate: '2026-05-01T17:00:00.000Z',
   token: 'test-token-preview',
   googleCalUrl: 'https://www.google.com/calendar',
-  icalUrl: `${BASE_URL}/api/ical/test-token-preview`,
+  icalUrl: '/api/ical/test-token-preview',  // relative — test only
 }
 
 // ── Individual HTML builders (self-contained copies) ───────────────────────
