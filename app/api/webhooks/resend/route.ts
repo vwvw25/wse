@@ -37,18 +37,18 @@ export async function POST(req: NextRequest) {
     .select('id, recipient_email, recipient_name, subject, type')
     .single()
 
-  // Propagate delivery status back to musician invite/reminder columns
+  // Propagate delivery status back to musician_invites invite/reminder columns
   if ((newStatus === 'delivered' || newStatus === 'bounced' || newStatus === 'failed') && logRow) {
-    const slotStatus = newStatus === 'delivered' ? 'delivered' : 'failed'
+    const inviteStatus = newStatus === 'delivered' ? 'delivered' : 'failed'
     if (logRow.type === 'availability') {
       await supabase
-        .from('event_musicians')
-        .update({ invite_status: slotStatus })
+        .from('musician_invites')
+        .update({ invite_status: inviteStatus })
         .eq('invite_email_log_id', logRow.id)
     } else if (logRow.type === 'availability_reminder') {
       await supabase
-        .from('event_musicians')
-        .update({ reminder_status: slotStatus })
+        .from('musician_invites')
+        .update({ reminder_status: inviteStatus })
         .eq('reminder_email_log_id', logRow.id)
     }
   }

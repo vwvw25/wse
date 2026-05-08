@@ -22,8 +22,8 @@ export default async function EventMusiciansPage({ params }: { params: Promise<{
     { data: templatesData },
     { data: templateSlotsData },
   ] = await Promise.all([
-    supabase.from('events').select('id, agency_name, agent_name, event_date').eq('id', id).single(),
-    supabase.from('event_musicians').select('*').eq('event_id', id).order('date_added'),
+    supabase.from('events').select('id, agency_name, agent_name, event_date, food').eq('id', id).single(),
+    supabase.from('event_musicians').select('*, invites:musician_invites(*)').eq('event_id', id).order('date_added').order('id'),
     supabase.from('musicians').select('*').order('name'),
     supabase.from('band_templates').select('*').order('name'),
     supabase.from('band_template_slots').select('*').order('sort_order'),
@@ -31,7 +31,7 @@ export default async function EventMusiciansPage({ params }: { params: Promise<{
 
   if (!eventData) notFound()
 
-  const event = eventData as Pick<EventRecord, 'id' | 'agency_name' | 'agent_name' | 'event_date'>
+  const event = eventData as Pick<EventRecord, 'id' | 'agency_name' | 'agent_name' | 'event_date' | 'food'>
   const slots = (slotsData ?? []) as EventMusician[]
   const musicians = (musiciansData ?? []) as Musician[]
   const templates = (templatesData ?? []) as BandTemplate[]
@@ -42,11 +42,21 @@ export default async function EventMusiciansPage({ params }: { params: Promise<{
     slots: templateSlots.filter(s => s.template_id === t.id),
   }))
 
-  // Enrich slots with musician data
-  const enrichedSlots: EventMusician[] = slots.map(s => ({
-    ...s,
-    musician: s.musician_id ? (musicians.find(m => m.id === s.musician_id) ?? null) : null,
-  }))
+  // Enrich slots: attach musician + latest invite for current musician
+  const enrichedSlots: EventMusician[] = slots.map(s => {
+    const allInvites = (s.invites ?? []) as import('@/types/musicians').MusicianInvite[]
+    const forCurrentMusician = s.musician_id
+      ? allInvites.filter(i => i.musician_id === s.musician_id)
+      : []
+    const latestInvite = forCurrentMusician.sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )[0] ?? null
+    return {
+      ...s,
+      musician: s.musician_id ? (musicians.find(m => m.id === s.musician_id) ?? null) : null,
+      latest_invite: latestInvite,
+    }
+  })
 
   const eventLabel = event.agency_name
     ? (event.agent_name ? `${event.agent_name} at ${event.agency_name}` : event.agency_name)
@@ -101,6 +111,7 @@ export default async function EventMusiciansPage({ params }: { params: Promise<{
       <EventMusiciansClient
         eventId={id}
         eventLabel={eventLabel}
+        eventFood={event.food ?? null}
         slots={enrichedSlots}
         musicians={musicians}
         templates={templatesWithSlots}

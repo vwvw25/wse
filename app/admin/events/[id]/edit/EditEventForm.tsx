@@ -2,7 +2,10 @@
 
 import { useState, useTransition } from 'react'
 import type { EventRecord } from '@/types/quote'
+import type { BandTemplate, BandTemplateSlot } from '@/types/musicians'
 import { updateEvent, deleteEvent } from '../../actions'
+
+const SETS_OPTIONS = ['2 × 45 min', '2 × 60 min', '3 × 45 min', '4 × 45 min']
 
 const inputBase: React.CSSProperties = {
   width: '100%', padding: '8px 10px', fontSize: 13,
@@ -44,7 +47,7 @@ function SectionCard({ label, children }: { label: string; children: React.React
   )
 }
 
-export default function EditEventForm({ event }: { event: EventRecord }) {
+export default function EditEventForm({ event, templates }: { event: EventRecord; templates: (BandTemplate & { slots: BandTemplateSlot[] })[] }) {
   const [isPending, startTransition] = useTransition()
   const rd = event.request_details
 
@@ -62,6 +65,28 @@ export default function EditEventForm({ event }: { event: EventRecord }) {
   const [startTime, setStartTime] = useState(event.start_time ?? '')
   const [finishTime, setFinishTime] = useState(event.finish_time ?? '')
   const [loadOutTime, setLoadOutTime] = useState(event.load_out_time ?? '')
+
+  const [food, setFood] = useState<'yes' | 'no' | 'tbc' | null>(event.food ?? null)
+  const [foodNotes, setFoodNotes] = useState(event.food_notes ?? '')
+
+  const [bookedTemplateId, setBookedTemplateId] = useState(event.booked_band_template_id ?? '')
+  const [bookedLineup, setBookedLineup] = useState(event.booked_lineup ?? '')
+  const [bookedSets, setBookedSets] = useState(
+    SETS_OPTIONS.includes(event.booked_sets ?? '') ? (event.booked_sets ?? '') : event.booked_sets ? 'custom' : ''
+  )
+  const [bookedSetsCustom, setBookedSetsCustom] = useState(
+    event.booked_sets && !SETS_OPTIONS.includes(event.booked_sets) ? event.booked_sets : ''
+  )
+
+  function handleTemplateChange(templateId: string) {
+    setBookedTemplateId(templateId)
+    if (templateId) {
+      const tpl = templates.find(t => t.id === templateId)
+      if (tpl?.slots?.length) {
+        setBookedLineup(tpl.slots.map(s => s.instrument).join(', '))
+      }
+    }
+  }
 
   const [bandSizeRequested, setBandSizeRequested] = useState(rd?.band_size_requested ?? '')
   const [setsRequested, setSetsRequested] = useState(rd?.sets_requested ?? '')
@@ -82,6 +107,10 @@ export default function EditEventForm({ event }: { event: EventRecord }) {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
     fd.set('is_agency', String(isAgency))
+    fd.set('food', food ?? '')
+    fd.set('booked_band_template_id', bookedTemplateId)
+    fd.set('booked_lineup', bookedLineup)
+    fd.set('booked_sets', bookedSets === 'custom' ? bookedSetsCustom : bookedSets)
     startTransition(async () => {
       await updateEvent(event.id, fd)
     })
@@ -130,6 +159,27 @@ export default function EditEventForm({ event }: { event: EventRecord }) {
             <input name="guests" type="number" min={0} value={guests} onChange={e => setGuests(e.target.value)}
               placeholder="e.g. 120" style={inputBase} />
           </Field>
+          <Field label="Food provided">
+            <select
+              value={food ?? ''}
+              onChange={e => {
+                const v = e.target.value
+                setFood(v === 'yes' || v === 'no' || v === 'tbc' ? v : null)
+              }}
+              style={{ ...inputBase, appearance: 'auto' }}
+            >
+              <option value="">—</option>
+              <option value="yes">Yes</option>
+              <option value="no">No</option>
+              <option value="tbc">TBC</option>
+            </select>
+          </Field>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Field label="Food notes" hint="optional — internal only">
+              <textarea name="food_notes" value={foodNotes} onChange={e => setFoodNotes(e.target.value)}
+                placeholder="e.g. Crew meal at 17:00, dietary info to catering…" style={textareaBase} />
+            </Field>
+          </div>
           <Field label="Venue name" hint="optional">
             <input name="venue_name" type="text" value={venueName} onChange={e => setVenueName(e.target.value)}
               placeholder="e.g. The Savoy" style={inputBase} />
@@ -164,6 +214,55 @@ export default function EditEventForm({ event }: { event: EventRecord }) {
           <Field label="Load out time" hint="optional">
             <input name="load_out_time" type="time" value={loadOutTime} onChange={e => setLoadOutTime(e.target.value)} style={inputBase} />
           </Field>
+        </div>
+      </SectionCard>
+
+      {/* Booking details */}
+      <SectionCard label="Booking details">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <Field label="Band">
+            <select
+              value={bookedTemplateId}
+              onChange={e => handleTemplateChange(e.target.value)}
+              style={{ ...inputBase, appearance: 'auto' }}
+            >
+              <option value="">— Not set —</option>
+              {templates.map(t => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Sets">
+            <select
+              value={bookedSets}
+              onChange={e => setBookedSets(e.target.value)}
+              style={{ ...inputBase, appearance: 'auto' }}
+            >
+              <option value="">— Not set —</option>
+              {SETS_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+              <option value="custom">Custom…</option>
+            </select>
+            {bookedSets === 'custom' && (
+              <input
+                type="text"
+                value={bookedSetsCustom}
+                onChange={e => setBookedSetsCustom(e.target.value)}
+                placeholder="e.g. 1 × 90 min"
+                style={{ ...inputBase, marginTop: 8 }}
+              />
+            )}
+          </Field>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Field label="Line-up" hint="auto-filled from band — editable">
+              <input
+                type="text"
+                value={bookedLineup}
+                onChange={e => setBookedLineup(e.target.value)}
+                placeholder="e.g. Vocals, Guitar, Bass, Drums, Keys"
+                style={inputBase}
+              />
+            </Field>
+          </div>
         </div>
       </SectionCard>
 

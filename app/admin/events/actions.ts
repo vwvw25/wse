@@ -173,6 +173,14 @@ export async function updateEvent(eventId: string, formData: FormData) {
   const guestsRaw = formData.get('guests') as string
   const guests = guestsRaw ? parseInt(guestsRaw) : null
 
+  const foodRaw = (formData.get('food') as string)?.trim() || null
+  const food = foodRaw === 'yes' || foodRaw === 'no' || foodRaw === 'tbc' ? foodRaw : null
+
+  const bookedBandTemplateId = (formData.get('booked_band_template_id') as string)?.trim() || null
+  const bookedLineup = (formData.get('booked_lineup') as string)?.trim() || null
+  const bookedSets = (formData.get('booked_sets') as string)?.trim() || null
+  const foodNotes = (formData.get('food_notes') as string)?.trim() || null
+
   const bandSizeRequested = (formData.get('band_size_requested') as string)?.trim() || null
   const setsRequested = (formData.get('sets_requested') as string)?.trim() || null
   const specialRequirements = (formData.get('special_requirements') as string)?.trim() || null
@@ -200,6 +208,11 @@ export async function updateEvent(eventId: string, formData: FormData) {
       arrival_time: arrivalTime,
       load_out_time: loadOutTime,
       guests,
+      food,
+      food_notes: foodNotes,
+      booked_band_template_id: bookedBandTemplateId,
+      booked_lineup: bookedLineup,
+      booked_sets: bookedSets,
       request_details: requestDetails,
     })
     .eq('id', eventId)

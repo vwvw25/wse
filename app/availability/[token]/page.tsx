@@ -11,7 +11,6 @@ async function getSiteUrl(): Promise<string> {
   const proto = h.get('x-forwarded-proto') ?? (host.includes('localhost') ? 'http' : 'https')
   return `${proto}://${host}`
 }
-// Note: getSiteUrl() uses next/headers directly since this is a Server Component, not an API route
 
 function formatDate(d: string | null) {
   if (!d) return '—'
@@ -31,7 +30,7 @@ function toGCalDate(date: string | null, time: string | null): string {
 function buildConfirmationEmail({
   musicianName,
   instrument,
-  eventLabel,
+  fee,
   eventDate,
   venueName,
   venueAddress,
@@ -39,12 +38,18 @@ function buildConfirmationEmail({
   arrivalTime,
   startTime,
   finishTime,
+  band,
+  lineup,
+  sets,
+  food,
+  dietaryRequirements,
   googleCalUrl,
   icalUrl,
+  gifUrl,
 }: {
   musicianName: string
   instrument: string
-  eventLabel: string
+  fee: number
   eventDate: string | null
   venueName: string | null
   venueAddress: string | null
@@ -52,17 +57,32 @@ function buildConfirmationEmail({
   arrivalTime: string | null
   startTime: string | null
   finishTime: string | null
+  band: string | null
+  lineup: string | null
+  sets: string | null
+  food: 'yes' | 'no' | 'tbc'
+  dietaryRequirements: string[]
   googleCalUrl: string
   icalUrl: string
+  gifUrl: string | null
 }): string {
+  const dietaryDisplay = dietaryRequirements.length > 0
+    ? `${dietaryRequirements.map(d => d.replace(/_/g, ' ')).join(', ')} — if these have changed, please get in touch.`
+    : 'None'
+
   const rows: [string, string][] = [
-    ['Event', eventLabel],
     ['Date', formatDate(eventDate)],
     ...(venueName ? [['Venue', `${venueName}${location ? `, ${location}` : ''}`] as [string, string]] : []),
     ...(venueAddress ? [['Address', venueAddress] as [string, string]] : []),
     ...(arrivalTime ? [['Arrival', arrivalTime] as [string, string]] : []),
     ['Start / Finish', `${startTime ?? '—'} – ${finishTime ?? '—'}`],
+    ...(band ? [['Band', band] as [string, string]] : []),
+    ...(lineup ? [['Line-up', lineup] as [string, string]] : []),
+    ...(sets ? [['Sets', sets] as [string, string]] : []),
+    ['Food', food === 'yes' ? 'Yes' : food === 'no' ? 'No' : 'TBC'],
     ['Your role', instrument],
+    ['Fee', `£${fee.toFixed(2)}`],
+    ...(food === 'yes' ? [['Your dietaries', dietaryDisplay] as [string, string]] : []),
   ]
 
   return `<!DOCTYPE html>
@@ -75,6 +95,7 @@ function buildConfirmationEmail({
       <div style="font-size:20px;font-weight:700;color:#fff;margin-top:6px;">Gig confirmed ✓</div>
     </div>
     <div style="padding:28px 32px;">
+      ${gifUrl ? `<img src="${gifUrl}" alt="" style="width:100%;border-radius:6px;display:block;margin-bottom:20px;" />` : ''}
       <p style="font-size:14px;color:#374151;margin:0 0 16px;">Hi <strong>${musicianName}</strong>,</p>
       <p style="font-size:14px;color:#374151;margin:0 0 24px;">
         Thanks for confirming — you're booked in for the following event.
@@ -135,10 +156,11 @@ export default async function AvailabilityPage({
 
   const supabase = createServiceClient()
 
-  const [{ data: slot }, { data: gifs }] = await Promise.all([
+  // Look up by musician_invites.token — joins to slot + event + musician
+  const [{ data: invite }, { data: gifs }] = await Promise.all([
     supabase
-      .from('event_musicians')
-      .select('*, musician:musicians(*), event:events(*)')
+      .from('musician_invites')
+      .select('*, slot:event_musicians(*, event:events(*, booked_template:band_templates!booked_band_template_id(name))), musician:musicians(*)')
       .eq('token', token)
       .single(),
     supabase
@@ -146,10 +168,17 @@ export default async function AvailabilityPage({
       .select('url'),
   ])
 
-  if (!slot) notFound()
+  if (!invite) notFound()
 
-  const musician = slot.musician
-  const event = slot.event
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const slot = invite.slot as any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const musician = invite.musician as any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const event = slot?.event as any
+
+  if (!slot || !event) notFound()
+
   const musicianName = musician ? musicianFullName(musician) : 'Musician'
 
   const eventLabel = event.agency_name
@@ -161,31 +190,42 @@ export default async function AvailabilityPage({
     ? gifUrls[Math.floor(Math.random() * gifUrls.length)]
     : null
 
+  // Pending states — invite hasn't been responded to yet
+  const pendingStates = ['tbc', 'email_sent', 'reminder_sent']
+
   // Handle response submission via URL param — server-side
   if (response === 'yes' || response === 'no') {
     const availability = response === 'yes' ? 'yes' : 'no'
     const now = new Date().toISOString()
 
-    // Always stamp link_clicked_at so we have a record even if something goes wrong below
+    // Always stamp link_clicked_at on the invite
     await supabase
-      .from('event_musicians')
+      .from('musician_invites')
       .update({ link_clicked_at: now })
       .eq('token', token)
 
-    const pendingStates = ['tbc', 'email_sent', 'reminder_sent']
-    if (pendingStates.includes(slot.availability)) {
+    if (pendingStates.includes(invite.availability)) {
       try {
         const emailStatus = availability === 'yes' ? 'accepted' : 'declined'
-        const statusUpdate = slot.reminder_sent_at
+        const statusUpdate = invite.reminder_sent_at
           ? { reminder_status: emailStatus }
           : { invite_status: emailStatus }
 
-        const { error: updateError } = await supabase
-          .from('event_musicians')
+        // Update the invite record
+        const { error: inviteUpdateError } = await supabase
+          .from('musician_invites')
           .update({ availability, ...statusUpdate })
           .eq('token', token)
 
-        if (updateError) throw new Error(`DB update failed: ${updateError.message}`)
+        if (inviteUpdateError) throw new Error(`Invite update failed: ${inviteUpdateError.message}`)
+
+        // Also update the slot-level availability on event_musicians (yes/no/tbc)
+        const { error: slotUpdateError } = await supabase
+          .from('event_musicians')
+          .update({ availability })
+          .eq('id', slot.id)
+
+        if (slotUpdateError) throw new Error(`Slot update failed: ${slotUpdateError.message}`)
 
         // If declined and preference order exists, contact next musician
         if (availability === 'no') {
@@ -196,7 +236,7 @@ export default async function AvailabilityPage({
             .order('rank')
 
           if (prefOrder && prefOrder.length > 0) {
-            const currentIdx = prefOrder.findIndex((p: { musician_id: string }) => p.musician_id === slot.musician_id)
+            const currentIdx = prefOrder.findIndex((p: { musician_id: string }) => p.musician_id === invite.musician_id)
             const next = prefOrder[currentIdx + 1]
 
             if (next?.musician?.email) {
@@ -232,11 +272,13 @@ export default async function AvailabilityPage({
             const eventDate = event.event_date as string | null
             const gcStart = toGCalDate(eventDate, event.start_time as string | null)
             const gcEnd = toGCalDate(eventDate, event.finish_time as string | null)
-            const gcTitle = encodeURIComponent(`WSE — ${eventLabel}`)
+            const gcEventTitle = (event.venue_name as string | null) ?? formatDate(event.event_date as string | null)
+            const gcTitle = encodeURIComponent(`WSE — ${gcEventTitle}`)
             const gcLocation = encodeURIComponent([event.venue_name, event.venue_address ?? event.location].filter(Boolean).join(', '))
             const gcDetails = encodeURIComponent(`Your role: ${slot.instrument}`)
             const googleCalUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${gcTitle}&dates=${gcStart}/${gcEnd}&location=${gcLocation}&details=${gcDetails}`
             const siteUrl = await getSiteUrl()
+            // ical URL uses the same invite token
             const icalUrl = `${siteUrl}/api/ical/${token}`
 
             await sendEmail({
@@ -247,7 +289,7 @@ export default async function AvailabilityPage({
               html: buildConfirmationEmail({
                 musicianName,
                 instrument: slot.instrument as string,
-                eventLabel,
+                fee: (slot.fee as number | null) ?? 0,
                 eventDate: event.event_date as string | null,
                 venueName: event.venue_name as string | null,
                 venueAddress: event.venue_address as string | null,
@@ -255,8 +297,14 @@ export default async function AvailabilityPage({
                 arrivalTime: event.arrival_time as string | null,
                 startTime: event.start_time as string | null,
                 finishTime: event.finish_time as string | null,
+                band: (event.booked_template as { name: string } | null)?.name ?? null,
+                lineup: (event.booked_lineup as string | null) ?? null,
+                sets: (event.booked_sets as string | null) ?? null,
+                food: (event.food as 'yes' | 'no' | 'tbc' | null) ?? 'tbc',
+                dietaryRequirements: (musician?.dietary_requirements as string[] | null) ?? [],
                 googleCalUrl,
                 icalUrl,
+                gifUrl: randomGif,
               }),
             })
           } catch (e) {
@@ -274,7 +322,6 @@ export default async function AvailabilityPage({
             link: `/admin/events/${slot.event_id}/musicians`,
           })
         } catch { /* best-effort */ }
-        // Show the musician an error page rather than a false success
         redirect(`/availability/${token}?error=1`)
       }
     }
@@ -282,8 +329,8 @@ export default async function AvailabilityPage({
     redirect(`/availability/${token}?confirmed=${availability}`)
   }
 
-  const alreadyResponded = slot.availability !== 'tbc'
-  const responseWas = confirmed ?? (alreadyResponded ? slot.availability : null)
+  const alreadyResponded = !pendingStates.includes(invite.availability)
+  const responseWas = confirmed ?? (alreadyResponded ? invite.availability : null)
 
   // ── Shared card layout for all states ───────────────────────────────────
   return (
@@ -359,13 +406,17 @@ export default async function AvailabilityPage({
           <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 6, padding: '16px 20px', marginBottom: 24 }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               {[
-                ['Event', eventLabel],
                 ['Date', formatDate(event.event_date)],
                 event.venue_name ? ['Venue', `${event.venue_name}${event.location ? `, ${event.location}` : ''}`] : null,
                 event.venue_address ? ['Address', event.venue_address] : null,
                 ['Arrival', formatTime(event.arrival_time)],
                 ['Start / Finish', `${formatTime(event.start_time)} – ${formatTime(event.finish_time)}`],
+                (event.booked_template as { name: string } | null)?.name ? ['Band', (event.booked_template as { name: string }).name] : null,
+                event.booked_lineup ? ['Line-up', event.booked_lineup as string] : null,
+                event.booked_sets ? ['Sets', event.booked_sets as string] : null,
+                ['Food', (event.food as string | null) === 'yes' ? 'Yes' : (event.food as string | null) === 'no' ? 'No' : 'TBC'],
                 ['Your role', slot.instrument],
+                ['Fee', `£${((slot.fee as number | null) ?? 0).toFixed(2)}`],
               ].filter((r): r is [string, string] => r !== null).map(([label, value], i) => (
                 <tr key={i}>
                   <td style={{ padding: '5px 0', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', width: 110, verticalAlign: 'top' }}>
@@ -378,6 +429,33 @@ export default async function AvailabilityPage({
               ))}
             </table>
           </div>
+
+          {/* Dietary requirements — shown when food=yes and musician has confirmed */}
+          {(event.food as string | null) === 'yes' && responseWas === 'yes' && (
+            <div style={{
+              background: '#fffbeb', border: '1px solid #fde68a',
+              borderRadius: 6, padding: '14px 16px', marginBottom: 20,
+            }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+                Your dietary requirements
+              </div>
+              {(() => {
+                const reqs = (musician?.dietary_requirements as string[] | null) ?? []
+                return reqs.length > 0 ? (
+                  <>
+                    <div style={{ fontSize: 13, color: '#78350f' }}>
+                      {reqs.map((d: string) => d.replace(/_/g, ' ')).join(', ')}
+                    </div>
+                    <div style={{ fontSize: 12, color: '#92400e', marginTop: 4 }}>
+                      If these have changed, please get in touch.
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ fontSize: 13, color: '#78350f' }}>None</div>
+                )
+              })()}
+            </div>
+          )}
 
           {/* Response buttons — only if not yet responded */}
           {!responseWas && (

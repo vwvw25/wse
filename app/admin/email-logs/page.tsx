@@ -5,7 +5,7 @@ export default async function EmailLogsPage() {
   const supabase = createServiceClient()
   const { data } = await supabase
     .from('email_logs')
-    .select('id, created_at, updated_at, type, recipient_email, recipient_name, subject, status, error_message, resend_id, alerted_at, html')
+    .select('id, created_at, updated_at, type, recipient_email, recipient_name, subject, status, error_message, resend_id, alerted_at, html, invite_response:musician_invites!invite_email_log_id(availability), reminder_response:musician_invites!reminder_email_log_id(availability)')
     .order('created_at', { ascending: false })
     .limit(500)
 

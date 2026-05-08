@@ -69,14 +69,14 @@ export async function assignMusicianToSlot(
   fee: number,
 ) {
   const supabase = createServiceClient()
-  await supabase
-    .from('event_musicians')
-    .update({ musician_id: musicianId, fee })
-    .eq('id', slotId)
+  const update: Record<string, unknown> = { musician_id: musicianId, fee }
+  // Reset availability to tbc when musician is removed
+  if (!musicianId) update.availability = 'tbc'
+  await supabase.from('event_musicians').update(update).eq('id', slotId)
   paths(eventId)
 }
 
-// Update availability for a slot
+// Update availability for a slot (manual admin override — yes/no/tbc only)
 export async function updateSlotAvailability(
   slotId: string,
   eventId: string,

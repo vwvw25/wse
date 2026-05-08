@@ -19,24 +19,32 @@ export async function GET(
   const { token } = await params
   const supabase = createServiceClient()
 
-  const { data: slot } = await supabase
-    .from('event_musicians')
-    .select('*, musician:musicians(*), event:events(*)')
+  // Look up by musician_invites.token — joins to slot + event
+  const { data: invite } = await supabase
+    .from('musician_invites')
+    .select('*, slot:event_musicians(*, event:events(*))')
     .eq('token', token)
     .single()
 
-  if (!slot) {
+  if (!invite) {
     return new NextResponse('Not found', { status: 404 })
   }
 
-  const event = slot.event as Record<string, string | null>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const slot = invite.slot as any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const event = slot?.event as Record<string, string | null>
+
+  if (!slot || !event) {
+    return new NextResponse('Not found', { status: 404 })
+  }
+
   const eventDate = event.event_date as string
   const startDt = toICalDate(eventDate, event.start_time as string | null)
   const endDt = toICalDate(eventDate, event.finish_time as string | null)
 
-  const eventLabel = event.agency_name
-    ? (event.agent_name ? `${event.agent_name} at ${event.agency_name}` : event.agency_name)
-    : (event.agent_name ?? 'Event')
+  // Use venue name (not agent/agency) for musician-facing calendar event title
+  const eventTitle = (event.venue_name as string | null) ?? (eventDate ? new Date(eventDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : 'WSE Event')
 
   const locationParts = [event.venue_name, event.venue_address ?? event.location].filter(Boolean)
   const location = locationParts.join(', ')
@@ -58,7 +66,7 @@ export async function GET(
     `UID:wse-${token}@wardsmithentertainment.com`,
     `DTSTART:${startDt}`,
     `DTEND:${endDt}`,
-    `SUMMARY:${escapeIcal(`WSE — ${eventLabel as string}`)}`,
+    `SUMMARY:${escapeIcal(`WSE — ${eventTitle}`)}`,
     location ? `LOCATION:${escapeIcal(location)}` : null,
     `DESCRIPTION:${escapeIcal(descLines.join('\\n'))}`,
     'END:VEVENT',

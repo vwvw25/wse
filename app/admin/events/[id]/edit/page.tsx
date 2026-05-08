@@ -1,16 +1,26 @@
 import { createServiceClient } from '@/lib/supabase'
 import { notFound } from 'next/navigation'
 import type { EventRecord } from '@/types/quote'
+import type { BandTemplate, BandTemplateSlot } from '@/types/musicians'
 import EditEventForm from './EditEventForm'
 
 export default async function EditEventPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = createServiceClient()
 
-  const { data } = await supabase.from('events').select('*').eq('id', id).single()
+  const [{ data }, { data: templatesData }, { data: templateSlotsData }] = await Promise.all([
+    supabase.from('events').select('*').eq('id', id).single(),
+    supabase.from('band_templates').select('*').order('name'),
+    supabase.from('band_template_slots').select('*').order('sort_order'),
+  ])
+
   if (!data) notFound()
 
   const event = data as EventRecord
+  const templates = ((templatesData ?? []) as BandTemplate[]).map(t => ({
+    ...t,
+    slots: ((templateSlotsData ?? []) as BandTemplateSlot[]).filter(s => s.template_id === t.id),
+  }))
 
   return (
     <div style={{ padding: '32px 32px', fontFamily: 'var(--font)', maxWidth: 800 }}>
@@ -20,7 +30,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
         <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0 0 4px', color: 'var(--text)' }}>Edit event</h1>
       </div>
 
-      <EditEventForm event={event} />
+      <EditEventForm event={event} templates={templates} />
     </div>
   )
 }

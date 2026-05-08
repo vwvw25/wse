@@ -58,7 +58,7 @@ export default async function EventDetailPage({
   const supabase = createServiceClient()
 
   const [{ data: eventData }, { data: quotesData }, { data: invoicesData }, { data: invoiceSettingsData }, { data: allClientsData }] = await Promise.all([
-    supabase.from('events').select('*').eq('id', id).single(),
+    supabase.from('events').select('*, booked_template:band_templates!booked_band_template_id(name)').eq('id', id).single(),
     supabase.from('quotes').select('id, created_at, inputs, calculated, version, status, accepted_option').eq('event_id', id).order('version', { ascending: false }),
     supabase.from('invoices').select('*, line_items:invoice_line_items(*)').eq('event_id', id).order('created_at'),
     supabase.from('invoice_settings').select('*').single(),
@@ -92,7 +92,7 @@ export default async function EventDetailPage({
 
   if (tab === 'musicians') {
     const [{ data: slotsData }, { data: musiciansData }, { data: templatesData }, { data: templateSlotsData }] = await Promise.all([
-      supabase.from('event_musicians').select('*').eq('event_id', id).order('date_added'),
+      supabase.from('event_musicians').select('*, invites:musician_invites(*)').eq('event_id', id).order('date_added').order('id'),
       supabase.from('musicians').select('*').order('first_name').order('last_name'),
       supabase.from('band_templates').select('*').order('name'),
       supabase.from('band_template_slots').select('*').order('sort_order'),
@@ -104,11 +104,21 @@ export default async function EventDetailPage({
     const templateSlots = (templateSlotsData ?? []) as BandTemplateSlot[]
     templates = rawTemplates.map(t => ({ ...t, slots: templateSlots.filter(s => s.template_id === t.id) }))
 
-    // Enrich slots with musician data
-    slots = slots.map(s => ({
-      ...s,
-      musician: s.musician_id ? (musicians.find(m => m.id === s.musician_id) ?? null) : null,
-    }))
+    // Enrich slots with musician data + latest invite for current musician
+    slots = slots.map(s => {
+      const allInvites = ((s as unknown as { invites?: import('@/types/musicians').MusicianInvite[] }).invites ?? [])
+      const forCurrentMusician = s.musician_id
+        ? allInvites.filter(i => i.musician_id === s.musician_id)
+        : []
+      const latestInvite = forCurrentMusician.sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )[0] ?? null
+      return {
+        ...s,
+        musician: s.musician_id ? (musicians.find(m => m.id === s.musician_id) ?? null) : null,
+        latest_invite: latestInvite,
+      }
+    })
   }
 
   const tabStyle = (active: boolean): React.CSSProperties => ({
@@ -208,11 +218,15 @@ export default async function EventDetailPage({
               <Cell label="Finish" value={event.finish_time} />
               <Cell label="Load out" value={event.load_out_time} />
             </PairGrid>
-            <PairGrid style={{ borderBottom: 'none' }}>
+            <PairGrid>
               <Cell label="Venue" value={event.venue_name} />
               <Cell label="Guests" value={event.guests != null ? String(event.guests) : null} />
               <Cell label="Postcode" value={event.venue_postcode} />
               <Cell label="Location" value={event.location} />
+            </PairGrid>
+            <PairGrid style={{ borderBottom: 'none' }}>
+              <Cell label="Food provided" value={event.food === 'yes' ? 'Yes' : event.food === 'no' ? 'No' : event.food === 'tbc' ? 'TBC' : null} />
+              <Cell label="Food notes" value={event.food_notes} />
             </PairGrid>
             <FullRow label="Address" value={event.venue_address} />
           </Section>
@@ -228,6 +242,16 @@ export default async function EventDetailPage({
               allClients={allClients}
             />
           </Section>
+
+          {(event.booked_band_template_id || event.booked_lineup || event.booked_sets) && (
+            <Section label="Booking details">
+              <PairGrid style={{ borderBottom: 'none' }}>
+                <Cell label="Band" value={(eventData as { booked_template?: { name: string } | null }).booked_template?.name ?? null} />
+                <Cell label="Sets" value={event.booked_sets} />
+              </PairGrid>
+              <FullRow label="Line-up" value={event.booked_lineup} />
+            </Section>
+          )}
 
           {rd && (
             <Section label="Request details">
@@ -308,6 +332,7 @@ export default async function EventDetailPage({
         <EventMusiciansClient
           eventId={id}
           eventLabel={title}
+          eventFood={event.food ?? null}
           slots={slots}
           musicians={musicians}
           templates={templates}

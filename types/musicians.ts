@@ -48,8 +48,26 @@ export function musicianFullName(m: Pick<Musician, 'first_name' | 'last_name'>):
   return [m.first_name, m.last_name].filter(Boolean).join(' ')
 }
 
-export type MusicianAvailability = 'yes' | 'no' | 'tbc' | 'email_sent' | 'reminder_sent'
+export type MusicianAvailability = 'yes' | 'no' | 'tbc'
+export type InviteAvailability = 'tbc' | 'email_sent' | 'reminder_sent' | 'yes' | 'no'
 export type MusicianEmailStatus = '—' | 'sent' | 'accepted' | 'declined' | 'replied' | 'failed'
+
+export interface MusicianInvite {
+  id: string
+  slot_id: string
+  musician_id: string
+  token: string
+  availability: InviteAvailability
+  invite_status: string
+  reminder_status: string
+  invite_email_log_id: string | null
+  reminder_email_log_id: string | null
+  deadline_hours: number
+  email_sent_at: string | null
+  reminder_sent_at: string | null
+  link_clicked_at: string | null
+  created_at: string
+}
 
 export interface EventMusician {
   id: string
@@ -59,21 +77,15 @@ export interface EventMusician {
   fee: number
   additional_costs: number
   availability: MusicianAvailability
+  deadline_hours: number
   date_added: string
   notes: string | null
-  // Availability request fields
-  token: string | null
-  deadline_hours: DeadlineHours
-  email_sent_at: string | null
-  reminder_sent_at: string | null
-  // Email status tracking (auto-set)
-  invite_status: MusicianEmailStatus
-  reminder_status: MusicianEmailStatus
-  invite_email_log_id: string | null
-  reminder_email_log_id: string | null
-  link_clicked_at: string | null
   // Joined
   musician?: Musician | null
+  // All invites for this slot (filtered to current musician in UI)
+  invites?: MusicianInvite[]
+  // Computed: latest invite for current musician
+  latest_invite?: MusicianInvite | null
 }
 
 export interface BandTemplate {

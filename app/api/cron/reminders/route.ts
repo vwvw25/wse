@@ -16,6 +16,7 @@ function formatTime(t: string | null) {
 function buildReminderHtml({
   musicianName,
   instrument,
+  fee,
   eventDate,
   venueName,
   venueAddress,
@@ -23,12 +24,17 @@ function buildReminderHtml({
   arrivalTime,
   startTime,
   finishTime,
+  band,
+  lineup,
+  sets,
+  food,
   deadlineAt,
   yesUrl,
   noUrl,
 }: {
   musicianName: string
   instrument: string
+  fee: number
   eventDate: string | null
   venueName: string | null
   venueAddress: string | null
@@ -36,6 +42,10 @@ function buildReminderHtml({
   arrivalTime: string | null
   startTime: string | null
   finishTime: string | null
+  band: string | null
+  lineup: string | null
+  sets: string | null
+  food: 'yes' | 'no' | 'tbc'
   deadlineAt: Date
   yesUrl: string
   noUrl: string
@@ -87,9 +97,29 @@ function buildReminderHtml({
             <td style="padding:5px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Start / Finish</td>
             <td style="padding:5px 0;font-size:13px;color:#111827;">${formatTime(startTime)} – ${formatTime(finishTime)}</td>
           </tr>
+          ${band ? `<tr>
+            <td style="padding:5px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Band</td>
+            <td style="padding:5px 0;font-size:13px;color:#111827;">${band}</td>
+          </tr>` : ''}
+          ${lineup ? `<tr>
+            <td style="padding:5px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Line-up</td>
+            <td style="padding:5px 0;font-size:13px;color:#111827;">${lineup}</td>
+          </tr>` : ''}
+          ${sets ? `<tr>
+            <td style="padding:5px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Sets</td>
+            <td style="padding:5px 0;font-size:13px;color:#111827;">${sets}</td>
+          </tr>` : ''}
+          <tr>
+            <td style="padding:5px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Food</td>
+            <td style="padding:5px 0;font-size:13px;color:#111827;">${food === 'yes' ? 'Yes' : food === 'no' ? 'No' : 'TBC'}</td>
+          </tr>
           <tr>
             <td style="padding:5px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Your role</td>
             <td style="padding:5px 0;font-size:13px;color:#111827;font-weight:600;">${instrument}</td>
+          </tr>
+          <tr>
+            <td style="padding:5px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Fee</td>
+            <td style="padding:5px 0;font-size:13px;color:#111827;font-weight:600;">£${fee.toFixed(2)}</td>
           </tr>
         </table>
       </div>
@@ -129,26 +159,26 @@ export async function GET(req: NextRequest) {
   const supabase = createServiceClient()
   const now = new Date()
 
-  // Find slots that need a reminder:
-  // - email was sent (email_sent_at IS NOT NULL)
-  // - still awaiting response (availability = 'tbc')
+  // Find invites that need a reminder:
+  // - email was sent (availability = 'email_sent')
+  // - email_sent_at IS NOT NULL
   // - reminder not yet sent (reminder_sent_at IS NULL)
   // - half the deadline period has elapsed since email was sent
-  const { data: slots, error } = await supabase
-    .from('event_musicians')
-    .select('*, musician:musicians(*), event:events(*)')
+  const { data: invites, error } = await supabase
+    .from('musician_invites')
+    .select('*, slot:event_musicians(*, event:events(*, booked_template:band_templates!booked_band_template_id(name))), musician:musicians(*)')
     .eq('availability', 'email_sent')
     .not('email_sent_at', 'is', null)
     .is('reminder_sent_at', null)
 
   if (error) {
-    console.error('reminders cron error fetching slots:', error)
+    console.error('reminders cron error fetching invites:', error)
     return NextResponse.json({ error: 'DB error' }, { status: 500 })
   }
 
-  const toRemind = (slots ?? []).filter(slot => {
-    const sentAt = new Date(slot.email_sent_at)
-    const deadlineHours = slot.deadline_hours ?? 24
+  const toRemind = (invites ?? []).filter(invite => {
+    const sentAt = new Date(invite.email_sent_at)
+    const deadlineHours = invite.deadline_hours ?? 24
     const halfwayMs = (deadlineHours / 2) * 60 * 60 * 1000
     return now.getTime() >= sentAt.getTime() + halfwayMs
   })
@@ -156,15 +186,18 @@ export async function GET(req: NextRequest) {
   let sent = 0
   let failed = 0
 
-  for (const slot of toRemind) {
-    const musician = slot.musician
-    if (!musician?.email) continue
+  for (const invite of toRemind) {
+    const musician = invite.musician
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const slot = invite.slot as any
+    const event = slot?.event
 
-    const event = slot.event
+    if (!musician?.email || !event) continue
+
     const musicianName = musicianFullName(musician)
-    const sentAt = new Date(slot.email_sent_at)
-    const deadlineAt = new Date(sentAt.getTime() + (slot.deadline_hours ?? 24) * 60 * 60 * 1000)
-    const token = slot.token
+    const sentAt = new Date(invite.email_sent_at)
+    const deadlineAt = new Date(sentAt.getTime() + (invite.deadline_hours ?? 24) * 60 * 60 * 1000)
+    const token = invite.token
     const baseUrl = getBaseUrl(req)
     const yesUrl = `${baseUrl}/availability/${token}?response=yes`
     const noUrl = `${baseUrl}/availability/${token}?response=no`
@@ -172,6 +205,7 @@ export async function GET(req: NextRequest) {
     const html = buildReminderHtml({
       musicianName,
       instrument: slot.instrument,
+      fee: slot.fee ?? 0,
       eventDate: event.event_date,
       venueName: event.venue_name,
       venueAddress: event.venue_address,
@@ -179,6 +213,10 @@ export async function GET(req: NextRequest) {
       arrivalTime: event.arrival_time,
       startTime: event.start_time,
       finishTime: event.finish_time,
+      band: (event.booked_template as { name: string } | null)?.name ?? null,
+      lineup: event.booked_lineup ?? null,
+      sets: event.booked_sets ?? null,
+      food: event.food ?? 'tbc',
       deadlineAt,
       yesUrl,
       noUrl,
@@ -193,25 +231,20 @@ export async function GET(req: NextRequest) {
         html,
       })
 
-      // Always record reminder status + log id
+      // Update the invite row with reminder send result
       await supabase
-        .from('event_musicians')
+        .from('musician_invites')
         .update({
           reminder_status: result.ok ? 'sent' : 'failed',
           reminder_email_log_id: result.emailLogId || null,
+          reminder_sent_at: now.toISOString(),
+          availability: 'reminder_sent',
         })
-        .eq('id', slot.id)
-
-      // Only advance availability if musician hasn't already responded
-      await supabase
-        .from('event_musicians')
-        .update({ reminder_sent_at: now.toISOString(), availability: 'reminder_sent' })
-        .eq('id', slot.id)
-        .in('availability', ['email_sent', 'reminder_sent'])
+        .eq('id', invite.id)
 
       sent++
     } catch (err) {
-      console.error(`Failed to send reminder for slot ${slot.id}:`, err)
+      console.error(`Failed to send reminder for invite ${invite.id}:`, err)
       failed++
     }
   }

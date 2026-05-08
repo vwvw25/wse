@@ -16,6 +16,7 @@ import {
 interface Props {
   eventId: string
   eventLabel: string
+  eventFood: 'yes' | 'no' | 'tbc' | null
   slots: EventMusician[]
   musicians: Musician[]
   templates: (BandTemplate & { slots: BandTemplateSlot[] })[]
@@ -43,11 +44,13 @@ const EMAIL_STATUS_CONFIG: Record<string, { label: string; color: string; bg: st
   complained:  { label: 'Complained', color: '#ea580c', bg: '#fff7ed' },
 }
 
-// Derive what to show in Invite column from availability + raw status + link click
-function resolveStatus(availability: string, rawStatus: string | null, linkClickedAt?: string | null): string {
-  if (availability === 'yes') return 'accepted'
-  if (availability === 'no') return 'declined'
-  if (linkClickedAt) return 'clicked'  // viewed the link but hasn't responded yet
+// Derive what to show in Invite/Reminder columns from invite record.
+// requiresSent: if true (reminder column), only show accepted/declined if the email was actually sent
+function resolveStatus(inviteAvailability: string | null, rawStatus: string | null, linkClickedAt?: string | null, requiresSent = false): string {
+  const wasSent = requiresSent ? (rawStatus !== null && rawStatus !== '—') : true
+  if (wasSent && inviteAvailability === 'yes') return 'accepted'
+  if (wasSent && inviteAvailability === 'no') return 'declined'
+  if (!requiresSent && linkClickedAt) return 'clicked'
   return rawStatus ?? '—'
 }
 
@@ -69,21 +72,27 @@ function SlotRow({
   slot,
   musicians,
   eventId,
+  eventFood,
 }: {
   slot: EventMusician
   musicians: Musician[]
   eventId: string
+  eventFood: 'yes' | 'no' | 'tbc' | null
 }) {
   const [editing, setEditing] = useState(false)
   const [fee, setFee] = useState(String(slot.fee))
   const [extra, setExtra] = useState(String(slot.additional_costs))
+  const [confirming, setConfirming] = useState(false)
+  const [confirmInput, setConfirmInput] = useState('')
+  const [confirmError, setConfirmError] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
   const [availUpdating, setAvailUpdating] = useState(false)
   const [, startTransition] = useTransition()
 
   const total = (parseFloat(fee) || 0) + (parseFloat(extra) || 0)
-  const emailSentAt = slot.email_sent_at ? new Date(slot.email_sent_at) : null
+  const invite = slot.latest_invite ?? null
+  const emailSentAt = invite?.email_sent_at ? new Date(invite.email_sent_at) : null
   const canSend = !!slot.musician_id
 
   function handleMusicianChange(musicianId: string) {
@@ -96,8 +105,22 @@ function SlotRow({
   }
 
   function handleSaveFees() {
+    // Open the confirmation dialog
+    setConfirmInput('')
+    setConfirmError(null)
+    setConfirming(true)
+  }
+
+  function handleConfirmSave() {
+    const enteredFee = parseFloat(confirmInput)
+    const expectedFee = parseFloat(fee) || 0
+    if (isNaN(enteredFee) || Math.round(enteredFee * 100) !== Math.round(expectedFee * 100)) {
+      setConfirmError('Amount does not match. Please enter the exact fee amount.')
+      return
+    }
+    setConfirming(false)
     startTransition(async () => {
-      await updateSlotFees(slot.id, eventId, parseFloat(fee) || 0, parseFloat(extra) || 0)
+      await updateSlotFees(slot.id, eventId, expectedFee, parseFloat(extra) || 0)
       setEditing(false)
     })
   }
@@ -110,12 +133,16 @@ function SlotRow({
 
   async function handleAvailabilityChange(value: string) {
     setAvailUpdating(true)
-    await updateSlotAvailability(slot.id, eventId, value as 'yes' | 'no' | 'tbc' | 'email_sent' | 'reminder_sent')
+    await updateSlotAvailability(slot.id, eventId, value as 'yes' | 'no' | 'tbc')
     setAvailUpdating(false)
   }
 
   async function handleSend() {
     if (!canSend) return
+    if (eventFood === null) {
+      setSendError('Please set the food status for this event before sending invites.')
+      return
+    }
     setSending(true)
     setSendError(null)
     try {
@@ -180,11 +207,11 @@ function SlotRow({
       </td>
       {/* Invite status */}
       <td style={{ padding: '10px 12px 10px 0' }}>
-        <EmailStatusBadge value={resolveStatus(slot.availability, slot.invite_status ?? null, slot.link_clicked_at)} />
+        <EmailStatusBadge value={resolveStatus(invite?.availability ?? null, invite?.invite_status ?? null, invite?.link_clicked_at)} />
       </td>
       {/* Reminder status */}
       <td style={{ padding: '10px 12px 10px 0' }}>
-        <EmailStatusBadge value={resolveStatus(slot.availability, slot.reminder_status ?? null)} />
+        <EmailStatusBadge value={resolveStatus(invite?.availability ?? null, invite?.reminder_status ?? null, undefined, true)} />
       </td>
       {/* Response (manual override) */}
       <td style={{ padding: '10px 12px 10px 0' }}>
@@ -193,15 +220,13 @@ function SlotRow({
           onChange={e => handleAvailabilityChange(e.target.value)}
           disabled={availUpdating}
           style={{
-            ...inputStyle, width: 100,
+            ...inputStyle, width: 90,
             opacity: availUpdating ? 0.5 : 1,
             color: slot.availability === 'yes' ? '#16a34a' : slot.availability === 'no' ? '#dc2626' : undefined,
             fontWeight: slot.availability === 'yes' || slot.availability === 'no' ? 600 : undefined,
           }}
         >
           <option value="tbc">TBC</option>
-          <option value="email_sent">Email sent</option>
-          <option value="reminder_sent">Reminder sent</option>
           <option value="yes">✓ Yes</option>
           <option value="no">✗ No</option>
         </select>
@@ -209,7 +234,7 @@ function SlotRow({
       {/* Deadline */}
       <td style={{ padding: '10px 12px 10px 0' }}>
         <select
-          value={slot.deadline_hours ?? 24}
+          value={slot.deadline_hours}
           onChange={e => handleDeadlineChange(Number(e.target.value))}
           style={{ ...inputStyle, width: 72 }}
         >
@@ -312,12 +337,59 @@ function SlotRow({
           </>
         )}
       </td>
+
+      {/* Fee confirmation modal */}
+      {confirming && (
+        <td colSpan={0} style={{ padding: 0, border: 'none' }}>
+          <div style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+            onClick={e => { if (e.target === e.currentTarget) { setConfirming(false) } }}
+          >
+            <div style={{
+              background: 'var(--bg)', border: '0.5px solid var(--border)',
+              borderRadius: 'var(--radius-lg)', padding: '28px 32px', maxWidth: 360, width: '100%',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+            }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>Confirm fee amount</div>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 18px' }}>
+                Type <strong>£{(parseFloat(fee) || 0).toFixed(2)}</strong> to confirm and save.
+              </p>
+              <input
+                autoFocus
+                style={{ ...inputStyle, width: '100%', marginBottom: 8 }}
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder={`${(parseFloat(fee) || 0).toFixed(2)}`}
+                value={confirmInput}
+                onChange={e => { setConfirmInput(e.target.value); setConfirmError(null) }}
+                onKeyDown={e => { if (e.key === 'Enter') handleConfirmSave(); if (e.key === 'Escape') setConfirming(false) }}
+              />
+              {confirmError && (
+                <div style={{ fontSize: 12, color: '#dc2626', marginBottom: 10 }}>{confirmError}</div>
+              )}
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+                <button
+                  onClick={() => setConfirming(false)}
+                  style={{ padding: '7px 16px', fontSize: 13, cursor: 'pointer', background: 'var(--bg-secondary)', color: 'var(--text)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font)' }}
+                >Cancel</button>
+                <button
+                  onClick={handleConfirmSave}
+                  style={{ padding: '7px 16px', fontSize: 13, cursor: 'pointer', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font)', fontWeight: 500 }}
+                >Confirm &amp; save</button>
+              </div>
+            </div>
+          </div>
+        </td>
+      )}
     </tr>
   )
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function EventMusiciansClient({ eventId, eventLabel, slots, musicians, templates }: Props) {
+export default function EventMusiciansClient({ eventId, eventLabel, eventFood, slots, musicians, templates }: Props) {
   const [addInstrument, setAddInstrument] = useState('')
   const [, startTransition] = useTransition()
 
@@ -435,7 +507,7 @@ export default function EventMusiciansClient({ eventId, eventLabel, slots, music
             </thead>
             <tbody>
               {slots.map(slot => (
-                <SlotRow key={slot.id} slot={slot} musicians={musicians} eventId={eventId} />
+                <SlotRow key={slot.id} slot={slot} musicians={musicians} eventId={eventId} eventFood={eventFood} />
               ))}
             </tbody>
             <tfoot>
