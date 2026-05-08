@@ -174,17 +174,21 @@ export async function POST(req: NextRequest) {
       html,
     })
 
-    // Mark email as sent and update availability + invite status
+    // Always record invite status + log id
     await supabase
       .from('event_musicians')
       .update({
-        email_sent_at: sentAt.toISOString(),
-        availability: 'email_sent',
         invite_status: result.ok ? 'sent' : 'failed',
         invite_email_log_id: result.emailLogId || null,
       })
       .eq('id', slotId)
-      .eq('availability', 'tbc') // don't overwrite a real response
+
+    // Only advance availability if the musician hasn't already responded
+    await supabase
+      .from('event_musicians')
+      .update({ email_sent_at: sentAt.toISOString(), availability: 'email_sent' })
+      .eq('id', slotId)
+      .in('availability', ['tbc', 'email_sent'])
 
     return NextResponse.json({ ok: true })
   } catch (err) {

@@ -193,16 +193,21 @@ export async function GET(req: NextRequest) {
         html,
       })
 
+      // Always record reminder status + log id
       await supabase
         .from('event_musicians')
         .update({
-          reminder_sent_at: now.toISOString(),
-          availability: 'reminder_sent',
           reminder_status: result.ok ? 'sent' : 'failed',
           reminder_email_log_id: result.emailLogId || null,
         })
         .eq('id', slot.id)
-        .eq('availability', 'email_sent') // only update if still at email_sent stage
+
+      // Only advance availability if musician hasn't already responded
+      await supabase
+        .from('event_musicians')
+        .update({ reminder_sent_at: now.toISOString(), availability: 'reminder_sent' })
+        .eq('id', slot.id)
+        .in('availability', ['email_sent', 'reminder_sent'])
 
       sent++
     } catch (err) {
