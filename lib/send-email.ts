@@ -51,7 +51,14 @@ export async function sendEmail({
   const emailLogId = logRow?.id ?? ''
 
   try {
-    const result = await getResend().emails.send({ from, to, subject, html, reply_to: 'wardvmusic@gmail.com' })
+    const { data: monRow } = await supabase
+      .from('monitoring_settings')
+      .select('reply_to_email')
+      .eq('id', 1)
+      .single()
+    const replyTo = monRow?.reply_to_email ?? undefined
+
+    const result = await getResend().emails.send({ from, to, subject, html, ...(replyTo ? { reply_to: replyTo } : {}) })
     const resendId = (result.data as { id?: string } | null)?.id ?? null
 
     await supabase

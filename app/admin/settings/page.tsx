@@ -96,7 +96,7 @@ export default function SettingsPage() {
   const [invMessage, setInvMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   // Monitoring settings state
-  const [monSettings, setMonSettings] = useState<{ alert_email?: string; delivery_threshold_minutes?: number; pending_threshold_minutes?: number; test_email_address?: string }>({})
+  const [monSettings, setMonSettings] = useState<{ alert_email?: string; delivery_threshold_minutes?: number; pending_threshold_minutes?: number; test_email_address?: string; reply_to_email?: string }>({})
   const [monLoading, setMonLoading] = useState(true)
   const [monSaving, setMonSaving] = useState(false)
   const [monMessage, setMonMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -510,6 +510,16 @@ export default function SettingsPage() {
             >
               View logs
             </a>
+          </div>
+          <div style={rowStyle}>
+            <span style={labelStyle}>Reply-to address <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>(musician replies go here)</span></span>
+            <input
+              type="email"
+              style={{ ...inputStyle, width: 220 }}
+              value={monSettings.reply_to_email ?? ''}
+              onChange={e => { setMonSettings(prev => ({ ...prev, reply_to_email: e.target.value || undefined })); setMonMessage(null) }}
+              placeholder="you@gmail.com"
+            />
           </div>
           <div style={{ ...rowStyle, borderBottom: 'none' }}>
             <span style={labelStyle}>Send test emails to</span>
