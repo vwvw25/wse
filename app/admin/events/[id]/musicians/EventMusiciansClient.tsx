@@ -170,7 +170,7 @@ function SlotRow({
   return (
     <tr style={{ borderBottom: '0.5px solid var(--border)' }}>
       {/* Musician name / assign */}
-      <td style={{ padding: '10px 12px 10px 0' }}>
+      <td style={{ padding: '10px 12px 10px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <select
             value={slot.musician_id ?? ''}
@@ -312,7 +312,7 @@ function SlotRow({
         £{total.toFixed(2)}
       </td>
       {/* Actions */}
-      <td style={{ padding: '10px 0', textAlign: 'right', whiteSpace: 'nowrap' }}>
+      <td style={{ padding: '10px 16px 10px 0', textAlign: 'right', whiteSpace: 'nowrap' }}>
         {editing ? (
           <>
             <button

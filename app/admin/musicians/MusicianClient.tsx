@@ -594,8 +594,8 @@ function RosterTab({ musicians }: { musicians: Musician[] }) {
           No musicians yet — add your first musician.
         </div>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
+        <div>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
                 {['Name', 'Primary', 'Secondary', 'Email', 'Phone', 'Fee', 'Home city', 'Dietary', 'Car reg', 'DOB', 'Passport', 'COVID', ''].map((h, i) => (

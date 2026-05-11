@@ -63,8 +63,8 @@ export default function EmailLogsClient({ logs }: { logs: EmailLog[] }) {
           No emails logged yet.
         </div>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 860 }}>
+        <div>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
                 {['Recipient', 'Type', 'Subject', 'Sent', 'Updated', 'Status', 'Response'].map((h, i) => (

@@ -238,7 +238,6 @@ export default function EventsClient({ events }: { events: EventRecord[] }) {
           display: 'grid',
           gridTemplateColumns: `repeat(${EVENT_STATUSES.length}, minmax(200px, 1fr))`,
           gap: 12,
-          overflowX: 'auto',
           paddingBottom: 16,
         }}>
           {EVENT_STATUSES.map(status => {

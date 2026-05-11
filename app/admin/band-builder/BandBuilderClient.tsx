@@ -94,7 +94,7 @@ export default function BandBuilderClient({ events, musicians }: Props) {
       </div>
 
       {/* Overview table */}
-      <div style={{ overflowX: 'auto', border: '0.5px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
+      <div style={{ border: '0.5px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
         <table style={{ borderCollapse: 'collapse', minWidth: '100%' }}>
           <thead>
             <tr style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)' }}>

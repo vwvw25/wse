@@ -63,7 +63,7 @@ export default async function EventMusiciansPage({ params }: { params: Promise<{
     : (event.agent_name ?? 'Unknown')
 
   return (
-    <div style={{ padding: '32px 32px', fontFamily: 'var(--font)', maxWidth: 900 }}>
+    <div style={{ padding: '32px 32px', fontFamily: 'var(--font)' }}>
       {/* Breadcrumb */}
       <div style={{ display: 'flex', gap: 6, fontSize: 12, color: 'var(--text-secondary)', marginBottom: 16, alignItems: 'center' }}>
         <a href="/admin/events" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>Events</a>
