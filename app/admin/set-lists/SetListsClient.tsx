@@ -736,7 +736,7 @@ export default function SetListsClient({ songs, setLists, events, tagOptions }: 
   const btnStyle: React.CSSProperties = { ...primaryBtn, padding: '7px 16px' }
 
   return (
-    <div style={{ padding: '24px 32px', maxWidth: 920 }}>
+    <div style={{ padding: '24px 32px' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>

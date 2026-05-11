@@ -105,7 +105,7 @@ export default async function AdminAuditPage({ params }: { params: Promise<{ id:
   const hasMultipleTypes = allBookingTypes.length > 1
 
   return (
-    <div style={{ maxWidth: 960, margin: '0 auto', padding: '32px 24px', fontFamily: 'var(--font)' }}>
+    <div style={{ padding: '32px 24px', fontFamily: 'var(--font)' }}>
 
       {/* Header */}
       <div style={{ marginBottom: 28 }}>

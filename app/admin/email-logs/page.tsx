@@ -11,7 +11,7 @@ export default async function EmailLogsPage() {
 
   return (
     <div>
-      <div style={{ padding: '32px 32px 0', maxWidth: 1100 }}>
+      <div style={{ padding: '32px 32px 0' }}>
         <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0 0 4px', color: 'var(--text)' }}>Email logs</h1>
         <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>
           All outbound emails. Anything not showing as delivered may need attention.

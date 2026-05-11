@@ -129,7 +129,7 @@ export default async function EventDetailPage({
   })
 
   return (
-    <div style={{ padding: '32px 32px', fontFamily: 'var(--font)', maxWidth: 1000 }}>
+    <div style={{ padding: '32px 32px', fontFamily: 'var(--font)' }}>
       <a href="/admin/events" style={{ fontSize: 12, color: 'var(--text-secondary)', textDecoration: 'none' }}>← Events</a>
 
       {/* Header */}

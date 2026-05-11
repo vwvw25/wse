@@ -65,7 +65,7 @@ export default function EmailToQuotePage() {
   }
 
   return (
-    <div style={{ padding: '32px 32px', fontFamily: 'var(--font)', maxWidth: 720 }}>
+    <div style={{ padding: '32px 32px', fontFamily: 'var(--font)' }}>
       <div style={{ marginBottom: 24 }}>
         <a href="/admin/quotes" style={{ fontSize: 12, color: 'var(--text-secondary)', textDecoration: 'none' }}>← Quotes</a>
         <h1 style={{ fontSize: 22, fontWeight: 600, margin: '8px 0 4px', color: 'var(--text)' }}>New quote from email</h1>
