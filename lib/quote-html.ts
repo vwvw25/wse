@@ -103,6 +103,13 @@ export function generateBookingDetailsHtml(quote: QuoteRecord, event?: BookingDe
   return html
 }
 
+const STANDARD_OVER_HOURS: Record<string, string> = {
+  '2x45': 'up to 3 hours',
+  '3x45': 'up to 4 hours',
+  '4x45': 'up to 6 hours',
+  '5x45': 'up to 8 hours',
+}
+
 // Generates the quote body as an HTML string — same content as /quote/[id]/text
 export function generateQuoteHtml(quote: QuoteRecord): string {
   const { inputs, calculated } = quote
@@ -117,6 +124,32 @@ export function generateQuoteHtml(quote: QuoteRecord): string {
 
   const HR = `<hr style="border:none;border-top:1px solid #ccc;margin:24px 0;">`
 
+  const buildPriceTable = (btOptions: typeof options, useStandard: boolean) => {
+    const sizes = Array.from(new Set(btOptions.map(o => o.band_size)))
+    let t = `<table style="width:100%;border-collapse:collapse;margin:12px 0 16px;">`
+    t += `<thead><tr>`
+    t += `<th style="text-align:left;border-bottom:1px solid #000;padding:4px 8px 4px 0;font-weight:bold;">Line-up</th>`
+    t += `<th style="text-align:left;border-bottom:1px solid #000;padding:4px 8px 4px 0;font-weight:bold;">Sets</th>`
+    t += `<th style="text-align:right;border-bottom:1px solid #000;padding:4px 8px 4px 0;font-weight:bold;">Total</th>`
+    t += `</tr></thead><tbody>`
+    for (const size of sizes) {
+      const sizeOpts = btOptions.filter(o => o.band_size === size)
+      sizeOpts.forEach((opt, i) => {
+        const setsLabel = useStandard
+          ? `${formatSetConfig(opt.set_config)} over ${STANDARD_OVER_HOURS[opt.set_config] ?? ''}`
+          : formatSetConfig(opt.set_config)
+        const price = useStandard ? (opt.standard_total_price ?? opt.total_price) : opt.total_price
+        t += `<tr>`
+        t += `<td style="padding:4px 8px 4px 0;border-bottom:1px solid #ccc;vertical-align:top;">${i === 0 ? `${BAND_SIZE_LABELS[size] ?? size} (${opt.line_up}${opt.has_extended_pa_engineer ? ' + Sound engineer' : ''})` : ''}</td>`
+        t += `<td style="padding:4px 8px 4px 0;border-bottom:1px solid #ccc;vertical-align:top;">${setsLabel}</td>`
+        t += `<td style="padding:4px 0;border-bottom:1px solid #ccc;vertical-align:top;text-align:right;white-space:nowrap;"><strong>${fmt(price)}</strong></td>`
+        t += `</tr>`
+      })
+    }
+    t += `</tbody></table>`
+    return t
+  }
+
   let html = `<div style="font-family:Arial,sans-serif;font-size:14px;color:#111;line-height:1.6;">`
 
   for (let index = 0; index < bookingTypes.length; index++) {
@@ -128,31 +161,23 @@ export function generateQuoteHtml(quote: QuoteRecord): string {
     const { inclusions, requirements } = getQuoteItems(inputs, bt, bookingTypes, btOptions, paEngineerRate)
     const addonInclusions = (inputs.selected_add_ons ?? []).filter(a => a.inclusion_text)
     const addonRequirements = (inputs.selected_add_ons ?? []).filter(a => a.requirement_text)
+    const showDual = !!inputs.give_custom_and_standard
+      && (btOptions.some(o => (o.waiting_cost ?? 0) > 0) || (calculated.waiting_time_cost ?? 0) > 0)
 
     if (hasMultipleTypes && index > 0) html += HR
     if (hasMultipleTypes && bt !== 'background') {
       html += `<p style="margin:0 0 16px;font-weight:bold;font-size:16px;">${BOOKING_TYPE_LABELS[bt] ?? bt}</p>`
     }
 
-    // Price table
-    const sizes = Array.from(new Set(btOptions.map(o => o.band_size)))
-    html += `<table style="width:100%;border-collapse:collapse;margin:12px 0 16px;">`
-    html += `<thead><tr>`
-    html += `<th style="text-align:left;border-bottom:1px solid #000;padding:4px 8px 4px 0;font-weight:bold;">Line-up</th>`
-    html += `<th style="text-align:left;border-bottom:1px solid #000;padding:4px 8px 4px 0;font-weight:bold;">Sets</th>`
-    html += `<th style="text-align:right;border-bottom:1px solid #000;padding:4px 8px 4px 0;font-weight:bold;">Total</th>`
-    html += `</tr></thead><tbody>`
-    for (const size of sizes) {
-      const sizeOpts = btOptions.filter(o => o.band_size === size)
-      sizeOpts.forEach((opt, i) => {
-        html += `<tr>`
-        html += `<td style="padding:4px 8px 4px 0;border-bottom:1px solid #ccc;vertical-align:top;">${i === 0 ? `${BAND_SIZE_LABELS[size] ?? size} (${opt.line_up}${opt.has_extended_pa_engineer ? ' + Sound engineer' : ''})` : ''}</td>`
-        html += `<td style="padding:4px 8px 4px 0;border-bottom:1px solid #ccc;vertical-align:top;">${formatSetConfig(opt.set_config)}</td>`
-        html += `<td style="padding:4px 0;border-bottom:1px solid #ccc;vertical-align:top;text-align:right;white-space:nowrap;"><strong>${fmt(opt.total_price)}</strong></td>`
-        html += `</tr>`
-      })
+    // Price table(s)
+    if (showDual) {
+      html += `<p style="margin:0 0 4px;font-weight:bold;">Based on your timings</p>`
+      html += buildPriceTable(btOptions, false)
+      html += `<p style="margin:16px 0 4px;font-weight:bold;">Standard packages</p>`
+      html += buildPriceTable(btOptions, true)
+    } else {
+      html += buildPriceTable(btOptions, false)
     }
-    html += `</tbody></table>`
 
     html += `<p style="margin:0 0 8px;font-weight:bold;">What's included</p>`
     html += `<ul style="margin:0 0 16px;padding-left:0;list-style:none;">`

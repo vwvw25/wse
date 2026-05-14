@@ -56,7 +56,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
   let { inputs, calculated } = quote
 
   // If stored prices are broken (null/NaN), recalculate and save
-  const hasBrokenPrices = calculated.price_options?.some(o => o.total_price == null || isNaN(o.total_price))
+  const hasBrokenPrices = calculated.price_options?.some(o => o.total_price == null || isNaN(o.total_price) || o.standard_total_price == null)
   if (hasBrokenPrices) {
     const { data: settingsRow } = await supabase.from('settings').select('*').eq('id', 1).single()
     const settings: Settings = { ...DEFAULT_SETTINGS, ...(settingsRow ?? {}) }

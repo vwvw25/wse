@@ -48,7 +48,7 @@ function buildEmailHtml(inputs: QuoteInputs, priceOptions: PriceOption[], quoteI
     bySize.get(key)!.push(opt)
   }
 
-  const showDual = !!inputs.give_custom_and_standard && priceOptions.some(o => o.waiting_cost > 0)
+  const showDual = !!inputs.give_custom_and_standard && priceOptions.some(o => (o.waiting_cost ?? 0) > 0)
 
   const addOnRows = (inputs.selected_add_ons ?? []).map(a => `
     <tr>
@@ -62,7 +62,7 @@ function buildEmailHtml(inputs: QuoteInputs, priceOptions: PriceOption[], quoteI
         const label = useStandard
           ? `${o.set_config.replace('x', '×')} over ${STANDARD_OVER_HOURS[o.set_config] ?? ''}`
           : `${o.set_config.replace('x', '×')} min sets`
-        const price = useStandard ? o.standard_total_price : o.total_price
+        const price = useStandard ? (o.standard_total_price ?? o.total_price) : o.total_price
         return `
         <tr>
           <td style="padding:8px 12px;font-size:13px;color:#374151;padding-left:24px;">${label}</td>

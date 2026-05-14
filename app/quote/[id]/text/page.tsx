@@ -107,7 +107,8 @@ export default async function QuoteTextPage({ params }: { params: Promise<{ id: 
         const addonInclusions = (inputs.selected_add_ons ?? []).filter(a => a.inclusion_text)
         const addonRequirements = (inputs.selected_add_ons ?? []).filter(a => a.requirement_text)
         const sizes = Array.from(new Set(btOptions.map(o => o.band_size)))
-        const showDual = !!inputs.give_custom_and_standard && btOptions.some(o => o.waiting_cost > 0)
+        const showDual = !!inputs.give_custom_and_standard
+          && (btOptions.some(o => (o.waiting_cost ?? 0) > 0) || (calculated.waiting_time_cost ?? 0) > 0)
 
         const renderItem = (item: QuoteItem) => (
           <>{item.text}{item.link && <a href={item.link.href} target="_blank" rel="noopener noreferrer">{item.link.text}</a>}{item.linkSuffix}</>
@@ -136,7 +137,7 @@ export default async function QuoteTextPage({ params }: { params: Promise<{ id: 
                         : formatSetConfig(opt.set_config)}
                     </td>
                     <td style={tdRight}>
-                      <strong>{fmt(useStandard ? opt.standard_total_price : opt.total_price)}</strong>
+                      <strong>{fmt(useStandard ? (opt.standard_total_price ?? opt.total_price) : opt.total_price)}</strong>
                     </td>
                   </tr>
                 ))
