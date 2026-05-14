@@ -159,6 +159,12 @@ function DetailsForm() {
         sound_requirements: rd?.sound_requirements ?? null,
         notes: rd?.notes ?? null,
       })
+      // If event has no arrival_time, auto-compute from start_time (same logic as UI onChange)
+      const autoArrival = data.arrival_time
+        ?? (data.start_time ? computeAutoArrivalTime(data.start_time) : null)
+      // If event has no load_out_time, default to finish_time (matches loadOutAtFinish=true default)
+      const autoLoadOut = data.load_out_time ?? data.finish_time ?? null
+
       setForm(f => ({
         ...f,
         agency_name: data.agency_name ?? f.agency_name,
@@ -170,10 +176,10 @@ function DetailsForm() {
         location: (data as { location?: string | null }).location ?? f.location,
         band_size_requested: rd?.band_size_requested ?? f.band_size_requested,
         sets_requested: rd?.sets_requested ?? f.sets_requested,
-        arrival_time: data.arrival_time ?? f.arrival_time,
+        arrival_time: autoArrival,
         start_time: data.start_time ?? f.start_time,
         finish_time: data.finish_time ?? f.finish_time,
-        load_out_time: data.load_out_time ?? f.load_out_time,
+        load_out_time: autoLoadOut,
       }))
       if (data.arrival_time) setCustomArrivalTime(true)
       if (data.load_out_time && data.finish_time && data.load_out_time !== data.finish_time) {
