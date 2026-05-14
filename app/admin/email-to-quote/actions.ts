@@ -144,14 +144,18 @@ export async function saveEvent(
   if (error || !data) throw new Error(error?.message ?? 'Failed to save event')
   const eventId = data.id as string
 
-  // Save eval record — original parse vs what was actually saved
-  await supabase.from('email_parse_evals').insert({
-    event_id: eventId,
-    parsed_auto_fill: originalParse.auto_fill,
-    parsed_request_details: originalParse.request_details,
-    saved_auto_fill: result.auto_fill,
-    saved_request_details: result.request_details,
-  })
+  // Save eval record — non-critical, must not block or fail the event save
+  try {
+    await supabase.from('email_parse_evals').insert({
+      event_id: eventId,
+      parsed_auto_fill: originalParse.auto_fill,
+      parsed_request_details: originalParse.request_details,
+      saved_auto_fill: result.auto_fill,
+      saved_request_details: result.request_details,
+    })
+  } catch (evalErr) {
+    console.error('eval insert failed (non-fatal):', evalErr)
+  }
 
   return eventId
 }

@@ -13,3 +13,6 @@ create table if not exists email_parse_evals (
   is_edge_case            boolean not null default false,
   created_at              timestamptz not null default now()
 );
+
+alter table email_parse_evals enable row level security;
+-- No policies needed: all access is via the service role (server-side only)
