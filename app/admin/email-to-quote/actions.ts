@@ -110,10 +110,12 @@ export async function saveEvent(
   result: EmailExtractResult,
   rawEmail: string,
   originalParse: EmailExtractResult,
-): Promise<string> {
+): Promise<{ eventId: string; quoteRequestId: string }> {
   const supabase = createServiceClient()
   const af = result.auto_fill
 
+  // Save minimal event — identity fields only
+  // Operational details (timings, address, guests) live on the quote_request
   const { data, error } = await supabase
     .from('events')
     .insert({
@@ -126,14 +128,6 @@ export async function saveEvent(
       event_date: af.event_date,
       event_type: af.event_type,
       venue_name: af.venue_name,
-      venue_postcode: af.venue_postcode,
-      venue_address: af.venue_address,
-      location: af.location,
-      guests: af.guests,
-      arrival_time: af.arrival_time,
-      start_time: af.start_time,
-      finish_time: af.finish_time,
-      load_out_time: af.load_out_time,
       request_details: result.request_details,
       raw_email: rawEmail,
       status: 'enquiry',
@@ -143,6 +137,20 @@ export async function saveEvent(
 
   if (error || !data) throw new Error(error?.message ?? 'Failed to save event')
   const eventId = data.id as string
+
+  // Create quote request with all parsed details
+  const { data: qr, error: qrErr } = await supabase
+    .from('quote_requests')
+    .insert({
+      event_id: eventId,
+      auto_fill: result.auto_fill,
+      request_details: result.request_details,
+    })
+    .select('id')
+    .single()
+
+  if (qrErr || !qr) throw new Error(qrErr?.message ?? 'Failed to save quote request')
+  const quoteRequestId = qr.id as string
 
   // Save eval record — non-critical, must not block or fail the event save
   try {
@@ -157,5 +165,5 @@ export async function saveEvent(
     console.error('eval insert failed (non-fatal):', evalErr)
   }
 
-  return eventId
+  return { eventId, quoteRequestId }
 }

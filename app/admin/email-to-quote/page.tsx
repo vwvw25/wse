@@ -50,8 +50,11 @@ export default function EmailToQuotePage() {
     if (!autoFill || !requestDetails) return
     setState('creating')
     try {
-      const id = await saveEvent({ auto_fill: autoFill, request_details: requestDetails }, emailText, originalParse!)
-      router.push(`/admin/events/${id}`)
+      const { eventId, quoteRequestId } = await saveEvent({ auto_fill: autoFill, request_details: requestDetails }, emailText, originalParse!)
+      const params = new URLSearchParams()
+      params.set('request', quoteRequestId)
+      params.set('event', eventId)
+      router.push(`/quote/new?${params.toString()}`)
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : 'Failed to save event')
       setState('error')
@@ -121,7 +124,7 @@ export default function EmailToQuotePage() {
 
       {state === 'creating' && (
         <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>
-          Saving event…
+          Saving…
         </div>
       )}
 
@@ -303,7 +306,7 @@ export default function EmailToQuotePage() {
                 cursor: 'pointer', fontFamily: 'var(--font)',
               }}
             >
-              Save event →
+              Save & start quote →
             </button>
           </div>
           </div>{/* end parsed fields column */}
