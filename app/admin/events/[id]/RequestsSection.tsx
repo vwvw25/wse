@@ -5,7 +5,7 @@ import type { Song } from '@/types/set-list'
 import type { EventRequest } from '@/types/event-request'
 import {
   addFromRepertoireRequests,
-  addToLearnRequest,
+  addSongAndToLearnRequest,
   updateRequestStatus,
   deleteRequest,
 } from './requests/actions'
@@ -88,9 +88,13 @@ export default function RequestsSection({
   const [parsedMatches, setParsedMatches] = useState<ParsedMatch[] | null>(null)
   const [adding, setAdding] = useState(false)
 
-  // To learn form
-  const [toLearnTitle, setToLearnTitle] = useState('')
-  const [toLearnArtist, setToLearnArtist] = useState('')
+  // To learn — song form
+  const [showSongForm, setShowSongForm] = useState(false)
+  const [songTitle, setSongTitle] = useState('')
+  const [songArtist, setSongArtist] = useState('')
+  const [songKey, setSongKey] = useState('')
+  const [songLink, setSongLink] = useState('')
+  const [songNotes, setSongNotes] = useState('')
 
   const fromRepertoire = initialRequests.filter(r => r.type === 'from_repertoire')
   const toLearn = initialRequests.filter(r => r.type === 'to_learn')
@@ -131,19 +135,25 @@ export default function RequestsSection({
     setAdding(false)
   }
 
-  async function handleAddToLearn(e: React.FormEvent) {
+  async function handleAddSong(e: React.FormEvent) {
     e.preventDefault()
-    if (!toLearnTitle.trim()) return
+    if (!songTitle.trim()) return
     startTransition(async () => {
-      await addToLearnRequest(eventId, toLearnTitle, toLearnArtist || null)
-      setToLearnTitle('')
-      setToLearnArtist('')
+      await addSongAndToLearnRequest(eventId, {
+        title: songTitle,
+        artist: songArtist || null,
+        key: songKey || null,
+        link: songLink || null,
+        notes: songNotes || null,
+      })
+      setSongTitle(''); setSongArtist(''); setSongKey(''); setSongLink(''); setSongNotes('')
+      setShowSongForm(false)
     })
   }
 
   async function handleStatusChange(req: EventRequest, status: 'requested' | 'confirmed' | 'declined') {
     startTransition(async () => {
-      await updateRequestStatus(req.id, eventId, status, req.song_id, req.type, req.title, req.artist)
+      await updateRequestStatus(req.id, eventId, status)
     })
   }
 
@@ -287,40 +297,66 @@ export default function RequestsSection({
       {/* ── To learn ── */}
       {activeTab === 'to_learn' && (
         <div>
-          <form onSubmit={handleAddToLearn} style={{ display: 'flex', gap: 8, marginBottom: 24, alignItems: 'flex-end' }}>
-            <div>
-              <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 4 }}>Title</div>
-              <input
-                value={toLearnTitle}
-                onChange={e => setToLearnTitle(e.target.value)}
-                placeholder="Song title"
-                style={{ ...inputStyle, width: 220 }}
-              />
-            </div>
-            <div>
-              <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 4 }}>Artist</div>
-              <input
-                value={toLearnArtist}
-                onChange={e => setToLearnArtist(e.target.value)}
-                placeholder="Artist (optional)"
-                style={{ ...inputStyle, width: 180 }}
-              />
-            </div>
+          {!showSongForm ? (
             <button
-              type="submit"
-              disabled={!toLearnTitle.trim()}
+              onClick={() => setShowSongForm(true)}
               style={{
-                padding: '0 18px', height: 34, fontSize: 13, fontWeight: 500, cursor: 'pointer',
-                background: toLearnTitle.trim() ? 'var(--accent)' : 'var(--bg-secondary)',
-                color: toLearnTitle.trim() ? '#fff' : 'var(--text-tertiary)',
+                marginBottom: 24, padding: '7px 18px', fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                background: 'var(--accent)', color: '#fff',
                 border: 'none', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font)',
               }}
             >
-              Add request
+              + Add song to repertoire
             </button>
-          </form>
+          ) : (
+            <form onSubmit={handleAddSong} style={{
+              marginBottom: 24, padding: '16px 20px',
+              background: 'var(--bg-secondary)', border: '0.5px solid var(--border)',
+              borderRadius: 'var(--radius-lg)',
+            }}>
+              <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 14 }}>Add song to repertoire</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 16px', marginBottom: 10 }}>
+                <div>
+                  <label style={{ fontSize: 11, color: 'var(--text-tertiary)', display: 'block', marginBottom: 4 }}>Title *</label>
+                  <input required autoFocus value={songTitle} onChange={e => setSongTitle(e.target.value)} style={{ ...inputStyle, width: '100%' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, color: 'var(--text-tertiary)', display: 'block', marginBottom: 4 }}>Artist</label>
+                  <input value={songArtist} onChange={e => setSongArtist(e.target.value)} style={{ ...inputStyle, width: '100%' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, color: 'var(--text-tertiary)', display: 'block', marginBottom: 4 }}>Key</label>
+                  <input value={songKey} onChange={e => setSongKey(e.target.value)} placeholder="e.g. Bb, C major" style={{ ...inputStyle, width: '100%' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, color: 'var(--text-tertiary)', display: 'block', marginBottom: 4 }}>Reference link</label>
+                  <input value={songLink} onChange={e => setSongLink(e.target.value)} placeholder="https://…" style={{ ...inputStyle, width: '100%' }} />
+                </div>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={{ fontSize: 11, color: 'var(--text-tertiary)', display: 'block', marginBottom: 4 }}>Notes</label>
+                  <input value={songNotes} onChange={e => setSongNotes(e.target.value)} style={{ ...inputStyle, width: '100%' }} />
+                </div>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 12 }}>
+                Tags can be added later on the songs page.
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button type="submit" disabled={!songTitle.trim()} style={{
+                  padding: '7px 18px', fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                  background: songTitle.trim() ? 'var(--accent)' : 'var(--bg-secondary)',
+                  color: songTitle.trim() ? '#fff' : 'var(--text-tertiary)',
+                  border: 'none', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font)',
+                }}>Save &amp; add to requests</button>
+                <button type="button" onClick={() => setShowSongForm(false)} style={{
+                  padding: '7px 14px', fontSize: 13, cursor: 'pointer', background: 'none',
+                  color: 'var(--text-secondary)', border: '0.5px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font)',
+                }}>Cancel</button>
+              </div>
+            </form>
+          )}
 
-          <RequestList requests={toLearn} onStatusChange={handleStatusChange} onDelete={handleDelete} showConfirmNote />
+          <RequestList requests={toLearn} onStatusChange={handleStatusChange} onDelete={handleDelete} />
         </div>
       )}
     </div>
@@ -333,12 +369,10 @@ function RequestList({
   requests,
   onStatusChange,
   onDelete,
-  showConfirmNote,
 }: {
   requests: EventRequest[]
   onStatusChange: (req: EventRequest, status: 'requested' | 'confirmed' | 'declined') => void
   onDelete: (req: EventRequest) => void
-  showConfirmNote?: boolean
 }) {
   if (requests.length === 0) {
     return (
@@ -348,69 +382,59 @@ function RequestList({
     )
   }
 
+  const headers = ['Title', 'Artist', 'Status', '']
+
   return (
-    <div>
-      {showConfirmNote && (
-        <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 12 }}>
-          Confirming a request will automatically add the song to the repertoire.
-        </div>
-      )}
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead>
-          <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
-            {['Title', 'Artist', 'Status', ''].map((h, i) => (
-              <th key={i} style={{
-                textAlign: 'left', padding: '7px 12px', fontSize: 11,
-                fontWeight: 600, color: 'var(--text-secondary)',
-                paddingLeft: i === 0 ? 16 : 12,
-              }}>{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {requests.map(req => (
-            <tr key={req.id} style={{ borderBottom: '0.5px solid var(--border)' }}>
-              <td style={{ padding: '9px 12px 9px 16px', fontSize: 13, color: 'var(--text)', fontWeight: 500 }}>
-                {req.title}
-                {req.status === 'confirmed' && req.type === 'to_learn' && req.song_id && (
-                  <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 400, marginLeft: 6 }}>
-                    · added to repertoire
-                  </span>
-                )}
-              </td>
-              <td style={{ padding: '9px 12px', fontSize: 13, color: 'var(--text-secondary)' }}>
-                {req.artist ?? '—'}
-              </td>
-              <td style={{ padding: '9px 12px' }}>
-                <select
-                  value={req.status}
-                  onChange={e => onStatusChange(req, e.target.value as 'requested' | 'confirmed' | 'declined')}
-                  style={{
-                    height: 28, padding: '0 6px', fontSize: 12, cursor: 'pointer',
-                    background: 'var(--bg)', color: 'var(--text)',
-                    border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)',
-                    fontFamily: 'var(--font)', outline: 'none',
-                  }}
-                >
-                  <option value="requested">Requested</option>
-                  <option value="confirmed">Confirmed</option>
-                  <option value="declined">Declined</option>
-                </select>
-              </td>
-              <td style={{ padding: '9px 12px', textAlign: 'right' }}>
-                <button
-                  onClick={() => onDelete(req)}
-                  style={{
-                    background: 'none', border: 'none', cursor: 'pointer',
-                    fontSize: 12, color: 'var(--text-tertiary)', padding: '0 4px',
-                    fontFamily: 'var(--font)',
-                  }}
-                >✕</button>
-              </td>
-            </tr>
+    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <thead>
+        <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+          {headers.map((h, i) => (
+            <th key={i} style={{
+              textAlign: 'left', padding: '7px 12px', fontSize: 11,
+              fontWeight: 600, color: 'var(--text-secondary)',
+              paddingLeft: i === 0 ? 16 : 12,
+            }}>{h}</th>
           ))}
-        </tbody>
-      </table>
-    </div>
+        </tr>
+      </thead>
+      <tbody>
+        {requests.map(req => (
+          <tr key={req.id} style={{ borderBottom: '0.5px solid var(--border)' }}>
+            <td style={{ padding: '9px 12px 9px 16px', fontSize: 13, color: 'var(--text)', fontWeight: 500 }}>
+              {req.title}
+            </td>
+            <td style={{ padding: '9px 12px', fontSize: 13, color: 'var(--text-secondary)' }}>
+              {req.artist ?? '—'}
+            </td>
+            <td style={{ padding: '9px 12px' }}>
+              <select
+                value={req.status}
+                onChange={e => onStatusChange(req, e.target.value as 'requested' | 'confirmed' | 'declined')}
+                style={{
+                  height: 28, padding: '0 6px', fontSize: 12, cursor: 'pointer',
+                  background: 'var(--bg)', color: 'var(--text)',
+                  border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)',
+                  fontFamily: 'var(--font)', outline: 'none',
+                }}
+              >
+                <option value="requested">Requested</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="declined">Declined</option>
+              </select>
+            </td>
+            <td style={{ padding: '9px 16px 9px 12px', textAlign: 'right' }}>
+              <button
+                onClick={() => onDelete(req)}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontSize: 12, color: 'var(--text-tertiary)', padding: '0 4px',
+                  fontFamily: 'var(--font)',
+                }}
+              >✕</button>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   )
 }

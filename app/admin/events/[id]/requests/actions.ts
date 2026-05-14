@@ -22,53 +22,45 @@ export async function addFromRepertoireRequests(
   revalidatePath(`/admin/events/${eventId}`)
 }
 
-// Add a to-learn request
-export async function addToLearnRequest(
+// Add a song to the repertoire and simultaneously register it as a to-learn request
+export async function addSongAndToLearnRequest(
   eventId: string,
-  title: string,
-  artist: string | null,
+  song: { title: string; artist: string | null; key: string | null; link: string | null; notes: string | null },
 ) {
   const supabase = createServiceClient()
-  await supabase.from('event_requests').insert({
-    event_id: eventId,
-    type: 'to_learn',
-    song_id: null,
-    title: title.trim(),
-    artist: artist?.trim() || null,
-    status: 'requested',
-  })
+  const { data: newSong } = await supabase
+    .from('songs')
+    .insert({
+      title: song.title.trim(),
+      artist: song.artist?.trim() || null,
+      key: song.key?.trim() || null,
+      link: song.link?.trim() || null,
+      notes: song.notes?.trim() || null,
+    })
+    .select('id')
+    .single()
+
+  if (newSong?.id) {
+    await supabase.from('event_requests').insert({
+      event_id: eventId,
+      type: 'to_learn',
+      song_id: newSong.id,
+      title: song.title.trim(),
+      artist: song.artist?.trim() || null,
+      status: 'requested',
+    })
+  }
   revalidatePath(`/admin/events/${eventId}`)
 }
 
-// Update request status. If confirming a to_learn request, stub the song into the repertoire.
+// Update request status
 export async function updateRequestStatus(
   requestId: string,
   eventId: string,
   status: 'requested' | 'confirmed' | 'declined',
-  currentSongId: string | null,
-  type: 'from_repertoire' | 'to_learn',
-  title: string,
-  artist: string | null,
 ) {
   const supabase = createServiceClient()
-
-  let songId = currentSongId
-
-  if (status === 'confirmed' && type === 'to_learn' && !currentSongId) {
-    // Stub the song into the repertoire
-    const { data: newSong } = await supabase
-      .from('songs')
-      .insert({ title: title.trim(), artist: artist?.trim() || null })
-      .select('id')
-      .single()
-    songId = newSong?.id ?? null
-  }
-
-  await supabase
-    .from('event_requests')
-    .update({ status, song_id: songId })
-    .eq('id', requestId)
-
+  await supabase.from('event_requests').update({ status }).eq('id', requestId)
   revalidatePath(`/admin/events/${eventId}`)
 }
 
