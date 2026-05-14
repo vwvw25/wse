@@ -19,6 +19,13 @@ function formatSetConfig(cfg: string): string {
   return cfg.replace('x', '×')
 }
 
+const STANDARD_OVER_HOURS: Record<string, string> = {
+  '2x45': 'up to 3 hours',
+  '3x45': 'up to 4 hours',
+  '4x45': 'up to 6 hours',
+  '5x45': 'up to 8 hours',
+}
+
 const fmt = (n: number) => `£${Math.round(n).toLocaleString('en-GB')}`
 
 export default async function QuoteTextPage({ params }: { params: Promise<{ id: string }> }) {
@@ -100,9 +107,42 @@ export default async function QuoteTextPage({ params }: { params: Promise<{ id: 
         const addonInclusions = (inputs.selected_add_ons ?? []).filter(a => a.inclusion_text)
         const addonRequirements = (inputs.selected_add_ons ?? []).filter(a => a.requirement_text)
         const sizes = Array.from(new Set(btOptions.map(o => o.band_size)))
+        const showDual = !!inputs.give_custom_and_standard && btOptions.some(o => o.waiting_cost > 0)
 
         const renderItem = (item: QuoteItem) => (
           <>{item.text}{item.link && <a href={item.link.href} target="_blank" rel="noopener noreferrer">{item.link.text}</a>}{item.linkSuffix}</>
+        )
+
+        const renderPriceTable = (useStandard = false) => (
+          <table style={tbl}>
+            <thead>
+              <tr>
+                <th style={th}>Line-up</th>
+                <th style={th}>Sets</th>
+                <th style={{ ...th, textAlign: 'right' }}>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sizes.map(size => {
+                const sizeOpts = btOptions.filter(o => o.band_size === size)
+                return sizeOpts.map((opt, i) => (
+                  <tr key={`${size}-${opt.set_config}-${useStandard}`}>
+                    <td style={td}>
+                      {i === 0 ? `${BAND_SIZE_LABELS[size] ?? size} (${opt.line_up}${opt.has_extended_pa_engineer ? ' + Sound engineer' : ''})` : ''}
+                    </td>
+                    <td style={td}>
+                      {useStandard
+                        ? `${formatSetConfig(opt.set_config)} over ${STANDARD_OVER_HOURS[opt.set_config] ?? ''}`
+                        : formatSetConfig(opt.set_config)}
+                    </td>
+                    <td style={tdRight}>
+                      <strong>{fmt(useStandard ? opt.standard_total_price : opt.total_price)}</strong>
+                    </td>
+                  </tr>
+                ))
+              })}
+            </tbody>
+          </table>
         )
 
         return (
@@ -115,30 +155,14 @@ export default async function QuoteTextPage({ params }: { params: Promise<{ id: 
               </p>
             )}
 
-            {/* Price table */}
-            <table style={tbl}>
-              <thead>
-                <tr>
-                  <th style={th}>Line-up</th>
-                  <th style={th}>Sets</th>
-                  <th style={{ ...th, textAlign: 'right' }}>Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sizes.map(size => {
-                  const sizeOpts = btOptions.filter(o => o.band_size === size)
-                  return sizeOpts.map((opt, i) => (
-                    <tr key={`${size}-${opt.set_config}`}>
-                      <td style={td}>
-                        {i === 0 ? `${BAND_SIZE_LABELS[size] ?? size} (${opt.line_up}${opt.has_extended_pa_engineer ? ' + Sound engineer' : ''})` : ''}
-                      </td>
-                      <td style={td}>{formatSetConfig(opt.set_config)}</td>
-                      <td style={tdRight}><strong>{fmt(opt.total_price)}</strong></td>
-                    </tr>
-                  ))
-                })}
-              </tbody>
-            </table>
+            {showDual ? (
+              <>
+                <p style={{ ...p, fontWeight: 'bold', marginBottom: 4 }}>Based on your timings</p>
+                {renderPriceTable(false)}
+                <p style={{ ...p, fontWeight: 'bold', marginBottom: 4, marginTop: 16 }}>Standard packages</p>
+                {renderPriceTable(true)}
+              </>
+            ) : renderPriceTable(false)}
 
             {/* What's included */}
             <p style={{ ...p, fontWeight: 'bold' }}>What&apos;s included</p>

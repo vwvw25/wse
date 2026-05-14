@@ -16,6 +16,13 @@ function fmt(n: number) {
   return `£${Math.round(n).toLocaleString('en-GB')}`
 }
 
+const STANDARD_OVER_HOURS: Record<string, string> = {
+  '2x45': 'up to 3 hours',
+  '3x45': 'up to 4 hours',
+  '4x45': 'up to 6 hours',
+  '5x45': 'up to 8 hours',
+}
+
 function renderItemHtml(item: QuoteItem): string {
   return item.text
     + (item.link ? `<a href="${item.link.href}" style="color:#059669;">${item.link.text}</a>` : '')
@@ -41,24 +48,54 @@ function buildEmailHtml(inputs: QuoteInputs, priceOptions: PriceOption[], quoteI
     bySize.get(key)!.push(opt)
   }
 
+  const showDual = !!inputs.give_custom_and_standard && priceOptions.some(o => o.waiting_cost > 0)
+
   const addOnRows = (inputs.selected_add_ons ?? []).map(a => `
     <tr>
       <td style="padding:6px 12px;font-size:13px;color:#374151;">${a.line_item_label}</td>
       <td style="padding:6px 12px;font-size:13px;color:#374151;text-align:right;"></td>
     </tr>`).join('')
 
-  const priceRows = Array.from(bySize.entries()).map(([lineup, opts]) => {
-    const optRows = opts.map(o => `
-      <tr>
-        <td style="padding:8px 12px;font-size:13px;color:#374151;padding-left:24px;">${o.set_config.replace('x', '×')} min sets</td>
-        <td style="padding:8px 12px;font-size:14px;font-weight:600;color:#111827;text-align:right;">${fmt(o.total_price)}</td>
-      </tr>`).join('')
-    return `
+  const buildPriceRows = (useStandard = false) =>
+    Array.from(bySize.entries()).map(([lineup, opts]) => {
+      const optRows = opts.map(o => {
+        const label = useStandard
+          ? `${o.set_config.replace('x', '×')} over ${STANDARD_OVER_HOURS[o.set_config] ?? ''}`
+          : `${o.set_config.replace('x', '×')} min sets`
+        const price = useStandard ? o.standard_total_price : o.total_price
+        return `
+        <tr>
+          <td style="padding:8px 12px;font-size:13px;color:#374151;padding-left:24px;">${label}</td>
+          <td style="padding:8px 12px;font-size:14px;font-weight:600;color:#111827;text-align:right;">${fmt(price)}</td>
+        </tr>`
+      }).join('')
+      return `
       <tr>
         <td colspan="2" style="padding:10px 12px 4px;font-size:14px;font-weight:600;color:#111827;border-top:1px solid #e5e7eb;">${lineup}</td>
       </tr>
       ${optRows}`
-  }).join('')
+    }).join('')
+
+  const priceSection = showDual ? `
+    <div style="font-size:11px;font-weight:500;color:#6b7280;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">
+      Based on your timings
+    </div>
+    <table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;margin-bottom:16px;">
+      ${buildPriceRows(false)}
+      ${addOnRows}
+    </table>
+    <div style="font-size:11px;font-weight:500;color:#6b7280;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">
+      Standard packages
+    </div>
+    <table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;">
+      ${buildPriceRows(true)}
+    </table>
+  ` : `
+    <table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;">
+      ${buildPriceRows(false)}
+      ${addOnRows}
+    </table>
+  `
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -83,10 +120,7 @@ function buildEmailHtml(inputs: QuoteInputs, priceOptions: PriceOption[], quoteI
       <div style="font-size:11px;font-weight:500;color:#6b7280;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">
         Pricing options
       </div>
-      <table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;">
-        ${priceRows}
-        ${addOnRows}
-      </table>
+      ${priceSection}
     </div>
 
     ${(inputs.selected_add_ons ?? []).length > 0 ? `
