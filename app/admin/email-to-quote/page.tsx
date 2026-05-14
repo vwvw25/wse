@@ -124,7 +124,23 @@ export default function EmailToQuotePage() {
       )}
 
       {state === 'review' && autoFill && requestDetails && (
-        <div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: 24, alignItems: 'start' }}>
+          {/* Original email — sticky reference panel */}
+          <div style={{ position: 'sticky', top: 24 }}>
+            <SectionHeader>Original email</SectionHeader>
+            <div style={{
+              background: 'var(--bg-secondary)', border: '0.5px solid var(--border)',
+              borderRadius: 'var(--radius-lg)', padding: '16px 20px',
+              fontSize: 13, lineHeight: 1.65, color: 'var(--text)',
+              whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+              maxHeight: 'calc(100vh - 160px)', overflowY: 'auto',
+            }}>
+              {emailText}
+            </div>
+          </div>
+
+          {/* Parsed fields */}
+          <div>
           {/* Auto-fills section */}
           <SectionHeader>Auto-fills in form</SectionHeader>
           <div style={{
@@ -288,6 +304,7 @@ export default function EmailToQuotePage() {
               Save event →
             </button>
           </div>
+          </div>{/* end parsed fields column */}
         </div>
       )}
     </div>
