@@ -34,6 +34,7 @@ interface Props {
   templates: { id: string; name: string }[]
   tagOptions: TagOption[]
   eventRequests?: EventRequest[]
+  embedded?: boolean
 }
 
 function formatDate(d: string | null) {
@@ -187,7 +188,7 @@ function SortableGroup({
 }
 
 // ── Main editor ───────────────────────────────────────────────────────────────
-export default function SetListEditor({ setList, setListSongs: initialSongs, allSongs, templates, tagOptions, eventRequests = [] }: Props) {
+export default function SetListEditor({ setList, setListSongs: initialSongs, allSongs, templates, tagOptions, eventRequests = [], embedded = false }: Props) {
   const [songs, setSongs] = useState<SetListSong[]>(initialSongs)
   const [songSearch, setSongSearch] = useState('')
   const [activeTagFilters, setActiveTagFilters] = useState<Set<string>>(new Set())
@@ -309,47 +310,51 @@ export default function SetListEditor({ setList, setListSongs: initialSongs, all
   }
 
   return (
-    <div style={{ padding: '24px 32px' }}>
+    <div style={{ padding: embedded ? 0 : '24px 32px' }}>
 
-      {/* Header */}
-      <div style={{ marginBottom: 6 }}>
-        <a
-          href={setList.event_id ? `/admin/events/${setList.event_id}?tab=set-lists` : '/admin/set-lists'}
-          style={{ fontSize: 12, color: 'var(--text-tertiary)', textDecoration: 'none' }}
-        >
-          {setList.event_id ? '← Back to event' : '← Set lists'}
-        </a>
-      </div>
+      {!embedded && (
+        <>
+          {/* Header */}
+          <div style={{ marginBottom: 6 }}>
+            <a
+              href={setList.event_id ? `/admin/events/${setList.event_id}?tab=set-lists` : '/admin/set-lists'}
+              style={{ fontSize: 12, color: 'var(--text-tertiary)', textDecoration: 'none' }}
+            >
+              {setList.event_id ? '← Back to event' : '← Set lists'}
+            </a>
+          </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-        {editingName ? (
-          <form onSubmit={handleRename} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <input value={name} onChange={e => setName(e.target.value)} autoFocus style={{
-              height: 32, padding: '0 10px', fontSize: 18, fontWeight: 600,
-              background: 'var(--bg-secondary)', color: 'var(--text)',
-              border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)',
-              fontFamily: 'var(--font)', outline: 'none',
-            }} />
-            <button type="submit" style={{ ...btnSm, color: 'var(--accent)', fontWeight: 500 }}>Save</button>
-            <button type="button" onClick={() => { setEditingName(false); setName(setList.name) }} style={btnSm}>Cancel</button>
-          </form>
-        ) : (
-          <>
-            <h1 style={{ margin: 0, fontSize: 20, fontWeight: 600, color: 'var(--text)' }}>{name}</h1>
-            <button onClick={() => setEditingName(true)} style={btnSm}>Rename</button>
-          </>
-        )}
-      </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+            {editingName ? (
+              <form onSubmit={handleRename} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input value={name} onChange={e => setName(e.target.value)} autoFocus style={{
+                  height: 32, padding: '0 10px', fontSize: 18, fontWeight: 600,
+                  background: 'var(--bg-secondary)', color: 'var(--text)',
+                  border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)',
+                  fontFamily: 'var(--font)', outline: 'none',
+                }} />
+                <button type="submit" style={{ ...btnSm, color: 'var(--accent)', fontWeight: 500 }}>Save</button>
+                <button type="button" onClick={() => { setEditingName(false); setName(setList.name) }} style={btnSm}>Cancel</button>
+              </form>
+            ) : (
+              <>
+                <h1 style={{ margin: 0, fontSize: 20, fontWeight: 600, color: 'var(--text)' }}>{name}</h1>
+                <button onClick={() => setEditingName(true)} style={btnSm}>Rename</button>
+              </>
+            )}
+          </div>
 
-      {/* Event info */}
-      {setList.event && (
-        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
-          {formatDate(setList.event.event_date)}
-          {setList.event.venue_name ? ` — ${setList.event.venue_name}` : ''}
-          {setList.event.request_details?.sets_requested ? ` · ${setList.event.request_details.sets_requested}` : ''}
-          {setList.event.start_time ? ` · ${setList.event.start_time}` : ''}
-          {setList.event.finish_time ? `–${setList.event.finish_time}` : ''}
-        </div>
+          {/* Event info */}
+          {setList.event && (
+            <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
+              {formatDate(setList.event.event_date)}
+              {setList.event.venue_name ? ` — ${setList.event.venue_name}` : ''}
+              {setList.event.request_details?.sets_requested ? ` · ${setList.event.request_details.sets_requested}` : ''}
+              {setList.event.start_time ? ` · ${setList.event.start_time}` : ''}
+              {setList.event.finish_time ? `–${setList.event.finish_time}` : ''}
+            </div>
+          )}
+        </>
       )}
 
       {/* Toolbar */}

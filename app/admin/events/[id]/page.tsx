@@ -12,9 +12,23 @@ import InvoiceSection from './InvoiceSection'
 import ClientLinkSection from './ClientLinkSection'
 import EventQuotesClient from './EventQuotesClient'
 import RequestsSection from './RequestsSection'
-import SetListsTab from './SetListsTab'
+import SetListEditor from '@/app/admin/set-lists/[id]/SetListEditor'
 import type { EventRequest } from '@/types/event-request'
-import type { Song } from '@/types/set-list'
+import type { SetList, SetListSong, Song, TagOption } from '@/types/set-list'
+
+function ordinalDay(n: number): string {
+  const v = n % 100
+  const s = v >= 11 && v <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'
+  return `${n}${s}`
+}
+
+function formatOrdinalDate(d: string): string {
+  const dt = new Date(d)
+  const day = dt.getUTCDate()
+  const month = dt.toLocaleDateString('en-GB', { month: 'long', timeZone: 'UTC' })
+  const year = dt.getUTCFullYear()
+  return `${ordinalDay(day)} ${month} ${year}`
+}
 
 function formatDate(d: string | null) {
   if (!d) return '—'
@@ -125,22 +139,68 @@ export default async function EventDetailPage({
     })
   }
 
-  // Fetch set lists when on the set-lists tab
-  let eventSetLists: { id: string; name: string; created_at: string; song_count: number }[] = []
+  // Fetch set list data when on the set-lists tab (auto-create if none exists)
+  let setListEditorData: {
+    setList: SetList
+    setListSongs: SetListSong[]
+    allSongs: Song[]
+    templates: { id: string; name: string }[]
+    tagOptions: TagOption[]
+    setListRequests: EventRequest[]
+  } | null = null
 
   if (tab === 'set-lists') {
-    const { data: slData } = await supabase
+    // Find existing set list for this event
+    const { data: existing } = await supabase
       .from('set_lists')
-      .select('id, name, created_at, song_count:set_list_songs(count)')
+      .select('id')
       .eq('event_id', id)
       .eq('is_template', false)
       .order('created_at')
-    eventSetLists = (slData ?? []).map((sl: { id: string; name: string; created_at: string; song_count: { count: number }[] }) => ({
-      id: sl.id,
-      name: sl.name,
-      created_at: sl.created_at,
-      song_count: sl.song_count?.[0]?.count ?? 0,
-    }))
+      .limit(1)
+      .maybeSingle()
+
+    let setListId = existing?.id
+
+    // Auto-create if none exists
+    if (!setListId) {
+      const name = event.event_date ? formatOrdinalDate(event.event_date) : 'Set list'
+      const { data: created } = await supabase
+        .from('set_lists')
+        .insert({ name, event_id: id, is_template: false })
+        .select('id')
+        .single()
+      setListId = created?.id
+    }
+
+    if (setListId) {
+      const [
+        { data: slFull },
+        { data: slSongs },
+        { data: allSongsData },
+        { data: tagOptionsData },
+        { data: templatesData },
+        { data: slRequestsData },
+      ] = await Promise.all([
+        supabase.from('set_lists').select('*, event:events(id, event_date, venue_name, start_time, finish_time, request_details)').eq('id', setListId).single(),
+        supabase.from('set_list_songs').select('*, song:songs(*)').eq('set_list_id', setListId).order('set_number', { ascending: true, nullsFirst: false }).order('position', { ascending: true }),
+        supabase.from('songs').select('*').order('title'),
+        supabase.from('tag_options').select('*').order('category').order('sort_order'),
+        supabase.from('set_lists').select('id, name').eq('is_template', true).order('name'),
+        supabase.from('event_requests').select('*').eq('event_id', id).neq('status', 'declined').not('song_id', 'is', null).order('created_at'),
+      ])
+
+      if (slFull) {
+        setListEditorData = {
+          setList: slFull as SetList,
+          setListSongs: (slSongs ?? []) as SetListSong[],
+          allSongs: (allSongsData ?? []) as Song[],
+          templates: (templatesData ?? []) as { id: string; name: string }[],
+          tagOptions: (tagOptionsData ?? []) as TagOption[],
+          setListRequests: (slRequestsData ?? []) as EventRequest[],
+        }
+      }
+    }
   }
 
   // Fetch requests data when on the requests tab
@@ -377,8 +437,16 @@ export default async function EventDetailPage({
       )}
 
       {/* ── Set lists tab ── */}
-      {tab === 'set-lists' && (
-        <SetListsTab eventId={id} eventLabel={title} setLists={eventSetLists} />
+      {tab === 'set-lists' && setListEditorData && (
+        <SetListEditor
+          setList={setListEditorData.setList}
+          setListSongs={setListEditorData.setListSongs}
+          allSongs={setListEditorData.allSongs}
+          templates={setListEditorData.templates}
+          tagOptions={setListEditorData.tagOptions}
+          eventRequests={setListEditorData.setListRequests}
+          embedded
+        />
       )}
 
       {/* ── Requests tab ── */}
