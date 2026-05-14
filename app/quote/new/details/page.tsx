@@ -416,7 +416,7 @@ function DetailsForm() {
         : await fetch('/api/quotes', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ inputs, event_id: eventId ?? undefined }),
+            body: JSON.stringify({ inputs, event_id: eventId ?? undefined, quote_request_id: requestId ?? undefined }),
           })
       if (!res.ok) throw new Error(editId ? 'Failed to update quote' : 'Failed to generate quote')
       const { id } = await res.json()

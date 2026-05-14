@@ -5,7 +5,7 @@ import type { QuoteInputs, Settings } from '@/types/quote'
 
 export async function POST(req: NextRequest) {
   try {
-    const { inputs, event_id }: { inputs: QuoteInputs; event_id?: string } = await req.json()
+    const { inputs, event_id, quote_request_id }: { inputs: QuoteInputs; event_id?: string; quote_request_id?: string } = await req.json()
     const supabase = createServiceClient()
 
     // Fetch current settings
@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
         version: 1,
         status: 'sent',
         ...(event_id ? { event_id } : {}),
+        ...(quote_request_id ? { quote_request_id } : {}),
       })
       .select('id')
       .single()
