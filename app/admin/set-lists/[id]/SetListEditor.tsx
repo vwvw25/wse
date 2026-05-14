@@ -192,6 +192,7 @@ export default function SetListEditor({ setList, setListSongs: initialSongs, all
   const [songSearch, setSongSearch] = useState('')
   const [activeTagFilters, setActiveTagFilters] = useState<Set<string>>(new Set())
   const [adding, setAdding] = useState(false)
+  const [lastSaved, setLastSaved] = useState<number | null>(null)
   const [editingName, setEditingName] = useState(false)
   const [name, setName] = useState(setList.name)
   const [selectedTemplate, setSelectedTemplate] = useState('')
@@ -259,6 +260,7 @@ export default function SetListEditor({ setList, setListSongs: initialSongs, all
       song,
     }
     setSongs(prev => [...prev, optimistic])
+    setLastSaved(Date.now())
     startTransition(async () => { await addSongToSetList(setList.id, song.id, setNumber) })
   }
 
@@ -311,7 +313,12 @@ export default function SetListEditor({ setList, setListSongs: initialSongs, all
 
       {/* Header */}
       <div style={{ marginBottom: 6 }}>
-        <a href="/admin/set-lists" style={{ fontSize: 12, color: 'var(--text-tertiary)', textDecoration: 'none' }}>← Set lists</a>
+        <a
+          href={setList.event_id ? `/admin/events/${setList.event_id}?tab=set-lists` : '/admin/set-lists'}
+          style={{ fontSize: 12, color: 'var(--text-tertiary)', textDecoration: 'none' }}
+        >
+          {setList.event_id ? '← Back to event' : '← Set lists'}
+        </a>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
@@ -353,7 +360,10 @@ export default function SetListEditor({ setList, setListSongs: initialSongs, all
           color: adding ? 'var(--text)' : '#fff',
           border: adding ? '0.5px solid var(--border)' : 'none',
           borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'var(--font)',
-        }}>{adding ? 'Done adding' : '+ Add songs'}</button>
+        }}>{adding ? 'Close' : '+ Add songs'}</button>
+        {adding && lastSaved && (
+          <span style={{ fontSize: 12, color: '#16a34a', alignSelf: 'center' }}>✓ Songs save automatically</span>
+        )}
 
         <a href={`/print/set-list/${setList.id}`} target="_blank" style={{
           padding: '7px 16px', fontSize: 13, fontWeight: 500,
