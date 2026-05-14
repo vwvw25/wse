@@ -30,6 +30,9 @@ export function getQuoteItems(
   const isInternational = inputs.travel_type === 'international'
   const isDomesticOvernight = inputs.travel_type === 'domestic_overnight' || isInternational
   const loadOutDiffersFromFinish = !!inputs.load_out_time && !!inputs.finish_time && inputs.load_out_time !== inputs.finish_time
+  const isCustomArrival = inputs.is_custom_arrival_time === true
+    || (inputs.is_custom_arrival_time == null && !!inputs.arrival_time && inputs.arrival_time !== autoArrivalTime(inputs.start_time))
+  const showSpecificTimes = isCustomArrival || loadOutDiffersFromFinish
   const hasBuyout = (inputs.selected_add_ons ?? []).some(a => a.name.toLowerCase().includes('buyout'))
   const hasMicHire = (inputs.selected_add_ons ?? []).some(a => a.name.toLowerCase().includes('mic hire'))
 
@@ -66,7 +69,8 @@ export function getQuoteItems(
     { show: bt === 'background' && !inputs.client_provides_pa && paEngineerRate > 0, text: `If dancefloor focus with more than 40 guests, full PA + sound engineer required — add ${fmt(paEngineerRate)}` },
     { show: !inputs.finish_time, text: 'Based on a finish of 11pm or earlier' },
     { show: showIpadMusic, text: 'Music via iPad/PA during intervals' },
-    { show: true, text: 'Arrival one hour before performance start (1.5hrs if Extended PA + sound engineer)' },
+    { show: !showSpecificTimes, text: 'Arrival one hour before performance start (1.5hrs if Extended PA + sound engineer)' },
+    { show: !!inputs.is_load_out_at_finish, text: 'Based on being able to load out at finish time' },
     { show: isDomesticOvernight && (inputs.petrol_train_cost ?? 0) > 0, text: 'Petrol / train travel' },
     { show: isDomesticOvernight && (inputs.accommodation_cost ?? 0) > 0, text: `Accommodation (${inputs.accommodation_nights ?? 1} night${(inputs.accommodation_nights ?? 1) !== 1 ? 's' : ''})` },
     { show: isDomesticOvernight && (inputs.per_diem_rate ?? 0) > 0, text: 'Per diem' },
