@@ -12,6 +12,7 @@ import InvoiceSection from './InvoiceSection'
 import ClientLinkSection from './ClientLinkSection'
 import EventQuotesClient from './EventQuotesClient'
 import RequestsSection from './RequestsSection'
+import SetListsTab from './SetListsTab'
 import type { EventRequest } from '@/types/event-request'
 import type { Song } from '@/types/set-list'
 
@@ -45,7 +46,7 @@ function FullRow({ label, value }: { label: string; value: string | null | undef
   )
 }
 
-type Tab = 'information' | 'musicians' | 'quotes' | 'requests'
+type Tab = 'information' | 'musicians' | 'quotes' | 'requests' | 'set-lists'
 
 export default async function EventDetailPage({
   params,
@@ -56,7 +57,7 @@ export default async function EventDetailPage({
 }) {
   const { id } = await params
   const { tab: tabParam } = await searchParams
-  const tab: Tab = tabParam === 'musicians' ? 'musicians' : tabParam === 'quotes' ? 'quotes' : tabParam === 'requests' ? 'requests' : 'information'
+  const tab: Tab = tabParam === 'musicians' ? 'musicians' : tabParam === 'quotes' ? 'quotes' : tabParam === 'requests' ? 'requests' : tabParam === 'set-lists' ? 'set-lists' : 'information'
 
   const supabase = createServiceClient()
 
@@ -122,6 +123,24 @@ export default async function EventDetailPage({
         latest_invite: latestInvite,
       }
     })
+  }
+
+  // Fetch set lists when on the set-lists tab
+  let eventSetLists: { id: string; name: string; created_at: string; song_count: number }[] = []
+
+  if (tab === 'set-lists') {
+    const { data: slData } = await supabase
+      .from('set_lists')
+      .select('id, name, created_at, song_count:set_list_songs(count)')
+      .eq('event_id', id)
+      .eq('is_template', false)
+      .order('created_at')
+    eventSetLists = (slData ?? []).map((sl: { id: string; name: string; created_at: string; song_count: { count: number }[] }) => ({
+      id: sl.id,
+      name: sl.name,
+      created_at: sl.created_at,
+      song_count: sl.song_count?.[0]?.count ?? 0,
+    }))
   }
 
   // Fetch requests data when on the requests tab
@@ -219,6 +238,7 @@ export default async function EventDetailPage({
           Quotes{quotes.length > 0 ? ` (${quotes.length})` : ''}
         </a>
         <a href={`/admin/events/${id}?tab=requests`} style={tabStyle(tab === 'requests')}>Requests</a>
+        <a href={`/admin/events/${id}?tab=set-lists`} style={tabStyle(tab === 'set-lists')}>Set lists</a>
       </div>
 
       {/* ── Information tab ── */}
@@ -354,6 +374,11 @@ export default async function EventDetailPage({
           musicians={musicians}
           templates={templates}
         />
+      )}
+
+      {/* ── Set lists tab ── */}
+      {tab === 'set-lists' && (
+        <SetListsTab eventId={id} eventLabel={title} setLists={eventSetLists} />
       )}
 
       {/* ── Requests tab ── */}
