@@ -209,6 +209,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
           const btOptions = options.filter(o => (o.booking_type ?? 'background') === bt)
           const paEngineerRate = quote.settings_snapshot?.pa_sound_engineer_rate ?? 0
           const { inclusions, requirements } = getQuoteItems(inputs, bt, bookingTypes, btOptions, paEngineerRate)
+          const showDual = !!inputs.give_custom_and_standard && btOptions.some(o => o.waiting_cost > 0)
 
           const renderItem = (item: QuoteItem) => (
             <>{item.text}{item.link && <a href={item.link.href} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>{item.link.text}</a>}{item.linkSuffix}</>
@@ -228,8 +229,23 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
                 </div>
               )}
 
-              {/* Quotes */}
-              <PriceSectionCards options={btOptions} fmt={fmt} />
+              {showDual ? (
+                <>
+                  {/* Custom timings table */}
+                  <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)', marginBottom: 8 }}>
+                    Based on your timings
+                  </div>
+                  <PriceSectionCards options={btOptions} fmt={fmt} />
+
+                  {/* Standard packages table */}
+                  <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)', margin: '24px 0 8px' }}>
+                    Standard packages
+                  </div>
+                  <PriceSectionCards options={btOptions} fmt={fmt} useStandard />
+                </>
+              ) : (
+                <PriceSectionCards options={btOptions} fmt={fmt} />
+              )}
 
               {/* What's included */}
               <Card label="What's included">
@@ -320,7 +336,14 @@ const headerBtnStyle: React.CSSProperties = {
   textDecoration: 'none', whiteSpace: 'nowrap', letterSpacing: '-0.01em',
 }
 
-function PriceSectionCards({ options, fmt }: { options: PriceOption[]; fmt: (n: number) => string }) {
+const STANDARD_OVER_HOURS: Record<string, string> = {
+  '2x45': 'up to 3 hours',
+  '3x45': 'up to 4 hours',
+  '4x45': 'up to 6 hours',
+  '5x45': 'up to 8 hours',
+}
+
+function PriceSectionCards({ options, fmt, useStandard }: { options: PriceOption[]; fmt: (n: number) => string; useStandard?: boolean }) {
   if (!options || options.length === 0) return null
   const sizes = Array.from(new Set(options.map(o => o.band_size)))
   return (
@@ -338,20 +361,24 @@ function PriceSectionCards({ options, fmt }: { options: PriceOption[]; fmt: (n: 
               </p>
             )}
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {sizeOptions.map((opt, i) => (
-                <div key={opt.set_config} style={{
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  padding: '10px 0',
-                  borderBottom: i < sizeOptions.length - 1 ? '0.5px solid var(--border)' : 'none',
-                }}>
-                  <span style={{ fontSize: 13, color: 'var(--text)' }}>
-                    {formatSetConfig(opt.set_config)}
-                  </span>
-                  <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em' }}>
-                    {fmt(opt.total_price)}
-                  </span>
-                </div>
-              ))}
+              {sizeOptions.map((opt, i) => {
+                const price = useStandard ? opt.standard_total_price : opt.total_price
+                const label = useStandard
+                  ? `${formatSetConfig(opt.set_config)} over ${STANDARD_OVER_HOURS[opt.set_config] ?? ''}`
+                  : formatSetConfig(opt.set_config)
+                return (
+                  <div key={opt.set_config} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '10px 0',
+                    borderBottom: i < sizeOptions.length - 1 ? '0.5px solid var(--border)' : 'none',
+                  }}>
+                    <span style={{ fontSize: 13, color: 'var(--text)' }}>{label}</span>
+                    <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em' }}>
+                      {fmt(price)}
+                    </span>
+                  </div>
+                )
+              })}
             </div>
           </Card>
         )

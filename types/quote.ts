@@ -61,6 +61,7 @@ export interface QuoteInputs {
   // Checkbox states — saved so quote page can read them directly
   is_custom_arrival_time: boolean
   is_load_out_at_finish: boolean
+  give_custom_and_standard?: boolean
 
   // Step 2 — Venue constraints
   is_boat: boolean
@@ -170,6 +171,8 @@ export interface PriceOption {
   pa_cost: number
   travel_cost: number
   total_price: number
+  standard_total_price: number   // total_price minus waiting time and after-midnight costs
+  waiting_cost: number           // waiting time + after-midnight cost for this option
   line_up: string
 }
 

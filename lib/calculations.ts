@@ -322,13 +322,17 @@ export function calculate(inputs: QuoteInputs, settings: Settings): QuoteCalcula
           return sum + (addon.pricing_type === 'per_musician' ? addon.price * count : addon.price)
         }, 0)
 
+        const opt_waiting_total = opt_waiting + opt_band_after_midnight
+
         const total = perf_fee
           + opt_pa_cost + opt_pa_deduction
           + pa_hire_before_midnight_cost + pa_hire_after_midnight_cost
-          + opt_waiting + opt_band_after_midnight
+          + opt_waiting_total
           + location_surcharge
           + opt_add_ons
           + opt_travel
+
+        const standard_total = total - opt_waiting_total
 
         price_options.push({
           booking_type: bookingType,
@@ -343,6 +347,8 @@ export function calculate(inputs: QuoteInputs, settings: Settings): QuoteCalcula
           pa_cost: opt_pa_cost + opt_pa_deduction,
           travel_cost: opt_travel,
           total_price: total,
+          standard_total_price: standard_total,
+          waiting_cost: opt_waiting_total,
           line_up: lineUp,
         })
       }

@@ -526,6 +526,11 @@ function DetailsForm() {
                 if (next) set('load_out_time', form.finish_time ?? null)
               }}
             />
+            <BoolTile
+              label="Custom + standard quotes"
+              active={!!form.give_custom_and_standard}
+              onClick={() => set('give_custom_and_standard', !form.give_custom_and_standard)}
+            />
           </BoolGrid>
           </div>
           {customArrivalTime && (
