@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { createServiceClient } from '@/lib/supabase'
 import type { SetList, SetListSong, Song, TagOption } from '@/types/set-list'
+import type { EventRequest } from '@/types/event-request'
 import SetListEditor from './SetListEditor'
 
 export default async function SetListPage({ params }: { params: Promise<{ id: string }> }) {
@@ -32,6 +33,20 @@ export default async function SetListPage({ params }: { params: Promise<{ id: st
     .eq('is_template', true)
     .order('name')
 
+  // Fetch event requests if this set list is linked to an event
+  let eventRequests: EventRequest[] = []
+  const eventId = (slData as SetList).event_id
+  if (eventId) {
+    const { data: requestsData } = await supabase
+      .from('event_requests')
+      .select('*')
+      .eq('event_id', eventId)
+      .neq('status', 'declined')
+      .not('song_id', 'is', null)
+      .order('created_at')
+    eventRequests = (requestsData ?? []) as EventRequest[]
+  }
+
   return (
     <SetListEditor
       setList={slData as SetList}
@@ -39,6 +54,7 @@ export default async function SetListPage({ params }: { params: Promise<{ id: st
       allSongs={(allSongsData ?? []) as Song[]}
       templates={(templatesData ?? []) as { id: string; name: string }[]}
       tagOptions={(tagOptionsData ?? []) as TagOption[]}
+      eventRequests={eventRequests}
     />
   )
 }

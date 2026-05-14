@@ -11,6 +11,9 @@ import ContractSection from './ContractSection'
 import InvoiceSection from './InvoiceSection'
 import ClientLinkSection from './ClientLinkSection'
 import EventQuotesClient from './EventQuotesClient'
+import RequestsSection from './RequestsSection'
+import type { EventRequest } from '@/types/event-request'
+import type { Song } from '@/types/set-list'
 
 function formatDate(d: string | null) {
   if (!d) return '—'
@@ -42,7 +45,7 @@ function FullRow({ label, value }: { label: string; value: string | null | undef
   )
 }
 
-type Tab = 'information' | 'musicians' | 'quotes'
+type Tab = 'information' | 'musicians' | 'quotes' | 'requests'
 
 export default async function EventDetailPage({
   params,
@@ -53,7 +56,7 @@ export default async function EventDetailPage({
 }) {
   const { id } = await params
   const { tab: tabParam } = await searchParams
-  const tab: Tab = tabParam === 'musicians' ? 'musicians' : tabParam === 'quotes' ? 'quotes' : 'information'
+  const tab: Tab = tabParam === 'musicians' ? 'musicians' : tabParam === 'quotes' ? 'quotes' : tabParam === 'requests' ? 'requests' : 'information'
 
   const supabase = createServiceClient()
 
@@ -119,6 +122,19 @@ export default async function EventDetailPage({
         latest_invite: latestInvite,
       }
     })
+  }
+
+  // Fetch requests data when on the requests tab
+  let eventRequests: EventRequest[] = []
+  let allSongs: Song[] = []
+
+  if (tab === 'requests') {
+    const [{ data: requestsData }, { data: songsData }] = await Promise.all([
+      supabase.from('event_requests').select('*').eq('event_id', id).order('created_at'),
+      supabase.from('songs').select('*').order('title'),
+    ])
+    eventRequests = (requestsData ?? []) as EventRequest[]
+    allSongs = (songsData ?? []) as Song[]
   }
 
   const tabStyle = (active: boolean): React.CSSProperties => ({
@@ -202,6 +218,7 @@ export default async function EventDetailPage({
         <a href={`/admin/events/${id}?tab=quotes`} style={tabStyle(tab === 'quotes')}>
           Quotes{quotes.length > 0 ? ` (${quotes.length})` : ''}
         </a>
+        <a href={`/admin/events/${id}?tab=requests`} style={tabStyle(tab === 'requests')}>Requests</a>
       </div>
 
       {/* ── Information tab ── */}
@@ -336,6 +353,15 @@ export default async function EventDetailPage({
           slots={slots}
           musicians={musicians}
           templates={templates}
+        />
+      )}
+
+      {/* ── Requests tab ── */}
+      {tab === 'requests' && (
+        <RequestsSection
+          eventId={id}
+          requests={eventRequests}
+          allSongs={allSongs}
         />
       )}
     </div>

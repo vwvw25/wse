@@ -17,6 +17,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { SetList, SetListSong, Song, TagOption } from '@/types/set-list'
+import type { EventRequest } from '@/types/event-request'
 import { TAG_CATEGORY_LABELS, TAG_CATEGORIES } from '@/types/set-list'
 import {
   addSongToSetList,
@@ -32,6 +33,7 @@ interface Props {
   allSongs: Song[]
   templates: { id: string; name: string }[]
   tagOptions: TagOption[]
+  eventRequests?: EventRequest[]
 }
 
 function formatDate(d: string | null) {
@@ -185,7 +187,7 @@ function SortableGroup({
 }
 
 // ── Main editor ───────────────────────────────────────────────────────────────
-export default function SetListEditor({ setList, setListSongs: initialSongs, allSongs, templates, tagOptions }: Props) {
+export default function SetListEditor({ setList, setListSongs: initialSongs, allSongs, templates, tagOptions, eventRequests = [] }: Props) {
   const [songs, setSongs] = useState<SetListSong[]>(initialSongs)
   const [songSearch, setSongSearch] = useState('')
   const [activeTagFilters, setActiveTagFilters] = useState<Set<string>>(new Set())
@@ -475,6 +477,47 @@ export default function SetListEditor({ setList, setListSongs: initialSongs, all
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Requested songs box */}
+      {eventRequests.length > 0 && (
+        <div style={{
+          marginBottom: 20, padding: '12px 16px',
+          background: '#fefce8', border: '0.5px solid #fde68a',
+          borderRadius: 'var(--radius-sm)',
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+            Requested songs
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {eventRequests.map(req => {
+              const inList = songs.some(s => s.song_id === req.song_id)
+              const matchingSong = allSongs.find(s => s.id === req.song_id)
+              return (
+                <button
+                  key={req.id}
+                  onClick={() => !inList && matchingSong && handleAddSong(matchingSong)}
+                  disabled={inList || !matchingSong}
+                  title={inList ? 'Already in set list' : matchingSong ? `Click to add ${req.title}` : 'Song not in repertoire'}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    padding: '4px 10px', borderRadius: 20, fontSize: 12,
+                    fontFamily: 'var(--font)', cursor: inList || !matchingSong ? 'default' : 'pointer',
+                    background: inList ? '#dcfce7' : 'white',
+                    color: inList ? '#166534' : '#92400e',
+                    border: `0.5px solid ${inList ? '#86efac' : '#fde68a'}`,
+                    fontWeight: inList ? 600 : 400,
+                  }}
+                >
+                  {inList && <span>✓</span>}
+                  {req.title}
+                  {req.artist && <span style={{ opacity: 0.7 }}>· {req.artist}</span>}
+                  {req.type === 'to_learn' && <span style={{ opacity: 0.6, fontSize: 10 }}>to learn</span>}
+                </button>
+              )
+            })}
           </div>
         </div>
       )}
