@@ -13,6 +13,7 @@ const navLinks = [
   { href: '/admin/templates', label: 'Templates' },
   { href: '/admin/clients', label: 'Clients' },
   { href: '/admin/email-logs', label: 'Email logs' },
+  { href: '/admin/parse-evals', label: 'Parse evals' },
   { href: '/admin/notifications', label: 'Notifications' },
   { href: '/admin/settings', label: 'Settings' },
 ]

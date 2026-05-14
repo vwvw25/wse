@@ -106,7 +106,11 @@ export async function extractFromEmail(emailText: string): Promise<EmailExtractR
   return JSON.parse(cleaned) as EmailExtractResult
 }
 
-export async function saveEvent(result: EmailExtractResult, rawEmail: string): Promise<string> {
+export async function saveEvent(
+  result: EmailExtractResult,
+  rawEmail: string,
+  originalParse: EmailExtractResult,
+): Promise<string> {
   const supabase = createServiceClient()
   const af = result.auto_fill
 
@@ -138,5 +142,16 @@ export async function saveEvent(result: EmailExtractResult, rawEmail: string): P
     .single()
 
   if (error || !data) throw new Error(error?.message ?? 'Failed to save event')
-  return data.id as string
+  const eventId = data.id as string
+
+  // Save eval record — original parse vs what was actually saved
+  await supabase.from('email_parse_evals').insert({
+    event_id: eventId,
+    parsed_auto_fill: originalParse.auto_fill,
+    parsed_request_details: originalParse.request_details,
+    saved_auto_fill: result.auto_fill,
+    saved_request_details: result.request_details,
+  })
+
+  return eventId
 }

@@ -29,12 +29,14 @@ export default function EmailToQuotePage() {
   const [errorMsg, setErrorMsg] = useState('')
   const [autoFill, setAutoFill] = useState<ExtractedAutoFill | null>(null)
   const [requestDetails, setRequestDetails] = useState<RequestDetails | null>(null)
+  const [originalParse, setOriginalParse] = useState<EmailExtractResult | null>(null)
 
   async function handleExtract() {
     if (!emailText.trim()) return
     setState('extracting')
     try {
       const result = await extractFromEmail(emailText)
+      setOriginalParse(result)
       setAutoFill(result.auto_fill)
       setRequestDetails(result.request_details)
       setState('review')
@@ -48,7 +50,7 @@ export default function EmailToQuotePage() {
     if (!autoFill || !requestDetails) return
     setState('creating')
     try {
-      const id = await saveEvent({ auto_fill: autoFill, request_details: requestDetails }, emailText)
+      const id = await saveEvent({ auto_fill: autoFill, request_details: requestDetails }, emailText, originalParse!)
       router.push(`/admin/events/${id}`)
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : 'Failed to save event')
