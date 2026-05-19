@@ -129,9 +129,69 @@ function DetailsForm() {
     fetchAddOns()
   }, [])
 
-  // Load from event when coming from email-to-quote flow
+  // Load from quote_request (email-to-quote flow via request param)
   useEffect(() => {
-    if (!eventId) return
+    if (!requestId) return
+    async function loadFromRequest() {
+      const { data } = await createBrowserClient()
+        .from('quote_requests')
+        .select('auto_fill, request_details')
+        .eq('id', requestId)
+        .single()
+      if (!data) return
+      const af = data.auto_fill as Record<string, unknown>
+      const rd = data.request_details as Record<string, unknown> | null
+      setEventCardData({
+        agency_name: af.agency_name as string | null,
+        agent_name: af.agent_name as string | null,
+        client_email: af.client_email as string | null,
+        event_date: af.event_date as string | null,
+        venue_name: af.venue_name as string | null,
+        venue_postcode: af.venue_postcode as string | null,
+        venue_address: af.venue_address as string | null,
+        location: af.location as string | null,
+        guests: af.guests as number | null,
+        arrival_time: af.arrival_time as string | null,
+        start_time: af.start_time as string | null,
+        finish_time: af.finish_time as string | null,
+        load_out_time: af.load_out_time as string | null,
+        band_size_requested: (rd?.band_size_requested as string | null) ?? null,
+        sets_requested: (rd?.sets_requested as string | null) ?? null,
+        special_requirements: (rd?.special_requirements as string | null) ?? null,
+        sound_requirements: (rd?.sound_requirements as string | null) ?? null,
+        notes: (rd?.notes as string | null) ?? null,
+      })
+      const autoArrival = (af.arrival_time as string | null)
+        ?? (af.start_time ? computeAutoArrivalTime(af.start_time as string) : null)
+      const autoLoadOut = (af.load_out_time as string | null) ?? (af.finish_time as string | null) ?? null
+      setForm(f => ({
+        ...f,
+        agency_name: (af.agency_name as string | null) ?? f.agency_name,
+        agent_name: (af.agent_name as string | null) ?? f.agent_name,
+        client_email: (af.client_email as string | null) ?? f.client_email,
+        event_date: (af.event_date as string | null) ?? f.event_date,
+        venue_name: (af.venue_name as string | null) ?? f.venue_name,
+        venue_postcode: (af.venue_postcode as string | null) ?? f.venue_postcode,
+        location: (af.location as string | null) ?? f.location,
+        band_size_requested: (rd?.band_size_requested as string | null) ?? f.band_size_requested,
+        sets_requested: (rd?.sets_requested as string | null) ?? f.sets_requested,
+        arrival_time: autoArrival,
+        start_time: (af.start_time as string | null) ?? f.start_time,
+        finish_time: (af.finish_time as string | null) ?? f.finish_time,
+        load_out_time: autoLoadOut,
+      }))
+      if (af.arrival_time) setCustomArrivalTime(true)
+      if (af.load_out_time && af.finish_time && af.load_out_time !== af.finish_time) {
+        setLoadOutAtFinish(false)
+      }
+    }
+    loadFromRequest()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestId])
+
+  // Load from event as fallback (legacy direct event flow)
+  useEffect(() => {
+    if (!eventId || requestId) return
     async function loadFromEvent() {
       const { data } = await createBrowserClient()
         .from('events')
