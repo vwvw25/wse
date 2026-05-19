@@ -43,7 +43,7 @@ export default async function AdminQuotesPage() {
           </a>
         </div>
       </div>
-      <QuotesTable rows={rows} />
+      <QuotesTable quotes={rows} />
     </div>
   )
 }
