@@ -234,6 +234,13 @@ export interface ContractFlag {
   event_value: string
 }
 
+export interface ContractFile {
+  path: string
+  name: string
+  size: number
+  uploaded_at: string
+}
+
 export interface ContractData {
   parsed: Record<string, string | number | null>
   flags: ContractFlag[]
@@ -241,6 +248,7 @@ export interface ContractData {
   file_path?: string
   file_name?: string
   file_size?: number
+  attachments?: ContractFile[]
 }
 
 export interface EventRecord {

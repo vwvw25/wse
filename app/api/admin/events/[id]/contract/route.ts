@@ -33,11 +33,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // Ensure bucket exists
     await supabase.storage.createBucket(BUCKET, { public: false }).catch(() => {/* already exists */})
 
-    // Upload PDF to storage — overwrite any existing contract for this event
-    const filePath = `${eventId}/${file.name}`
+    // Upload PDF to storage — use a timestamp prefix so multiple uploads don't overwrite each other
+    const filePath = `${eventId}/${Date.now()}-${file.name}`
     const { error: uploadError } = await supabase.storage
       .from(BUCKET)
-      .upload(filePath, bytes, { contentType: 'application/pdf', upsert: true })
+      .upload(filePath, bytes, { contentType: 'application/pdf', upsert: false })
 
     if (uploadError) throw new Error(`Storage upload failed: ${uploadError.message}`)
 
@@ -98,17 +98,24 @@ Times must be 24-hour HH:MM format. Dates must be YYYY-MM-DD. Fee must be a numb
   }
 }
 
-// GET — return a signed download URL
+// GET — return a signed download URL as JSON { url }
+// ?path= can override the default file_path (for attachments)
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: eventId } = await params
   const supabase = createServiceClient()
 
-  const { data: event } = await supabase.from('events').select('contract').eq('id', eventId).single()
-  const filePath = event?.contract?.file_path
+  const pathParam = req.nextUrl.searchParams.get('path')
+  let filePath: string | undefined = pathParam ?? undefined
+
+  if (!filePath) {
+    const { data: event } = await supabase.from('events').select('contract').eq('id', eventId).single()
+    filePath = event?.contract?.file_path
+  }
+
   if (!filePath) return NextResponse.json({ error: 'No contract on file' }, { status: 404 })
 
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(filePath, 60 * 60)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  return NextResponse.redirect(data.signedUrl)
+  return NextResponse.json({ url: data.signedUrl })
 }

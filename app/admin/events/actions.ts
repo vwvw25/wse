@@ -51,11 +51,16 @@ export async function saveContractReview(
     eventUpdate.request_details = { ...(current?.request_details ?? {}), ...rdUpdate }
   }
 
-  // Save contract metadata
+  // Fetch current contract so we can preserve file info and attachments
+  const { data: currentEvent } = await supabase.from('events').select('contract').eq('id', eventId).single()
+  const existingContract = currentEvent?.contract ?? {}
+
+  // Save contract metadata — preserve file fields and attachments from the upload
   eventUpdate.contract = {
+    ...existingContract,
     parsed,
     flags,
-    uploaded_at: new Date().toISOString(),
+    uploaded_at: existingContract.uploaded_at ?? new Date().toISOString(),
   }
 
   const { error } = await supabase
@@ -74,6 +79,11 @@ export async function saveContractParsed(
   file?: { name: string; size: number; path: string },
 ) {
   const supabase = createServiceClient()
+
+  // Preserve any existing attachments when replacing the primary contract
+  const { data: existing } = await supabase.from('events').select('contract').eq('id', eventId).single()
+  const existingAttachments = existing?.contract?.attachments ?? []
+
   await supabase
     .from('events')
     .update({
@@ -82,6 +92,7 @@ export async function saveContractParsed(
         flags: [],
         uploaded_at: new Date().toISOString(),
         ...(file ? { file_path: file.path, file_name: file.name, file_size: file.size } : {}),
+        attachments: existingAttachments,
       },
     })
     .eq('id', eventId)
@@ -90,11 +101,15 @@ export async function saveContractParsed(
 
 export async function deleteContract(eventId: string) {
   const supabase = createServiceClient()
-  // Remove file from storage if present
+  // Remove ALL files from storage (primary + attachments)
   const { data } = await supabase.from('events').select('contract').eq('id', eventId).single()
-  const filePath = data?.contract?.file_path
-  if (filePath) {
-    await supabase.storage.from('contracts').remove([filePath]).catch(() => {})
+  const filePaths: string[] = []
+  if (data?.contract?.file_path) filePaths.push(data.contract.file_path)
+  for (const att of data?.contract?.attachments ?? []) {
+    if (att.path && !filePaths.includes(att.path)) filePaths.push(att.path)
+  }
+  if (filePaths.length > 0) {
+    await supabase.storage.from('contracts').remove(filePaths).catch(() => {})
   }
   await supabase.from('events').update({ contract: null }).eq('id', eventId)
   revalidatePath(`/admin/events/${eventId}`)
@@ -267,4 +282,30 @@ export async function createEvent(formData: FormData) {
 
   revalidatePath('/admin/events')
   redirect(`/admin/events/${data.id}`)
+}
+
+export interface ContractFileAttachment {
+  path: string
+  name: string
+  size: number
+  uploaded_at: string
+}
+
+export async function addContractAttachment(eventId: string, attachment: ContractFileAttachment) {
+  const supabase = createServiceClient()
+  const { data } = await supabase.from('events').select('contract').eq('id', eventId).single()
+  const contract = data?.contract ?? {}
+  const attachments = [...(contract.attachments ?? []), attachment]
+  await supabase.from('events').update({ contract: { ...contract, attachments } }).eq('id', eventId)
+  revalidatePath(`/admin/events/${eventId}`)
+}
+
+export async function deleteContractAttachment(eventId: string, filePath: string) {
+  const supabase = createServiceClient()
+  await supabase.storage.from('contracts').remove([filePath]).catch(() => {})
+  const { data } = await supabase.from('events').select('contract').eq('id', eventId).single()
+  const contract = data?.contract ?? {}
+  const attachments = (contract.attachments ?? []).filter((a: ContractFileAttachment) => a.path !== filePath)
+  await supabase.from('events').update({ contract: { ...contract, attachments } }).eq('id', eventId)
+  revalidatePath(`/admin/events/${eventId}`)
 }
