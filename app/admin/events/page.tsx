@@ -7,7 +7,7 @@ export default async function EventsPage() {
   const { data, error } = await supabase
     .from('events')
     .select('*')
-    .order('event_date', { ascending: true })
+    .order('created_at', { ascending: false })
 
   if (error) return <div style={{ padding: 32, color: 'red' }}>Failed to load: {error.message}</div>
 
