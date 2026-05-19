@@ -59,7 +59,7 @@ function NewQuoteForm() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestId])
 
-  // Load event data as fallback (legacy direct event flow)
+  // Load event data
   useEffect(() => {
     if (!eventId || requestId) return
     async function loadEvent() {

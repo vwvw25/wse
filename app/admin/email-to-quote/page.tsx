@@ -50,11 +50,8 @@ export default function EmailToQuotePage() {
     if (!autoFill || !requestDetails) return
     setState('creating')
     try {
-      const { eventId, quoteRequestId } = await saveEvent({ auto_fill: autoFill, request_details: requestDetails }, emailText, originalParse!)
-      const params = new URLSearchParams()
-      if (quoteRequestId) params.set('request', quoteRequestId)
-      params.set('event', eventId)
-      router.push(`/quote/new?${params.toString()}`)
+      const { eventId } = await saveEvent({ auto_fill: autoFill, request_details: requestDetails }, emailText, originalParse!)
+      router.push(`/quote/new?event=${eventId}`)
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : 'Failed to save event')
       setState('error')
