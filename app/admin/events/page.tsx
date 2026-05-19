@@ -14,15 +14,15 @@ export default async function EventsPage() {
   const events = (data ?? []) as EventRecord[]
 
   return (
-    <div style={{ padding: '32px 32px', fontFamily: 'var(--font)' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
+    <div className="admin-page" style={{ fontFamily: 'var(--font)' }}>
+      <div className="page-header">
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0, color: 'var(--text)' }}>Events</h1>
           <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '4px 0 0' }}>
             {events.length} event{events.length !== 1 ? 's' : ''}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="page-header-actions">
           <a href="/admin/events/new" style={{
             display: 'inline-block', padding: '8px 16px', fontSize: 13, fontWeight: 500,
             background: 'var(--bg)', color: 'var(--text)',
@@ -50,7 +50,7 @@ export default async function EventsPage() {
           No events yet — use &ldquo;New from email&rdquo; to create one.
         </div>
       ) : (
-        <EventsClient events={events} />
+        <div className="admin-table-wrap"><EventsClient events={events} /></div>
       )}
     </div>
   )

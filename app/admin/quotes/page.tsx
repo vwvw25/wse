@@ -18,15 +18,15 @@ export default async function AdminQuotesPage() {
   const rows = (data ?? []) as QuoteRecord[]
 
   return (
-    <div style={{ padding: '32px 32px', fontFamily: 'var(--font)' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
+    <div className="admin-page" style={{ fontFamily: 'var(--font)' }}>
+      <div className="page-header">
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0, color: 'var(--text)' }}>Quotes</h1>
           <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '4px 0 0' }}>
             {rows.length} quote{rows.length !== 1 ? 's' : ''} total
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="page-header-actions">
           <a href="/admin/email-to-quote" style={{
             display: 'inline-block', padding: '8px 16px', fontSize: 13, fontWeight: 500,
             background: 'var(--bg-secondary)', color: 'var(--text)', borderRadius: 'var(--radius-sm)',
@@ -43,7 +43,7 @@ export default async function AdminQuotesPage() {
           </a>
         </div>
       </div>
-      <QuotesTable quotes={rows} />
+      <div className="admin-table-wrap"><QuotesTable quotes={rows} /></div>
     </div>
   )
 }

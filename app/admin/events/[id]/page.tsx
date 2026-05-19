@@ -224,11 +224,11 @@ export default async function EventDetailPage({
   })
 
   return (
-    <div style={{ padding: '32px 32px', fontFamily: 'var(--font)' }}>
+    <div className="admin-page" style={{ fontFamily: 'var(--font)' }}>
       <a href="/admin/events" style={{ fontSize: 12, color: 'var(--text-secondary)', textDecoration: 'none' }}>← Events</a>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', margin: '16px 0 20px' }}>
+      <div className="page-header" style={{ margin: '16px 0 20px' }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0 0 4px', color: 'var(--text)' }}>{title}</h1>
           <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>
@@ -237,7 +237,7 @@ export default async function EventDetailPage({
             Saved {formatCreated(event.created_at)}
           </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className="page-header-actions">
           <StatusSelect eventId={event.id} currentStatus={event.status} />
           <CopyEventDetailsButton event={{
             agencyName: event.agency_name,
@@ -291,7 +291,7 @@ export default async function EventDetailPage({
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', borderBottom: '0.5px solid var(--border)', marginBottom: 28, gap: 0 }}>
+      <div className="admin-tabs">
         <a href={`/admin/events/${id}`} style={tabStyle(tab === 'information')}>Information</a>
         <a href={`/admin/events/${id}?tab=musicians`} style={tabStyle(tab === 'musicians')}>Musicians</a>
         <a href={`/admin/events/${id}?tab=quotes`} style={tabStyle(tab === 'quotes')}>

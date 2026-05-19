@@ -18,17 +18,8 @@ const navLinks = [
   { href: '/admin/settings', label: 'Settings' },
 ]
 
-export default function AdminNav() {
+function NavLinks({ onNavigate, unreadCount }: { onNavigate?: () => void; unreadCount: number }) {
   const pathname = usePathname()
-  const [unreadCount, setUnreadCount] = useState(0)
-
-  useEffect(() => {
-    fetch('/api/admin/notifications?unread=true')
-      .then(r => r.json())
-      .then((data: unknown[]) => setUnreadCount(data.length))
-      .catch(() => {})
-  }, [])
-
   return (
     <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       {navLinks.map(link => {
@@ -39,6 +30,7 @@ export default function AdminNav() {
           <a
             key={link.href}
             href={link.href}
+            onClick={onNavigate}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -67,5 +59,112 @@ export default function AdminNav() {
         )
       })}
     </nav>
+  )
+}
+
+// Desktop sidebar nav
+export default function AdminNav() {
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  useEffect(() => {
+    fetch('/api/admin/notifications?unread=true')
+      .then(r => r.json())
+      .then((data: unknown[]) => setUnreadCount(data.length))
+      .catch(() => {})
+  }, [])
+
+  return <NavLinks unreadCount={unreadCount} />
+}
+
+// Mobile top bar + drawer
+export function AdminMobileNav() {
+  const [open, setOpen] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
+  const pathname = usePathname()
+
+  useEffect(() => {
+    fetch('/api/admin/notifications?unread=true')
+      .then(r => r.json())
+      .then((data: unknown[]) => setUnreadCount(data.length))
+      .catch(() => {})
+  }, [])
+
+  // Close drawer on route change
+  useEffect(() => { setOpen(false) }, [pathname])
+
+  return (
+    <>
+      {/* Top bar */}
+      <div style={{
+        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
+        height: 52,
+        background: 'var(--bg)',
+        borderBottom: '0.5px solid var(--border)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '0 16px',
+      }}>
+        <div>
+          <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>WSE</span>
+          <span style={{ fontSize: 11, color: 'var(--text-secondary)', marginLeft: 6 }}>Admin</span>
+        </div>
+        <button
+          onClick={() => setOpen(o => !o)}
+          aria-label="Menu"
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            padding: 8, color: 'var(--text)', display: 'flex', flexDirection: 'column',
+            gap: 5, alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <span style={{ display: 'block', width: 22, height: 1.5, background: 'currentColor', borderRadius: 2 }} />
+          <span style={{ display: 'block', width: 22, height: 1.5, background: 'currentColor', borderRadius: 2 }} />
+          <span style={{ display: 'block', width: 22, height: 1.5, background: 'currentColor', borderRadius: 2 }} />
+        </button>
+      </div>
+
+      {/* Drawer overlay */}
+      {open && (
+        <div
+          onClick={() => setOpen(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 200,
+            background: 'rgba(0,0,0,0.3)',
+          }}
+        />
+      )}
+
+      {/* Drawer */}
+      <div style={{
+        position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 300,
+        width: 220,
+        background: 'var(--bg)',
+        borderRight: '0.5px solid var(--border)',
+        padding: '20px 12px',
+        transform: open ? 'translateX(0)' : 'translateX(-100%)',
+        transition: 'transform 0.2s ease',
+        display: 'flex', flexDirection: 'column',
+        overflowY: 'auto',
+      }}>
+        <div style={{ padding: '0 12px', marginBottom: 24 }}>
+          <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>WSE</div>
+          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>Admin</div>
+        </div>
+
+        <NavLinks unreadCount={unreadCount} onNavigate={() => setOpen(false)} />
+
+        <div style={{ marginTop: 'auto', paddingTop: 16 }}>
+          <a
+            href="/api/admin/logout"
+            style={{
+              display: 'block', padding: '7px 12px',
+              borderRadius: 'var(--radius-sm)', textDecoration: 'none',
+              fontSize: 14, color: 'var(--text-secondary)',
+            }}
+          >
+            Log out
+          </a>
+        </div>
+      </div>
+    </>
   )
 }
