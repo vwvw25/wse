@@ -68,7 +68,7 @@ export function getQuoteItems(
     { show: hasExtendedPaEngineer, text: 'Extended PA + sound engineer' },
     { show: bt === 'background' && !inputs.client_provides_pa && paEngineerRate > 0, text: `If dancefloor focus with more than 40 guests, full PA + sound engineer required — add ${fmt(paEngineerRate)}` },
     { show: !inputs.finish_time, text: 'Based on a finish of 11pm or earlier' },
-    { show: showIpadMusic, text: 'Music via iPad/PA during intervals' },
+    { show: showIpadMusic, text: 'Music via iPad/PA during intervals (if applicable)' },
     { show: !showSpecificTimes, text: 'Arrival one hour before performance start (1.5hrs if Extended PA + sound engineer)' },
     { show: !!inputs.is_load_out_at_finish, text: 'Based on being able to load out at finish time' },
     { show: isDomesticOvernight && (inputs.petrol_train_cost ?? 0) > 0, text: 'Petrol / train travel' },

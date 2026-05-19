@@ -450,7 +450,7 @@ function BuilderForm() {
   const inclusions: { text: string; show: boolean }[] = [
     { text: 'All equipment for our use', show: !liveInputs.client_provides_pa },
     { text: 'Based on a finish of 11pm or earlier', show: !liveInputs.finish_time || liveInputs.finish_time <= '23:00' },
-    { text: 'Music via iPad/PA during intervals', show: !liveInputs.client_provides_pa && !liveInputs.selected_add_ons.some(a => a.name === 'Roaming set') },
+    { text: 'Music via iPad/PA during intervals (if applicable)', show: !liveInputs.client_provides_pa && !liveInputs.selected_add_ons.some(a => a.name === 'Roaming set') },
     { text: 'Arrival one hour before performance start (1.5hrs if full PA)', show: true },
     { text: 'Travel and expenses included', show: true },
     { text: 'If dancing and 40+ guests — book quartet or larger', show: liveInputs.booking_type === 'dancing_over_40' },
