@@ -182,8 +182,9 @@ export default async function AdminAuditPage({ params }: { params: Promise<{ id:
                     const liveOpts = live.price_options.filter(o => (o.booking_type ?? 'background') === bt)
                     const livOpt = liveOpts[i]
                     const priceDiff = livOpt && Math.abs(opt.total_price - livOpt.total_price) > 0.01
-                    const multiplierKey = opt.set_config as '2x45' | '3x45' | '4x45' | '5x45'
+                    const multiplierKey = opt.set_config as '1x60' | '2x45' | '3x45' | '4x45' | '5x45'
                     const multiplierMap: Record<string, number> = {
+                      '1x60': settings.set_multiplier_2x45,
                       '2x45': settings.set_multiplier_2x45,
                       '3x45': settings.set_multiplier_3x45,
                       '4x45': settings.set_multiplier_4x45,

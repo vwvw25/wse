@@ -39,6 +39,7 @@ export default function AuditButton({
   const hasMultipleTypes = allBookingTypes.length > 1
 
   const multiplierMap: Record<string, number> = {
+    '1x60': s.set_multiplier_2x45,
     '2x45': s.set_multiplier_2x45,
     '3x45': s.set_multiplier_3x45,
     '4x45': s.set_multiplier_4x45,

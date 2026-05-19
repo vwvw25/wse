@@ -651,7 +651,7 @@ function DetailsForm() {
               <div style={{ marginTop: 14 }}>
                 <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Number of sets</div>
                 <BoolGrid>
-                  {(['2x45', '3x45', '4x45', '5x45'] as SetConfig[]).map(cfg => (
+                  {(['1x60', '2x45', '3x45', '4x45', '5x45'] as SetConfig[]).map(cfg => (
                     <BoolTile
                       key={cfg}
                       label={cfg === '3x45' ? '3×45 or 2×60' : cfg.replace('x', '×')}

@@ -337,6 +337,7 @@ const headerBtnStyle: React.CSSProperties = {
 }
 
 const STANDARD_OVER_HOURS: Record<string, string> = {
+  '1x60': 'up to 3 hours',
   '2x45': 'up to 3 hours',
   '3x45': 'up to 4 hours',
   '4x45': 'up to 6 hours',

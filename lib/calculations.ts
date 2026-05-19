@@ -34,7 +34,7 @@ const PRE_START_STANDARD = 1.0     // standard load-in
 const PRE_START_PA_ENGINEER = 1.5  // extended PA + sound engineer needs extra setup time
 
 const packageHoursMap: Record<SetConfig, number> = {
-  '2x45': 3, '3x45': 4, '4x45': 6, '5x45': 8,
+  '1x60': 3, '2x45': 3, '3x45': 4, '4x45': 6, '5x45': 8,
 }
 
 export function calculate(inputs: QuoteInputs, settings: Settings): QuoteCalculated {
@@ -50,6 +50,7 @@ export function calculate(inputs: QuoteInputs, settings: Settings): QuoteCalcula
 
   // --- Set multiplier & package hours (primary config — for audit summary) ---
   const setMultiplierMap: Record<SetConfig, number> = {
+    '1x60': settings.set_multiplier_2x45,
     '2x45': settings.set_multiplier_2x45,
     '3x45': settings.set_multiplier_3x45,
     '4x45': settings.set_multiplier_4x45,
@@ -185,6 +186,7 @@ export function calculate(inputs: QuoteInputs, settings: Settings): QuoteCalcula
 
   // --- Price matrix ---
   const SET_MULTIPLIER_MAP: Record<SetConfig, number> = {
+    '1x60': settings.set_multiplier_2x45,
     '2x45': settings.set_multiplier_2x45,
     '3x45': settings.set_multiplier_3x45,
     '4x45': settings.set_multiplier_4x45,
@@ -290,7 +292,7 @@ export function calculate(inputs: QuoteInputs, settings: Settings): QuoteCalcula
       // Per-option travel
       const opt_travel = computeTravelCost(travel_person_count)
 
-      const SET_CONFIG_ORDER: SetConfig[] = ['2x45', '3x45', '4x45', '5x45']
+      const SET_CONFIG_ORDER: SetConfig[] = ['1x60', '2x45', '3x45', '4x45', '5x45']
       const orderedConfigs = SET_CONFIG_ORDER.filter(cfg => rawConfigs.includes(cfg))
       for (const cfg of orderedConfigs) {
         const mult = SET_MULTIPLIER_MAP[cfg]

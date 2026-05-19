@@ -15,11 +15,13 @@ const BOOKING_TYPE_LABELS: Record<BookingType, string> = {
 }
 
 function formatSetConfig(cfg: string): string {
+  if (cfg === '1x60') return '1×60'
   if (cfg === '3x45') return '3×45 (or 2×60)'
   return cfg.replace('x', '×')
 }
 
 const STANDARD_OVER_HOURS: Record<string, string> = {
+  '1x60': 'up to 3 hours',
   '2x45': 'up to 3 hours',
   '3x45': 'up to 4 hours',
   '4x45': 'up to 6 hours',

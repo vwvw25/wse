@@ -39,9 +39,9 @@ function parseMins(t: string | null | undefined): number {
 }
 
 // ── Quote constants ────────────────────────────────────────────────────────
-const SET_CONFIGS: SetConfig[] = ['2x45', '3x45', '4x45', '5x45']
+const SET_CONFIGS: SetConfig[] = ['1x60', '2x45', '3x45', '4x45', '5x45']
 const SET_CONFIG_LABELS: Record<SetConfig, string> = {
-  '2x45': '2×45', '3x45': '3×45', '4x45': '4×45', '5x45': '5×45',
+  '1x60': '1×60', '2x45': '2×45', '3x45': '3×45', '4x45': '4×45', '5x45': '5×45',
 }
 const PERF_TYPES: { value: BookingType; label: string }[] = [
   { value: 'background', label: 'Background' },

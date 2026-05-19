@@ -1,6 +1,8 @@
 import type { PriceOption, QuoteInputs, Settings } from '@/types/quote'
 
-const PKG_HOURS: Record<string, number> = { '2x45': 3, '3x45': 4, '4x45': 6, '5x45': 8 }
+const PKG_HOURS: Record<string, number> = { '1x60': 3, '2x45': 3, '3x45': 4, '4x45': 6, '5x45': 8 }
+// 1x60 uses the same multiplier as 2x45 (it's a display alias for the minimum package)
+const SET_MULTIPLIER_KEY: Record<string, string> = { '1x60': '2x45' }
 const PRE_START_STD = 1.0
 const PRE_START_SE = 1.5
 
@@ -14,7 +16,7 @@ export function optionLineItems(opt: PriceOption, inp: QuoteInputs, s: Settings,
   // Performance fee
   items.push({
     label: 'Performance fee',
-    formula: `£${Math.round(opt.sum_musician_fees)} × ${(s as unknown as Record<string, number>)['set_multiplier_' + opt.set_config] ?? '?'} × ${s.business_margin}`,
+    formula: `£${Math.round(opt.sum_musician_fees)} × ${(s as unknown as Record<string, number>)['set_multiplier_' + (SET_MULTIPLIER_KEY[opt.set_config] ?? opt.set_config)] ?? '?'} × ${s.business_margin}`,
     value: opt.performance_fee,
   })
 
