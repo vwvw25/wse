@@ -60,7 +60,7 @@ function FullRow({ label, value }: { label: string; value: string | null | undef
   )
 }
 
-type Tab = 'information' | 'musicians' | 'quotes' | 'requests' | 'set-lists'
+type Tab = 'information' | 'musicians' | 'quotes' | 'requests' | 'set-lists' | 'contract'
 
 export default async function EventDetailPage({
   params,
@@ -71,7 +71,7 @@ export default async function EventDetailPage({
 }) {
   const { id } = await params
   const { tab: tabParam } = await searchParams
-  const tab: Tab = tabParam === 'musicians' ? 'musicians' : tabParam === 'quotes' ? 'quotes' : tabParam === 'requests' ? 'requests' : tabParam === 'set-lists' ? 'set-lists' : 'information'
+  const tab: Tab = tabParam === 'musicians' ? 'musicians' : tabParam === 'quotes' ? 'quotes' : tabParam === 'requests' ? 'requests' : tabParam === 'set-lists' ? 'set-lists' : tabParam === 'contract' ? 'contract' : 'information'
 
   const supabase = createServiceClient()
 
@@ -299,6 +299,9 @@ export default async function EventDetailPage({
         </a>
         <a href={`/admin/events/${id}?tab=requests`} style={tabStyle(tab === 'requests')}>Requests</a>
         <a href={`/admin/events/${id}?tab=set-lists`} style={tabStyle(tab === 'set-lists')}>Set lists</a>
+        <a href={`/admin/events/${id}?tab=contract`} style={tabStyle(tab === 'contract')}>
+          Contract{event.contract ? ' ✓' : ''}
+        </a>
       </div>
 
       {/* ── Information tab ── */}
@@ -378,8 +381,16 @@ export default async function EventDetailPage({
           )}
 
           <Section label="Contract">
-            <div style={{ padding: '12px 0' }}>
-              <ContractSection event={event} quotePrice={quotePrice} />
+            <div style={{ padding: '10px 0' }}>
+              {event.contract ? (
+                <a href={`/admin/events/${id}?tab=contract`} style={{ fontSize: 13, color: 'var(--accent)', textDecoration: 'none' }}>
+                  ✓ Contract uploaded — view →
+                </a>
+              ) : (
+                <a href={`/admin/events/${id}?tab=contract`} style={{ fontSize: 13, color: 'var(--text-secondary)', textDecoration: 'none' }}>
+                  No contract yet — upload →
+                </a>
+              )}
             </div>
           </Section>
 
@@ -456,6 +467,13 @@ export default async function EventDetailPage({
           requests={eventRequests}
           allSongs={allSongs}
         />
+      )}
+
+      {/* ── Contract tab ── */}
+      {tab === 'contract' && (
+        <div style={{ maxWidth: 720 }}>
+          <ContractSection event={event} quotePrice={quotePrice} />
+        </div>
       )}
     </div>
   )

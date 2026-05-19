@@ -30,7 +30,6 @@ export async function POST(req: NextRequest) {
         version: 1,
         status: 'sent',
         ...(event_id ? { event_id } : {}),
-        ...(quote_request_id ? { quote_request_id } : {}),
       })
       .select('id')
       .single()

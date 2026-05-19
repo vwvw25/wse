@@ -20,48 +20,9 @@ function NewQuoteForm() {
   const [eventCardData, setEventCardData] = useState<EventCardData | null>(null)
   const dateInputRef = useRef<HTMLInputElement>(null)
 
-  // Load from quote_request (new email-to-quote flow)
+  // Load event data when coming from email-to-quote flow
   useEffect(() => {
-    if (!requestId) return
-    async function loadFromRequest() {
-      const { data } = await createBrowserClient()
-        .from('quote_requests')
-        .select('auto_fill, request_details')
-        .eq('id', requestId)
-        .single()
-      if (!data) return
-      const af = data.auto_fill as Record<string, unknown>
-      const rd = data.request_details as Record<string, unknown> | null
-      setEventCardData({
-        agency_name: af.agency_name as string | null,
-        agent_name: af.agent_name as string | null,
-        client_email: af.client_email as string | null,
-        event_date: af.event_date as string | null,
-        venue_name: af.venue_name as string | null,
-        venue_postcode: af.venue_postcode as string | null,
-        venue_address: af.venue_address as string | null,
-        location: af.location as string | null,
-        guests: af.guests as number | null,
-        arrival_time: af.arrival_time as string | null,
-        start_time: af.start_time as string | null,
-        finish_time: af.finish_time as string | null,
-        load_out_time: af.load_out_time as string | null,
-        band_size_requested: rd?.band_size_requested as string | null ?? null,
-        sets_requested: rd?.sets_requested as string | null ?? null,
-        special_requirements: rd?.special_requirements as string | null ?? null,
-        sound_requirements: rd?.sound_requirements as string | null ?? null,
-        notes: rd?.notes as string | null ?? null,
-      })
-      if (af.event_date) setEventDate(af.event_date as string)
-      setClientType(af.is_agency ? 'agency' : 'direct')
-    }
-    loadFromRequest()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [requestId])
-
-  // Load event data if coming from legacy event flow (no quote_request)
-  useEffect(() => {
-    if (!eventId || requestId) return
+    if (!eventId) return
     async function loadEvent() {
       const { data } = await createBrowserClient()
         .from('events')

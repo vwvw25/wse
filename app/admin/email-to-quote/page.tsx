@@ -52,7 +52,7 @@ export default function EmailToQuotePage() {
     try {
       const { eventId, quoteRequestId } = await saveEvent({ auto_fill: autoFill, request_details: requestDetails }, emailText, originalParse!)
       const params = new URLSearchParams()
-      params.set('request', quoteRequestId)
+      if (quoteRequestId) params.set('request', quoteRequestId)
       params.set('event', eventId)
       router.push(`/quote/new?${params.toString()}`)
     } catch (e) {
