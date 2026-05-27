@@ -19,7 +19,11 @@ Before implementing any feature that touches an external service, check the plan
 
 ## Commit and Push
 
-After completing any meaningful set of changes, always offer to commit and push without waiting to be asked. Propose a commit message and ask for confirmation, then commit and push to `main` in the same step. Commit at natural checkpoints mid-session — don't wait until the end.
+After completing any meaningful set of changes, propose a commit message and **wait for explicit confirmation** before doing anything. Do not run `git commit` or `git push` until the user says yes.
+
+Once confirmed, commit and push to `main` in the same step.
+
+Never commit or push speculatively, mid-task, or "to trigger a deploy" without confirmation. Changes pushed to `main` go live immediately on the production site.
 
 ## Stack
 

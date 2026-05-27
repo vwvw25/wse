@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import type { Client, ClientType } from '@/types/invoice'
 import { upsertClient, deleteClient } from './actions'
 
@@ -32,6 +33,7 @@ function ClientModal({
   client: Client | null
   onClose: () => void
 }) {
+  const router = useRouter()
   const [name, setName] = useState(client?.name ?? '')
   const [clientType, setClientType] = useState<ClientType>(client?.client_type ?? 'direct')
   const [email, setEmail] = useState(client?.email ?? '')
@@ -52,6 +54,7 @@ function ClientModal({
         address: address.trim() || null,
         notes: notes.trim() || null,
       })
+      router.refresh()
       onClose()
     })
   }
@@ -117,6 +120,7 @@ function ClientModal({
 }
 
 export default function ClientsClient({ clients }: { clients: Client[] }) {
+  const router = useRouter()
   const [modal, setModal] = useState<Client | null | 'new'>(null)
   const [search, setSearch] = useState('')
   const [, startTransition] = useTransition()
@@ -172,7 +176,7 @@ export default function ClientsClient({ clients }: { clients: Client[] }) {
                   <td style={{ padding: '10px 12px', textAlign: 'right' }}>
                     <button onClick={() => setModal(c)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--text-secondary)', padding: '2px 6px', fontFamily: 'var(--font)' }}>Edit</button>
                     <button
-                      onClick={() => { if (confirm(`Delete ${c.name}?`)) startTransition(async () => deleteClient(c.id)) }}
+                      onClick={() => { if (confirm(`Delete ${c.name}?`)) startTransition(async () => { await deleteClient(c.id); router.refresh() }) }}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--text-danger)', padding: '2px 6px', fontFamily: 'var(--font)' }}
                     >✕</button>
                   </td>
