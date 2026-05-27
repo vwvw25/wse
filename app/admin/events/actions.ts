@@ -159,6 +159,15 @@ export async function resolveContractFlag(eventId: string, fieldKey: string) {
   revalidatePath(`/admin/events/${eventId}`)
 }
 
+export async function updateBookingDetails(
+  eventId: string,
+  data: { booked_band_size: string | null; booked_sets: string | null; booked_fee: number | null }
+) {
+  const supabase = createServiceClient()
+  await supabase.from('events').update(data).eq('id', eventId)
+  revalidatePath(`/admin/events/${eventId}`)
+}
+
 export async function deleteEvent(eventId: string) {
   const supabase = createServiceClient()
   // Unlink any quotes that reference this event before deleting

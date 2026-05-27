@@ -8,6 +8,7 @@ import StatusSelect from '../StatusSelect'
 import EventMusiciansClient from './musicians/EventMusiciansClient'
 import CopyEventDetailsButton from './CopyEventDetailsButton'
 import ContractSection from './ContractSection'
+import BookingDetailsSection from './BookingDetailsSection'
 import InvoiceSection from './InvoiceSection'
 import ClientLinkSection from './ClientLinkSection'
 import EventQuotesClient from './EventQuotesClient'
@@ -94,10 +95,14 @@ export default async function EventDetailPage({
   const rd = event.request_details
   const quotePrice: number | null = quotes[0]?.calculated?.total_fee ?? null
 
-  // Prefill invoice line items from latest quote
-  const prefillItems: { description: string; cost: number }[] = quotePrice
-    ? [{ description: event.venue_name ? `Band performance — ${event.venue_name}` : 'Band performance', cost: quotePrice }]
-    : []
+  // Prefill invoice line items from booking details
+  const prefillItems: { description: string; cost: number }[] = (() => {
+    const fee = event.booked_fee
+    if (!fee) return []
+    const parts = [event.booked_band_size, event.booked_sets].filter(Boolean)
+    const description = parts.length > 0 ? parts.join(' – ') : 'Band performance'
+    return [{ description, cost: fee }]
+  })()
 
   const title = event.agency_name
     ? (event.agent_name ? `${event.agent_name} at ${event.agency_name}` : event.agency_name)
@@ -343,15 +348,14 @@ export default async function EventDetailPage({
             />
           </Section>
 
-          {(event.booked_band_template_id || event.booked_lineup || event.booked_sets) && (
-            <Section label="Booking details">
-              <PairGrid style={{ borderBottom: 'none' }}>
-                <Cell label="Band" value={(eventData as { booked_template?: { name: string } | null }).booked_template?.name ?? null} />
-                <Cell label="Sets" value={event.booked_sets} />
-              </PairGrid>
-              <FullRow label="Line-up" value={event.booked_lineup} />
-            </Section>
-          )}
+          <Section label="Booking details">
+            <BookingDetailsSection
+              eventId={event.id}
+              initialBandSize={event.booked_band_size}
+              initialSets={event.booked_sets}
+              initialFee={event.booked_fee}
+            />
+          </Section>
 
           {rd && (
             <Section label="Request details">

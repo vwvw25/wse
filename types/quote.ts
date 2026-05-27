@@ -278,6 +278,8 @@ export interface EventRecord {
   booked_band_template_id: string | null
   booked_lineup: string | null
   booked_sets: string | null
+  booked_band_size: string | null
+  booked_fee: number | null
   raw_email: string | null
   status: 'enquiry' | 'quoted' | 'pencil_hold' | 'client_declined' | 'cancelled' | 'confirmed_stc' | 'contracted' | 'pending' | 'confirmed'
   contract: ContractData | null
