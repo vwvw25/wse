@@ -61,7 +61,7 @@ function FullRow({ label, value }: { label: string; value: string | null | undef
   )
 }
 
-type Tab = 'information' | 'musicians' | 'quotes' | 'requests' | 'set-lists' | 'contract'
+type Tab = 'information' | 'musicians' | 'quotes' | 'requests' | 'set-lists' | 'contract' | 'invoices'
 
 export default async function EventDetailPage({
   params,
@@ -72,16 +72,17 @@ export default async function EventDetailPage({
 }) {
   const { id } = await params
   const { tab: tabParam } = await searchParams
-  const tab: Tab = tabParam === 'musicians' ? 'musicians' : tabParam === 'quotes' ? 'quotes' : tabParam === 'requests' ? 'requests' : tabParam === 'set-lists' ? 'set-lists' : tabParam === 'contract' ? 'contract' : 'information'
+  const tab: Tab = tabParam === 'musicians' ? 'musicians' : tabParam === 'quotes' ? 'quotes' : tabParam === 'requests' ? 'requests' : tabParam === 'set-lists' ? 'set-lists' : tabParam === 'contract' ? 'contract' : tabParam === 'invoices' ? 'invoices' : 'information'
 
   const supabase = createServiceClient()
 
-  const [{ data: eventData }, { data: quotesData }, { data: invoicesData }, { data: invoiceSettingsData }, { data: allClientsData }] = await Promise.all([
+  const [{ data: eventData }, { data: quotesData }, { data: invoicesData }, { data: invoiceSettingsData }, { data: allClientsData }, { data: monitoringData }] = await Promise.all([
     supabase.from('events').select('*, booked_template:band_templates!booked_band_template_id(name)').eq('id', id).single(),
     supabase.from('quotes').select('id, created_at, inputs, calculated, version, status, accepted_option').eq('event_id', id).order('version', { ascending: false }),
     supabase.from('invoices').select('*, line_items:invoice_line_items(*)').eq('event_id', id).order('created_at'),
     supabase.from('invoice_settings').select('*').single(),
     supabase.from('clients').select('*').order('name'),
+    supabase.from('monitoring_settings').select('reply_to_email').eq('id', 1).single(),
   ])
 
   if (!eventData) notFound()
@@ -92,6 +93,7 @@ export default async function EventDetailPage({
   const invoiceSettings = (invoiceSettingsData ?? null) as InvoiceSettings | null
   const allClients = (allClientsData ?? []) as Client[]
   const linkedClient = allClients.find(c => c.id === event.client_id) ?? null
+  const adminEmail = (monitoringData as { reply_to_email?: string | null } | null)?.reply_to_email ?? null
   const rd = event.request_details
   const quotePrice: number | null = quotes[0]?.calculated?.total_fee ?? null
 
@@ -304,6 +306,9 @@ export default async function EventDetailPage({
         </a>
         <a href={`/admin/events/${id}?tab=requests`} style={tabStyle(tab === 'requests')}>Requests</a>
         <a href={`/admin/events/${id}?tab=set-lists`} style={tabStyle(tab === 'set-lists')}>Set lists</a>
+        <a href={`/admin/events/${id}?tab=invoices`} style={tabStyle(tab === 'invoices')}>
+          Invoices{invoices.length > 0 ? ` (${invoices.length})` : ''}
+        </a>
         <a href={`/admin/events/${id}?tab=contract`} style={tabStyle(tab === 'contract')}>
           Contract{event.contract ? ' ✓' : ''}
         </a>
@@ -398,17 +403,6 @@ export default async function EventDetailPage({
             </div>
           </Section>
 
-          <Section label={`Invoices (${invoices.length})`}>
-            <div style={{ padding: '14px 0' }}>
-              <InvoiceSection
-                eventId={event.id}
-                eventDate={event.event_date}
-                invoices={invoices}
-                prefillItems={prefillItems}
-                invoiceSettings={invoiceSettings}
-              />
-            </div>
-          </Section>
 
           {event.raw_email && (
             <details style={{ marginTop: 24 }}>
@@ -471,6 +465,22 @@ export default async function EventDetailPage({
           requests={eventRequests}
           allSongs={allSongs}
         />
+      )}
+
+      {/* ── Invoices tab ── */}
+      {tab === 'invoices' && (
+        <div style={{ maxWidth: 720, paddingTop: 8 }}>
+          <InvoiceSection
+            eventId={event.id}
+            eventDate={event.event_date}
+            invoices={invoices}
+            prefillItems={prefillItems}
+            invoiceSettings={invoiceSettings}
+            clientEmail={linkedClient?.email ?? null}
+            clientName={linkedClient?.name ?? null}
+            adminEmail={adminEmail}
+          />
+        </div>
       )}
 
       {/* ── Contract tab ── */}

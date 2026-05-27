@@ -1,16 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Resend } from 'resend'
 import { createServiceClient } from '@/lib/supabase'
 import { renderToBuffer, Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer'
 import { invoiceSubtotal, invoiceVatTotal, invoiceTotal } from '@/types/invoice'
 import type { InvoiceLineItem } from '@/types/invoice'
+import { FROM_ADDRESS } from '@/lib/send-email'
+
+function getResend() { return new Resend(process.env.RESEND_API_KEY) }
 
 function fmt(n: number) {
   return `£${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`
 }
-
 function formatDate(d: string | null) {
   if (!d) return '—'
   return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+function bodyToHtml(body: string): string {
+  return body
+    .split(/\n\n+/)
+    .map(para => `<p style="margin:0 0 12px;line-height:1.6">${para.replace(/\n/g, '<br/>')}</p>`)
+    .join('')
 }
 
 const styles = StyleSheet.create({
@@ -47,37 +57,21 @@ const styles = StyleSheet.create({
   twoCol: { flexDirection: 'row', justifyContent: 'space-between' },
 })
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params
-  const supabase = createServiceClient()
-
-  const [{ data: invoice }, { data: settings }] = await Promise.all([
-    supabase
-      .from('invoices')
-      .select('*, line_items:invoice_line_items(*), event:events(*, client:clients(*))')
-      .eq('id', id)
-      .order('sort_order', { referencedTable: 'invoice_line_items' })
-      .single(),
-    supabase.from('invoice_settings').select('*').single(),
-  ])
-
-  if (!invoice) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-
-  const event = invoice.event
-  const client = event?.client
-  const items: InvoiceLineItem[] = invoice.line_items ?? []
+async function buildPdfBuffer(
+  invoice: Record<string, unknown>,
+  settings: Record<string, unknown> | null,
+): Promise<Buffer> {
+  const event = invoice.event as Record<string, unknown> | null
+  const client = (event?.client as Record<string, unknown> | null) ?? null
+  const items = (invoice.line_items as InvoiceLineItem[]) ?? []
   const subtotal = invoiceSubtotal(items)
   const vatTotal = invoiceVatTotal(items)
   const total = invoiceTotal(items)
-  const vatRegistered = settings?.vat_registered ?? false
+  const vatRegistered = (settings?.vat_registered as boolean) ?? false
 
-  // Bill-to always comes from the linked client record
-  const billToName = client?.name ?? 'Client'
-  const billToEmail = client?.email ?? null
-  const billToAddress = client?.address ?? null
+  const billToName = (client?.name as string | null) ?? 'Client'
+  const billToEmail = (client?.email as string | null) ?? null
+  const billToAddress = (client?.address as string | null) ?? null
 
   const statusColor = invoice.status === 'paid' ? '#16a34a' : '#d97706'
   const statusBg = invoice.status === 'paid' ? '#f0fdf4' : '#fffbeb'
@@ -85,28 +79,23 @@ export async function GET(
   const pdfDoc = (
     <Document>
       <Page size="A4" style={styles.page}>
-        {/* Header */}
         <View style={styles.header}>
           <View>
-            {settings?.logo_url
-              ? <Image src={settings.logo_url} style={styles.logo} />
+            {(settings?.logo_url as string | null)
+              ? <Image src={settings!.logo_url as string} style={styles.logo} />
               : <Text style={styles.companyName}>Ward Smith Entertainment</Text>
             }
           </View>
           <View style={{ alignItems: 'flex-end' }}>
             <Text style={styles.invoiceTitle}>Invoice</Text>
-            <Text style={{ fontSize: 11, color: '#6b7280' }}>{invoice.number}</Text>
+            <Text style={{ fontSize: 11, color: '#6b7280' }}>{invoice.number as string}</Text>
           </View>
         </View>
-
-        {/* Status badge */}
         <View style={[styles.badge, { backgroundColor: statusBg }]}>
           <Text style={{ color: statusColor, fontFamily: 'Helvetica-Bold', fontSize: 9 }}>
             {invoice.status === 'paid' ? '✓ Paid' : 'Outstanding'}
           </Text>
         </View>
-
-        {/* Bill to / invoice meta */}
         <View style={styles.twoCol}>
           <View style={{ flex: 1 }}>
             <Text style={[styles.metaLabel, { marginBottom: 6 }]}>Bill to</Text>
@@ -116,28 +105,26 @@ export async function GET(
           </View>
           <View style={{ width: 180 }}>
             {([
-              ['Invoice number', invoice.number],
-              ['Issue date', formatDate(invoice.issue_date)],
-              ['Due date', formatDate(invoice.due_date)],
-              invoice.po_number ? ['PO number', invoice.po_number] : null,
-              ['Event date', formatDate(event?.event_date ?? null)],
-              event?.venue_name ? ['Venue', event.venue_name] : null,
+              ['Invoice number', invoice.number as string],
+              ['Issue date', formatDate(invoice.issue_date as string | null)],
+              ['Due date', formatDate(invoice.due_date as string | null)],
+              invoice.po_number ? ['PO number', invoice.po_number as string] : null,
+              ['Event date', formatDate((event?.event_date as string | null) ?? null)],
+              event?.venue_name ? ['Venue', event.venue_name as string] : null,
             ] as ([string, string] | null)[]).filter((r): r is [string, string] => r !== null).map(([label, value], i) => (
               <View key={i} style={styles.metaRow}>
                 <Text style={styles.metaLabel}>{label}</Text>
                 <Text style={styles.metaValue}>{value}</Text>
               </View>
             ))}
-            {vatRegistered && settings?.vat_number && (
+            {vatRegistered && (settings?.vat_number as string | null) && (
               <View style={styles.metaRow}>
                 <Text style={styles.metaLabel}>VAT no.</Text>
-                <Text style={styles.metaValue}>{settings.vat_number}</Text>
+                <Text style={styles.metaValue}>{settings!.vat_number as string}</Text>
               </View>
             )}
           </View>
         </View>
-
-        {/* Line items */}
         <View style={styles.section}>
           <View style={styles.tableHeader}>
             <Text style={[styles.tableHeaderText, styles.col_desc]}>Description</Text>
@@ -150,20 +137,18 @@ export async function GET(
             const amount = item.cost + vat
             return (
               <View key={i} style={styles.tableRow}>
-                <Text style={[styles.col_desc]}>{item.description}</Text>
-                <Text style={[styles.col_cost]}>{fmt(item.cost)}</Text>
+                <Text style={styles.col_desc}>{item.description}</Text>
+                <Text style={styles.col_cost}>{fmt(item.cost)}</Text>
                 {vatRegistered && (
-                  <Text style={[styles.col_vat]}>
+                  <Text style={styles.col_vat}>
                     {item.vat_rate > 0 ? `${fmt(vat)} (${item.vat_rate}%)` : '—'}
                   </Text>
                 )}
-                <Text style={[styles.col_amount]}>{fmt(amount)}</Text>
+                <Text style={styles.col_amount}>{fmt(amount)}</Text>
               </View>
             )
           })}
         </View>
-
-        {/* Totals */}
         <View style={styles.totalsBox}>
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Subtotal</Text>
@@ -180,18 +165,16 @@ export async function GET(
             <Text style={styles.grandTotalValue}>{fmt(total)}</Text>
           </View>
         </View>
-
-        {/* Bank details */}
-        {(settings?.account_name || settings?.sort_code || settings?.account_number) && (
+        {((settings?.account_name as string | null) || (settings?.sort_code as string | null)) && (
           <View style={styles.bankBox}>
             <Text style={styles.bankTitle}>Payment details</Text>
             {([
-              settings?.bank_name ? ['Bank', settings.bank_name] : null,
-              settings?.account_name ? ['Account name', settings.account_name] : null,
-              settings?.sort_code ? ['Sort code', settings.sort_code] : null,
-              settings?.account_number ? ['Account no.', settings.account_number] : null,
-              settings?.iban ? ['IBAN', settings.iban] : null,
-              settings?.swift ? ['SWIFT', settings.swift] : null,
+              (settings?.bank_name as string | null) ? ['Bank', settings!.bank_name as string] : null,
+              (settings?.account_name as string | null) ? ['Account name', settings!.account_name as string] : null,
+              (settings?.sort_code as string | null) ? ['Sort code', settings!.sort_code as string] : null,
+              (settings?.account_number as string | null) ? ['Account no.', settings!.account_number as string] : null,
+              (settings?.iban as string | null) ? ['IBAN', settings!.iban as string] : null,
+              (settings?.swift as string | null) ? ['SWIFT', settings!.swift as string] : null,
             ] as ([string, string] | null)[]).filter((r): r is [string, string] => r !== null).map(([label, value], i) => (
               <View key={i} style={styles.bankRow}>
                 <Text style={[styles.metaLabel, { width: 90 }]}>{label}</Text>
@@ -200,24 +183,82 @@ export async function GET(
             ))}
           </View>
         )}
-
-        {/* Notes */}
-        {(invoice.notes || settings?.default_notes) && (
+        {((invoice.notes as string | null) || (settings?.default_notes as string | null)) && (
           <View style={styles.notesBox}>
             <Text style={[styles.bankTitle, { marginBottom: 4 }]}>Notes</Text>
-            <Text style={styles.notesText}>{invoice.notes ?? settings?.default_notes}</Text>
+            <Text style={styles.notesText}>{(invoice.notes as string | null) ?? (settings?.default_notes as string | null)}</Text>
           </View>
         )}
       </Page>
     </Document>
   )
 
-  const buffer = await renderToBuffer(pdfDoc)
+  return Buffer.from(await renderToBuffer(pdfDoc))
+}
 
-  return new NextResponse(new Uint8Array(buffer), {
-    headers: {
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': `inline; filename="${invoice.number}.pdf"`,
-    },
-  })
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params
+  const { to, cc, subject, body } = await req.json() as {
+    to: string
+    cc: string[]
+    subject: string
+    body: string
+  }
+
+  if (!to) return NextResponse.json({ error: 'Recipient required' }, { status: 400 })
+
+  const supabase = createServiceClient()
+
+  const [{ data: invoice }, { data: settings }] = await Promise.all([
+    supabase
+      .from('invoices')
+      .select('*, line_items:invoice_line_items(*), event:events(*, client:clients(*))')
+      .eq('id', id)
+      .order('sort_order', { referencedTable: 'invoice_line_items' })
+      .single(),
+    supabase.from('invoice_settings').select('*').single(),
+  ])
+
+  if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+
+  const pdfBuffer = await buildPdfBuffer(invoice, settings)
+  const html = `<div style="font-family:sans-serif;font-size:14px;color:#111827;max-width:600px">${bodyToHtml(body)}</div>`
+
+  const { data: logRow } = await supabase
+    .from('email_logs')
+    .insert({ type: 'invoice', recipient_email: to, subject, status: 'pending', html })
+    .select('id')
+    .single()
+  const emailLogId = logRow?.id ?? ''
+
+  try {
+    const { data: monRow } = await supabase.from('monitoring_settings').select('reply_to_email').eq('id', 1).single()
+    const replyTo = monRow?.reply_to_email ?? undefined
+
+    const result = await getResend().emails.send({
+      from: FROM_ADDRESS,
+      to,
+      ...(cc.length > 0 ? { cc } : {}),
+      ...(replyTo ? { reply_to: replyTo } : {}),
+      subject,
+      html,
+      attachments: [{
+        filename: `${invoice.number as string}.pdf`,
+        content: pdfBuffer,
+      }],
+    })
+
+    const resendId = (result.data as { id?: string } | null)?.id ?? null
+    await supabase.from('email_logs').update({ status: 'sent', resend_id: resendId, updated_at: new Date().toISOString() }).eq('id', emailLogId)
+    await supabase.from('invoices').update({ sent_at: new Date().toISOString() }).eq('id', id)
+
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    await supabase.from('email_logs').update({ status: 'failed', error_message: msg, updated_at: new Date().toISOString() }).eq('id', emailLogId)
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
 }

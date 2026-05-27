@@ -24,6 +24,8 @@ export interface InvoiceSettings {
   logo_url: string | null
   default_notes: string | null
   year_counters: Record<string, number>
+  invoice_email_subject: string | null
+  invoice_email_body: string | null
 }
 
 export interface InvoiceLineItem {

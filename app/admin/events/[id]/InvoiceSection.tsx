@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import type { Invoice, InvoiceLineItem, InvoiceSettings } from '@/types/invoice'
 import { invoiceSubtotal, invoiceVatTotal, invoiceTotal } from '@/types/invoice'
 import {
   createInvoice, updateInvoice, deleteInvoice,
   upsertLineItem, deleteLineItem, markInvoiceSent,
 } from './invoice-actions'
+import InvoiceEmailModal from './InvoiceEmailModal'
 
 const inputStyle: React.CSSProperties = {
   height: 30, padding: '0 8px', fontSize: 12,
@@ -101,14 +103,27 @@ function InvoiceCard({
   eventDate,
   vatRegistered,
   onDelete,
+  clientEmail,
+  adminEmail,
+  subjectTemplate,
+  bodyTemplate,
+  clientName,
 }: {
   invoice: Invoice & { line_items: InvoiceLineItem[] }
   eventId: string
   eventDate: string | null
   vatRegistered: boolean
   onDelete: () => void
+  clientEmail: string | null
+  adminEmail: string | null
+  subjectTemplate: string
+  bodyTemplate: string
+  clientName: string | null
 }) {
+  const router = useRouter()
   const [expanded, setExpanded] = useState(true)
+  const [emailModalOpen, setEmailModalOpen] = useState(false)
+  const [pdfOpen, setPdfOpen] = useState(false)
   const [addingItem, setAddingItem] = useState(false)
   const [newDesc, setNewDesc] = useState('')
   const [newCost, setNewCost] = useState('')
@@ -319,21 +334,26 @@ function InvoiceCard({
 
           {/* Actions */}
           <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-            <a
-              href={`/api/admin/invoices/${invoice.id}/pdf`}
-              download={`${invoice.number}.pdf`}
+            <button
+              onClick={() => setPdfOpen(true)}
               style={{
                 padding: '6px 14px', fontSize: 12, fontWeight: 500,
-                background: 'var(--text)', color: 'var(--bg)',
-                borderRadius: 'var(--radius-sm)', textDecoration: 'none', display: 'inline-block',
+                background: 'var(--text)', color: 'var(--bg)', border: 'none',
+                borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'var(--font)',
               }}
             >
-              ↓ Download PDF
-            </a>
+              View invoice
+            </button>
+            <button
+              onClick={() => setEmailModalOpen(true)}
+              style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, background: 'none', border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'var(--font)', color: 'var(--text)' }}
+            >
+              {invoice.sent_at ? 'Resend' : 'Send invoice'}
+            </button>
             {!invoice.sent_at && (
               <button
                 onClick={() => startTransition(async () => markInvoiceSent(invoice.id, eventId))}
-                style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, background: 'none', border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'var(--font)', color: 'var(--text)' }}
+                style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, background: 'none', border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'var(--font)', color: 'var(--text-secondary)' }}
               >
                 Mark as sent
               </button>
@@ -345,11 +365,64 @@ function InvoiceCard({
               Delete
             </button>
           </div>
+
+          {pdfOpen && (
+            <div
+              onClick={() => setPdfOpen(false)}
+              style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', padding: 24 }}
+            >
+              <div
+                onClick={e => e.stopPropagation()}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#fff', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: '0.5px solid #e5e7eb', background: '#f9fafb' }}>
+                  <span style={{ fontSize: 13, fontWeight: 500, fontFamily: 'var(--font)', color: '#111' }}>{invoice.number}.pdf</span>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <a href={`/api/admin/invoices/${invoice.id}/pdf`} download={`${invoice.number}.pdf`} style={{ padding: '4px 12px', fontSize: 12, fontWeight: 500, background: 'none', border: '0.5px solid #d1d5db', borderRadius: 4, textDecoration: 'none', color: '#374151', fontFamily: 'var(--font)' }}>↓ Download</a>
+                    <button onClick={() => setPdfOpen(false)} style={{ padding: '4px 10px', fontSize: 18, lineHeight: 1, background: 'transparent', border: 'none', color: '#888', cursor: 'pointer' }}>×</button>
+                  </div>
+                </div>
+                <iframe src={`/api/admin/invoices/${invoice.id}/pdf`} style={{ flex: 1, border: 'none', width: '100%' }} title={`${invoice.number}.pdf`} />
+              </div>
+            </div>
+          )}
+
+          {emailModalOpen && (
+            <InvoiceEmailModal
+              invoiceId={invoice.id}
+              invoiceNumber={invoice.number}
+              clientEmail={clientEmail}
+              adminEmail={adminEmail}
+              subjectTemplate={subjectTemplate}
+              bodyTemplate={bodyTemplate}
+              tokens={{
+                client_name: clientName ?? '',
+                invoice_number: invoice.number,
+                event_date: eventDate ? new Date(eventDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '',
+                total: `£${total.toFixed(2)}`,
+                due_date: invoice.due_date ? new Date(invoice.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '',
+              }}
+              onClose={() => setEmailModalOpen(false)}
+              onSent={() => router.refresh()}
+            />
+          )}
         </div>
       )}
     </div>
   )
 }
+
+const DEFAULT_SUBJECT = 'Invoice {{invoice_number}} — Ward Smith Entertainment'
+const DEFAULT_BODY = `Hi {{client_name}},
+
+Please find attached invoice {{invoice_number}} for your event on {{event_date}}.
+
+Total due: {{total}}{{due_date_line}}
+
+Thanks again for the booking!
+
+Many thanks,
+Ward Smith Entertainment`
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function InvoiceSection({
@@ -358,16 +431,24 @@ export default function InvoiceSection({
   invoices,
   prefillItems,
   invoiceSettings,
+  clientEmail,
+  clientName,
+  adminEmail,
 }: {
   eventId: string
   eventDate: string | null
   invoices: (Invoice & { line_items: InvoiceLineItem[] })[]
   prefillItems: { description: string; cost: number }[]
   invoiceSettings: InvoiceSettings | null
+  clientEmail: string | null
+  clientName: string | null
+  adminEmail: string | null
 }) {
   const [localInvoices, setLocalInvoices] = useState(invoices)
   const [, startTransition] = useTransition()
   const vatRegistered = invoiceSettings?.vat_registered ?? false
+  const subjectTemplate = invoiceSettings?.invoice_email_subject ?? DEFAULT_SUBJECT
+  const bodyTemplate = invoiceSettings?.invoice_email_body ?? DEFAULT_BODY
 
   function handleCreate() {
     startTransition(async () => {
@@ -388,6 +469,11 @@ export default function InvoiceSection({
           eventId={eventId}
           eventDate={eventDate}
           vatRegistered={vatRegistered}
+          clientEmail={clientEmail}
+          clientName={clientName}
+          adminEmail={adminEmail}
+          subjectTemplate={subjectTemplate}
+          bodyTemplate={bodyTemplate}
           onDelete={() => startTransition(async () => { await deleteInvoice(inv.id, eventId); setLocalInvoices(prev => prev.filter(i => i.id !== inv.id)) })}
         />
       ))}
