@@ -283,6 +283,7 @@ export interface EventRecord {
   raw_email: string | null
   status: 'enquiry' | 'quoted' | 'pencil_hold' | 'client_declined' | 'cancelled' | 'confirmed_stc' | 'contracted' | 'pending' | 'confirmed'
   contract: ContractData | null
+  invoices?: { id: string; status: string }[] | null
 }
 
 export interface EmailTemplate {
