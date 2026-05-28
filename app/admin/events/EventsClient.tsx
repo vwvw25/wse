@@ -26,6 +26,18 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
+function BandStatusBadge({ eventMusicians }: { eventMusicians?: { id: string; musician_id: string | null }[] | null }) {
+  const slots = eventMusicians ?? []
+  if (slots.length === 0) return null
+  const allFilled = slots.every(s => s.musician_id)
+  if (!allFilled) return null
+  return (
+    <span style={{ fontSize: 11, fontWeight: 500, padding: '2px 7px', borderRadius: 4, background: '#eff6ff', color: '#1d4ed8', border: '0.5px solid #bfdbfe', whiteSpace: 'nowrap' }}>
+      Booked
+    </span>
+  )
+}
+
 function InvoiceBadge({ invoices, status }: { invoices?: { id: string; status: string }[] | null; status: string }) {
   const CONFIRMED: string[] = ['confirmed_stc', 'contracted']
   if (!CONFIRMED.includes(status)) return null
@@ -61,7 +73,7 @@ function EventRow({ ev }: { ev: EventRecord }) {
     <a
       href={`/admin/events/${ev.id}`}
       style={{
-        display: 'grid', gridTemplateColumns: '140px 1fr 1fr 120px 120px 110px',
+        display: 'grid', gridTemplateColumns: '140px 1fr 1fr 120px 120px 90px 110px',
         padding: '12px 16px', gap: 16, textDecoration: 'none',
         background: 'var(--bg)', border: '0.5px solid var(--border)',
         borderRadius: 'var(--radius-md)', alignItems: 'center',
@@ -75,6 +87,7 @@ function EventRow({ ev }: { ev: EventRecord }) {
       <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{requestSummary}</div>
       <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{times}</div>
       <div><StatusBadge status={ev.status} /></div>
+      <div><BandStatusBadge eventMusicians={ev.event_musicians} /></div>
       <div><InvoiceBadge invoices={ev.invoices} status={ev.status} /></div>
     </a>
   )
@@ -234,7 +247,7 @@ export default function EventsClient({ events }: { events: EventRecord[] }) {
       {view === 'list' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
           <div style={{
-            display: 'grid', gridTemplateColumns: '140px 1fr 1fr 120px 120px 110px',
+            display: 'grid', gridTemplateColumns: '140px 1fr 1fr 120px 120px 90px 110px',
             padding: '8px 16px', gap: 16,
             fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)',
             textTransform: 'uppercase', letterSpacing: '0.06em',
@@ -249,6 +262,7 @@ export default function EventsClient({ events }: { events: EventRecord[] }) {
             <div>Request</div>
             <div>Times</div>
             <div>Status</div>
+            <div>Band</div>
             <div>Invoice</div>
           </div>
           {filtered.length === 0 ? (
