@@ -9,7 +9,7 @@ export default async function MusicianInvoicesPage() {
     .from('event_musicians')
     .select(`
       id, instrument, fee, additional_costs,
-      musician_invoice_status, musician_invoice_path, musician_invoice_filename, musician_payment_date,
+      musician_invoice_status, musician_invoice_path, musician_invoice_filename, musician_payment_date, musician_invoice_due_date,
       event:events(id, event_date, agency_name, agent_name),
       musician:musicians(id, first_name, last_name)
     `)

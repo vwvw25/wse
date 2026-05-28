@@ -20,3 +20,12 @@ export async function updateMusicianPaymentDate(slotId: string, date: string | n
     .eq('id', slotId)
   revalidatePath('/admin/musician-invoices')
 }
+
+export async function updateMusicianInvoiceDueDate(slotId: string, date: string | null) {
+  const supabase = createServiceClient()
+  await supabase
+    .from('event_musicians')
+    .update({ musician_invoice_due_date: date || null })
+    .eq('id', slotId)
+  revalidatePath('/admin/musician-invoices')
+}

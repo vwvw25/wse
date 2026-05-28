@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { updateMusicianInvoiceStatus, updateMusicianPaymentDate } from './actions'
+import { updateMusicianInvoiceStatus, updateMusicianPaymentDate, updateMusicianInvoiceDueDate } from './actions'
 
 function fmt(n: number) {
   return `£${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`
@@ -21,8 +21,16 @@ export type MusicianInvoiceRow = {
   musician_invoice_path: string | null
   musician_invoice_filename: string | null
   musician_payment_date: string | null
+  musician_invoice_due_date: string | null
   event: { id: string; event_date: string | null; agency_name: string | null; agent_name: string | null } | null
   musician: { id: string; first_name: string; last_name: string } | null
+}
+
+function computeDefaultDueDate(eventDate: string | null): string {
+  if (!eventDate) return ''
+  const d = new Date(eventDate)
+  d.setDate(d.getDate() + 30)
+  return d.toISOString().split('T')[0]
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
@@ -84,6 +92,30 @@ function PaymentDateCell({ slotId, date }: { slotId: string; date: string | null
     setCurrent(val)
     startTransition(async () => {
       await updateMusicianPaymentDate(slotId, val || null)
+      router.refresh()
+    })
+  }
+
+  return (
+    <input
+      type="date"
+      value={current}
+      onChange={e => handleChange(e.target.value)}
+      style={{ ...inputStyle, width: 130, colorScheme: 'light' }}
+    />
+  )
+}
+
+function DueDateCell({ slotId, date, eventDate }: { slotId: string; date: string | null; eventDate: string | null }) {
+  const router = useRouter()
+  const [, startTransition] = useTransition()
+  const defaultVal = date ?? computeDefaultDueDate(eventDate)
+  const [current, setCurrent] = useState(defaultVal)
+
+  function handleChange(val: string) {
+    setCurrent(val)
+    startTransition(async () => {
+      await updateMusicianInvoiceDueDate(slotId, val || null)
       router.refresh()
     })
   }
@@ -265,6 +297,7 @@ export default function MusicianInvoicesClient({ rows }: { rows: MusicianInvoice
                 <Th label="Fee" k="fee" />
                 <Th label="Invoice status" k="status" />
                 <Th label="Invoice" />
+                <Th label="Due date" />
                 <Th label="Payment date" />
               </tr>
             </thead>
@@ -296,6 +329,9 @@ export default function MusicianInvoicesClient({ rows }: { rows: MusicianInvoice
                     </td>
                     <td style={{ padding: '10px 12px' }}>
                       <InvoiceCell slotId={row.id} path={row.musician_invoice_path} filename={row.musician_invoice_filename} />
+                    </td>
+                    <td style={{ padding: '10px 12px' }}>
+                      <DueDateCell slotId={row.id} date={row.musician_invoice_due_date} eventDate={row.event?.event_date ?? null} />
                     </td>
                     <td style={{ padding: '10px 12px' }}>
                       <PaymentDateCell slotId={row.id} date={row.musician_payment_date} />
