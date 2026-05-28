@@ -95,6 +95,17 @@ function SlotRow({
   const emailSentAt = invite?.email_sent_at ? new Date(invite.email_sent_at) : null
   const canSend = !!slot.musician_id
 
+  const slotInstrument = slot.instrument.toLowerCase()
+  const filteredMusicians = musicians.filter(m => {
+    const primary = m.primary_instrument?.toLowerCase()
+    const secondary = m.secondary_instrument?.toLowerCase()
+    return primary === slotInstrument || secondary === slotInstrument
+  })
+  // Always include the currently assigned musician even if they don't match
+  const musicianOptions = slot.musician_id && !filteredMusicians.find(m => m.id === slot.musician_id)
+    ? [...filteredMusicians, musicians.find(m => m.id === slot.musician_id)!]
+    : filteredMusicians
+
   function handleMusicianChange(musicianId: string) {
     const musician = musicians.find(m => m.id === musicianId)
     const newFee = musician ? musician.default_fee : 0
@@ -178,7 +189,7 @@ function SlotRow({
             style={{ ...inputStyle, width: 150 }}
           >
             <option value="">— unassigned —</option>
-            {musicians.map(m => (
+            {musicianOptions.map(m => (
               <option key={m.id} value={m.id}>{musicianFullName(m)}</option>
             ))}
           </select>
