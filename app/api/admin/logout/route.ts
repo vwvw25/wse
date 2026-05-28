@@ -1,11 +1,25 @@
+import { createServerClient } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
 
-export async function GET(_request: NextRequest) {
-  const response = NextResponse.redirect(new URL('/admin/login', _request.url))
-  response.cookies.set('wse_admin_auth', '', {
-    httpOnly: true,
-    path: '/',
-    maxAge: 0,
-  })
-  return response
+export async function GET(req: NextRequest) {
+  const res = NextResponse.redirect(new URL('/admin/login', req.url))
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() { return req.cookies.getAll() },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            res.cookies.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
+
+  await supabase.auth.signOut()
+
+  return res
 }

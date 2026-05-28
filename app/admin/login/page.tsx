@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 export default function AdminLoginPage() {
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -17,12 +18,14 @@ export default function AdminLoginPage() {
       const res = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ email, password }),
       })
       if (res.ok) {
         router.push('/admin')
+        router.refresh()
       } else {
-        setError('Incorrect password')
+        const data = await res.json()
+        setError(data.error ?? 'Invalid email or password')
       }
     } catch {
       setError('Network error. Please try again.')
@@ -54,6 +57,32 @@ export default function AdminLoginPage() {
         </div>
 
         <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>
+              Email
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              autoFocus
+              autoComplete="email"
+              required
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                border: '0.5px solid var(--border)',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: 14,
+                fontFamily: 'var(--font)',
+                background: 'var(--bg)',
+                color: 'var(--text)',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>
               Password
@@ -62,7 +91,7 @@ export default function AdminLoginPage() {
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              autoFocus
+              autoComplete="current-password"
               required
               style={{
                 width: '100%',

@@ -1,18 +1,35 @@
+import { createServerClient } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
 
-export async function POST(request: NextRequest) {
-  const body = await request.json()
-  const { password } = body as { password: string }
+export async function POST(req: NextRequest) {
+  const { email, password } = await req.json()
 
-  if (password === process.env.ADMIN_PASSWORD) {
-    const response = NextResponse.json({ ok: true })
-    response.cookies.set('wse_admin_auth', password, {
-      httpOnly: true,
-      path: '/',
-      sameSite: 'lax',
-    })
-    return response
+  if (!email || !password) {
+    return NextResponse.json({ error: 'Email and password are required' }, { status: 400 })
   }
 
-  return NextResponse.json({ error: 'Incorrect password' }, { status: 401 })
+  const res = NextResponse.json({ ok: true })
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() { return req.cookies.getAll() },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            res.cookies.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
+
+  const { error } = await supabase.auth.signInWithPassword({ email, password })
+
+  if (error) {
+    return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
+  }
+
+  return res
 }

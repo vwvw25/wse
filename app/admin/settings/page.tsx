@@ -129,6 +129,16 @@ export default function SettingsPage() {
   const [sourcesSaving, setSourcesSaving] = useState(false)
   const [sourcesMessage, setSourcesMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
+  // Users state
+  type UserRow = { id: string; email: string | null; created_at: string; last_sign_in_at: string | null }
+  const [users, setUsers] = useState<UserRow[]>([])
+  const [usersLoading, setUsersLoading] = useState(false)
+  const [newUserEmail, setNewUserEmail] = useState('')
+  const [newUserPassword, setNewUserPassword] = useState('')
+  const [userCreating, setUserCreating] = useState(false)
+  const [userDeleting, setUserDeleting] = useState<string | null>(null)
+  const [usersMessage, setUsersMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
   const TEMPLATES = [
     { key: 'availability_request', label: 'Booking request' },
     { key: 'availability_reminder', label: 'Availability reminder' },
@@ -201,6 +211,65 @@ export default function SettingsPage() {
       setMonMessage({ type: 'error', text: 'Network error.' })
     } finally {
       setMonSaving(false)
+    }
+  }
+
+  async function loadUsers() {
+    setUsersLoading(true)
+    try {
+      const res = await fetch('/api/admin/users')
+      const data = await res.json()
+      if (Array.isArray(data)) setUsers(data)
+    } catch {}
+    finally { setUsersLoading(false) }
+  }
+
+  async function createUser() {
+    if (!newUserEmail.trim() || !newUserPassword) return
+    setUserCreating(true)
+    setUsersMessage(null)
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: newUserEmail.trim(), password: newUserPassword }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setUsersMessage({ type: 'error', text: data.error ?? 'Failed to create user' })
+      } else {
+        setUsersMessage({ type: 'success', text: `Account created for ${newUserEmail.trim()}` })
+        setNewUserEmail('')
+        setNewUserPassword('')
+        loadUsers()
+      }
+    } catch {
+      setUsersMessage({ type: 'error', text: 'Network error.' })
+    } finally {
+      setUserCreating(false)
+    }
+  }
+
+  async function deleteUser(id: string, email: string | null) {
+    if (!confirm(`Delete account for ${email ?? id}? This cannot be undone.`)) return
+    setUserDeleting(id)
+    setUsersMessage(null)
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: id }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setUsersMessage({ type: 'error', text: data.error ?? 'Failed to delete user' })
+      } else {
+        loadUsers()
+      }
+    } catch {
+      setUsersMessage({ type: 'error', text: 'Network error.' })
+    } finally {
+      setUserDeleting(null)
     }
   }
 
@@ -387,7 +456,7 @@ export default function SettingsPage() {
         {/* Left nav */}
         <nav style={{ width: 140, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 2, position: 'sticky', top: 24 }}>
           {NAV.map(({ key, label }) => (
-            <button key={key} onClick={() => setSection(key)} style={navItemStyle(section === key)}>
+            <button key={key} onClick={() => { setSection(key); if (key === 'general') loadUsers() }} style={navItemStyle(section === key)}>
               {label}
             </button>
           ))}
@@ -571,6 +640,65 @@ export default function SettingsPage() {
           {/* ── General ── */}
           {section === 'general' && (
             <>
+              <div style={sectionHeaderStyle}>User accounts</div>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 12px' }}>
+                Manage who can log in to the admin. Passwords must be at least 8 characters.
+              </p>
+              {usersLoading ? (
+                <p style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>Loading…</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginBottom: 16 }}>
+                  {users.map(u => (
+                    <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: '0.5px solid var(--border)' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 500 }}>{u.email ?? '—'}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 2 }}>
+                          Last sign in: {u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Never'}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => deleteUser(u.id, u.email)}
+                        disabled={userDeleting === u.id}
+                        title="Delete account"
+                        style={{ background: 'none', border: 'none', cursor: userDeleting === u.id ? 'not-allowed' : 'pointer', padding: 4, color: '#9ca3af', opacity: userDeleting === u.id ? 0.4 : 1 }}
+                      >
+                        <svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M6 2h8M3 5h14M5 5l1 12h8l1-12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      </button>
+                    </div>
+                  ))}
+                  {users.length === 0 && !usersLoading && (
+                    <p style={{ fontSize: 13, color: 'var(--text-tertiary)', fontStyle: 'italic' }}>No accounts yet.</p>
+                  )}
+                </div>
+              )}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                <input
+                  type="email"
+                  placeholder="Email address"
+                  value={newUserEmail}
+                  onChange={e => setNewUserEmail(e.target.value)}
+                  style={{ padding: '7px 10px', border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)', fontSize: 13, fontFamily: 'var(--font)', background: 'var(--bg)', color: 'var(--text)', outline: 'none' }}
+                />
+                <input
+                  type="password"
+                  placeholder="Password (min 8 chars)"
+                  value={newUserPassword}
+                  onChange={e => setNewUserPassword(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') createUser() }}
+                  style={{ padding: '7px 10px', border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)', fontSize: 13, fontFamily: 'var(--font)', background: 'var(--bg)', color: 'var(--text)', outline: 'none' }}
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 32 }}>
+                <button
+                  onClick={createUser}
+                  disabled={userCreating || !newUserEmail.trim() || newUserPassword.length < 8}
+                  style={{ padding: '9px 20px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: 14, fontWeight: 500, fontFamily: 'var(--font)', cursor: userCreating || !newUserEmail.trim() || newUserPassword.length < 8 ? 'not-allowed' : 'pointer', opacity: userCreating || !newUserEmail.trim() || newUserPassword.length < 8 ? 0.6 : 1 }}
+                >
+                  {userCreating ? 'Creating…' : 'Create account'}
+                </button>
+                {usersMessage && <span style={{ fontSize: 13, color: usersMessage.type === 'success' ? '#166534' : '#b91c1c' }}>{usersMessage.text}</span>}
+              </div>
+
               <div style={sectionHeaderStyle}>Booking sources</div>
               <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 12px' }}>
                 Shown as a dropdown on the email-to-quote form to track where enquiries came from.
