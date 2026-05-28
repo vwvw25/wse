@@ -165,8 +165,8 @@ export default function EventsClient({ events }: { events: EventRecord[] }) {
       return true
     })
     .sort((a, b) => {
-      const da = a.event_date ?? ''
-      const db = b.event_date ?? ''
+      const da = a.event_date ?? '9999-99-99'
+      const db = b.event_date ?? '9999-99-99'
       return sortDir === 'asc' ? da.localeCompare(db) : db.localeCompare(da)
     })
 
