@@ -27,6 +27,7 @@ export interface InvoiceSettings {
   invoice_email_subject: string | null
   invoice_email_body: string | null
   account_owner_email: string | null
+  booking_sources: string[] | null
 }
 
 export interface InvoiceLineItem {

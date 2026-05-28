@@ -261,6 +261,8 @@ export interface EventRecord {
   agent_surname: string | null
   client_email: string | null
   client_phone: string | null
+  source: string | null
+  source_job_url: string | null
   is_agency: boolean
   event_date: string | null
   event_type: string | null

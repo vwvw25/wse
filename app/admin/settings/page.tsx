@@ -123,6 +123,12 @@ export default function SettingsPage() {
   const [gifDeleting, setGifDeleting] = useState<string | null>(null)
   const [gifError, setGifError] = useState<string | null>(null)
 
+  // Booking sources state
+  const [bookingSources, setBookingSources] = useState<string[]>([])
+  const [newSource, setNewSource] = useState('')
+  const [sourcesSaving, setSourcesSaving] = useState(false)
+  const [sourcesMessage, setSourcesMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
   const TEMPLATES = [
     { key: 'availability_request', label: 'Booking request' },
     { key: 'availability_reminder', label: 'Availability reminder' },
@@ -140,7 +146,15 @@ export default function SettingsPage() {
       .catch(() => { setLoading(false) })
     fetch('/api/admin/invoice-settings')
       .then(r => r.json())
-      .then(data => { setInvSettings(data); setInvLoading(false) })
+      .then(data => {
+        setInvSettings(data)
+        setInvLoading(false)
+        if (Array.isArray(data?.booking_sources)) {
+          setBookingSources(data.booking_sources)
+        } else {
+          setBookingSources(['Encore', 'Poptop', 'Last Minute Musicians', 'Website'])
+        }
+      })
       .catch(() => { setInvLoading(false) })
     fetch('/api/admin/monitoring-settings')
       .then(r => r.json())
@@ -188,6 +202,41 @@ export default function SettingsPage() {
     } finally {
       setMonSaving(false)
     }
+  }
+
+  async function saveBookingSources() {
+    setSourcesSaving(true)
+    setSourcesMessage(null)
+    try {
+      const res = await fetch('/api/admin/invoice-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ booking_sources: bookingSources }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        setSourcesMessage({ type: 'error', text: err.error ?? 'Failed to save' })
+      } else {
+        setSourcesMessage({ type: 'success', text: 'Sources saved.' })
+      }
+    } catch {
+      setSourcesMessage({ type: 'error', text: 'Network error.' })
+    } finally {
+      setSourcesSaving(false)
+    }
+  }
+
+  function addSource() {
+    const trimmed = newSource.trim()
+    if (!trimmed || bookingSources.includes(trimmed)) return
+    setBookingSources(prev => [...prev, trimmed])
+    setNewSource('')
+    setSourcesMessage(null)
+  }
+
+  function removeSource(s: string) {
+    setBookingSources(prev => prev.filter(x => x !== s))
+    setSourcesMessage(null)
   }
 
   async function addGif() {
@@ -522,6 +571,55 @@ export default function SettingsPage() {
           {/* ── General ── */}
           {section === 'general' && (
             <>
+              <div style={sectionHeaderStyle}>Booking sources</div>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 12px' }}>
+                Shown as a dropdown on the email-to-quote form to track where enquiries came from.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginBottom: 12 }}>
+                {bookingSources.map(s => (
+                  <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '0.5px solid var(--border)' }}>
+                    <span style={{ flex: 1, fontSize: 13, color: 'var(--text)' }}>{s}</span>
+                    <button
+                      onClick={() => removeSource(s)}
+                      title="Remove"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#9ca3af', lineHeight: 1 }}
+                    >
+                      <svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M6 2h8M3 5h14M5 5l1 12h8l1-12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    </button>
+                  </div>
+                ))}
+                {bookingSources.length === 0 && (
+                  <p style={{ fontSize: 13, color: 'var(--text-tertiary)', fontStyle: 'italic', margin: '4px 0' }}>No sources added yet.</p>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                <input
+                  type="text"
+                  placeholder="New source name…"
+                  value={newSource}
+                  onChange={e => setNewSource(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') addSource() }}
+                  style={{ flex: 1, padding: '7px 10px', border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)', fontSize: 13, fontFamily: 'var(--font)', background: 'var(--bg)', color: 'var(--text)', outline: 'none' }}
+                />
+                <button
+                  onClick={addSource}
+                  disabled={!newSource.trim()}
+                  style={{ padding: '7px 16px', fontSize: 13, fontWeight: 500, background: 'var(--bg)', color: 'var(--text)', border: '0.5px solid var(--border-hover)', borderRadius: 'var(--radius-sm)', cursor: newSource.trim() ? 'pointer' : 'not-allowed', opacity: newSource.trim() ? 1 : 0.5, fontFamily: 'var(--font)' }}
+                >
+                  Add
+                </button>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 32 }}>
+                <button
+                  onClick={saveBookingSources}
+                  disabled={sourcesSaving}
+                  style={{ padding: '9px 20px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: 14, fontWeight: 500, fontFamily: 'var(--font)', cursor: sourcesSaving ? 'not-allowed' : 'pointer', opacity: sourcesSaving ? 0.7 : 1 }}
+                >
+                  {sourcesSaving ? 'Saving…' : 'Save sources'}
+                </button>
+                {sourcesMessage && <span style={{ fontSize: 13, color: sourcesMessage.type === 'success' ? '#166534' : '#b91c1c' }}>{sourcesMessage.text}</span>}
+              </div>
+
               <div style={sectionHeaderStyle}>Celebration GIFs</div>
               <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 12px' }}>Shown at random when a musician confirms availability.</p>
               <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>

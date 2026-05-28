@@ -151,7 +151,7 @@ export default function EventsClient({ events }: { events: EventRecord[] }) {
   const [view, setView] = useState<'list' | 'kanban'>('list')
   const [filter, setFilter] = useState<FilterMode>('all')
   const [includePast, setIncludePast] = useState(false)
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)

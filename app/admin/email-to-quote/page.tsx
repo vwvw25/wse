@@ -1,10 +1,12 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { extractFromEmail, saveEvent } from './actions'
 import type { EmailExtractResult, ExtractedAutoFill } from './actions'
 import type { RequestDetails } from '@/types/quote'
+
+const DEFAULT_SOURCES = ['Encore', 'Poptop', 'Last Minute Musicians', 'Website']
 
 type State = 'input' | 'extracting' | 'review' | 'creating' | 'error'
 
@@ -30,6 +32,18 @@ export default function EmailToQuotePage() {
   const [autoFill, setAutoFill] = useState<ExtractedAutoFill | null>(null)
   const [requestDetails, setRequestDetails] = useState<RequestDetails | null>(null)
   const [originalParse, setOriginalParse] = useState<EmailExtractResult | null>(null)
+  const [sources, setSources] = useState<string[]>(DEFAULT_SOURCES)
+
+  useEffect(() => {
+    fetch('/api/admin/invoice-settings')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data?.booking_sources) && data.booking_sources.length > 0) {
+          setSources(data.booking_sources)
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   async function handleExtract() {
     if (!emailText.trim()) return
@@ -201,6 +215,63 @@ export default function EmailToQuotePage() {
                     <TextInput value={autoFill.client_phone ?? ''} onChange={v => setAF('client_phone', v || null)} placeholder="—" />
                   </Field>
                 </>
+              )}
+
+              <Field label="Source" style={{ gridColumn: '1 / -1' }}>
+                <select
+                  value={autoFill.source ?? ''}
+                  onChange={e => {
+                    const v = e.target.value || null
+                    setAF('source', v)
+                    if (v !== 'Poptop' && v !== 'Encore') setAF('source_job_url', null)
+                  }}
+                  style={{
+                    width: '100%', height: 34, padding: '0 10px', fontSize: 13,
+                    background: 'var(--bg)', color: autoFill.source ? 'var(--text)' : 'var(--text-tertiary)',
+                    border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)',
+                    outline: 'none', fontFamily: 'var(--font)', boxSizing: 'border-box' as const,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value="">— Select source —</option>
+                  {sources.map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </Field>
+
+              {(autoFill.source === 'Poptop' || autoFill.source === 'Encore') && (
+                <Field label="Job reference URL" style={{ gridColumn: '1 / -1' }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <input
+                      type="url"
+                      value={autoFill.source_job_url ?? ''}
+                      onChange={e => setAF('source_job_url', e.target.value || null)}
+                      placeholder="https://…"
+                      style={{
+                        flex: 1, height: 34, padding: '0 10px', fontSize: 13,
+                        background: 'var(--bg)', color: 'var(--text)',
+                        border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)',
+                        outline: 'none', fontFamily: 'var(--font)', boxSizing: 'border-box' as const,
+                      }}
+                    />
+                    {autoFill.source_job_url && (
+                      <a
+                        href={autoFill.source_job_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{
+                          flexShrink: 0, padding: '0 12px', height: 34, display: 'flex', alignItems: 'center',
+                          fontSize: 12, fontWeight: 500, color: 'var(--accent)',
+                          border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)',
+                          textDecoration: 'none', whiteSpace: 'nowrap',
+                        }}
+                      >
+                        Open →
+                      </a>
+                    )}
+                  </div>
+                </Field>
               )}
             </div>
 

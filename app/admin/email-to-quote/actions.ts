@@ -25,6 +25,8 @@ export interface ExtractedAutoFill {
   agent_surname: string | null
   client_email: string | null
   client_phone: string | null
+  source: string | null
+  source_job_url: string | null
   event_date: string | null
   event_type: string | null
   venue_name: string | null
@@ -126,6 +128,8 @@ export async function saveEvent(
       agent_surname: af.agent_surname,
       client_email: af.client_email,
       client_phone: af.client_phone,
+      source: af.source,
+      source_job_url: af.source_job_url,
       is_agency: af.is_agency,
       event_date: af.event_date,
       event_type: af.event_type,
