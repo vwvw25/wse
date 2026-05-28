@@ -143,14 +143,13 @@ function KanbanCard({ ev }: { ev: EventRecord }) {
   )
 }
 
-const LIVE_ENQUIRY_STATUSES: EventStatus[] = ['enquiry', 'quoted', 'pencil_hold']
 const CONFIRMED_STATUSES: EventStatus[] = ['confirmed_stc', 'contracted']
 
-type FilterMode = 'live' | 'confirmed'
+type FilterMode = 'all' | 'confirmed'
 
 export default function EventsClient({ events }: { events: EventRecord[] }) {
   const [view, setView] = useState<'list' | 'kanban'>('list')
-  const [filter, setFilter] = useState<FilterMode>('live')
+  const [filter, setFilter] = useState<FilterMode>('all')
   const [includePast, setIncludePast] = useState(false)
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
 
@@ -159,10 +158,9 @@ export default function EventsClient({ events }: { events: EventRecord[] }) {
 
   const filtered = events
     .filter(ev => {
-      const statuses = filter === 'live' ? LIVE_ENQUIRY_STATUSES : CONFIRMED_STATUSES
-      if (!statuses.includes(ev.status as EventStatus)) return false
-      if (filter === 'confirmed' && !includePast) {
-        if (ev.event_date && new Date(ev.event_date) < today) return false
+      if (filter === 'confirmed') {
+        if (!CONFIRMED_STATUSES.includes(ev.status as EventStatus)) return false
+        if (!includePast && ev.event_date && new Date(ev.event_date) < today) return false
       }
       return true
     })
@@ -194,7 +192,7 @@ export default function EventsClient({ events }: { events: EventRecord[] }) {
         {/* Filter */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>Show:</span>
-          <button onClick={() => setFilter('live')} style={filterBtnStyle(filter === 'live')}>Live enquiries</button>
+          <button onClick={() => setFilter('all')} style={filterBtnStyle(filter === 'all')}>All</button>
           <button onClick={() => setFilter('confirmed')} style={filterBtnStyle(filter === 'confirmed')}>Confirmed</button>
         </div>
 
