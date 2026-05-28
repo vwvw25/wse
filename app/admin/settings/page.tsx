@@ -83,13 +83,24 @@ function FieldRow({
   )
 }
 
-type Section = 'pricing' | 'invoicing' | 'email' | 'general'
+type Section = 'pricing' | 'invoicing' | 'email' | 'general' | 'tools'
 
-const NAV: { key: Section; label: string }[] = [
-  { key: 'pricing', label: 'Pricing' },
-  { key: 'invoicing', label: 'Invoicing' },
-  { key: 'email', label: 'Email' },
-  { key: 'general', label: 'General' },
+const NAV_GROUPS: { heading: string; items: { key: Section; label: string }[] }[] = [
+  {
+    heading: 'Configuration',
+    items: [
+      { key: 'pricing',   label: 'Pricing' },
+      { key: 'invoicing', label: 'Invoicing' },
+      { key: 'email',     label: 'Email' },
+      { key: 'general',   label: 'General' },
+    ],
+  },
+  {
+    heading: 'Developer',
+    items: [
+      { key: 'tools', label: 'Tools' },
+    ],
+  },
 ]
 
 export default function SettingsPage() {
@@ -416,12 +427,13 @@ export default function SettingsPage() {
 
   const navItemStyle = (active: boolean): React.CSSProperties => ({
     display: 'block', width: '100%', textAlign: 'left',
-    padding: '7px 12px', fontSize: 13, fontFamily: 'var(--font)',
+    padding: '6px 8px 6px 6px', fontSize: 13, fontFamily: 'var(--font)',
     background: active ? 'var(--bg-secondary)' : 'none',
     color: active ? 'var(--text)' : 'var(--text-secondary)',
     fontWeight: active ? 500 : 400,
     border: 'none', borderRadius: 'var(--radius-sm)',
     cursor: 'pointer',
+    transition: 'background 0.1s, color 0.1s',
   })
 
   const saveBtn = (onClick: () => void, disabled: boolean, label: string): React.CSSProperties => ({
@@ -449,21 +461,56 @@ export default function SettingsPage() {
   }
 
   return (
-    <div style={{ padding: '32px 32px', fontFamily: 'var(--font)' }}>
-      <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0 0 24px', color: 'var(--text)' }}>Settings</h1>
+    <div style={{ display: 'flex', minHeight: '100%', fontFamily: 'var(--font)' }}>
 
-      <div style={{ display: 'flex', gap: 32, alignItems: 'flex-start' }}>
-        {/* Left nav */}
-        <nav style={{ width: 140, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 2, position: 'sticky', top: 24 }}>
-          {NAV.map(({ key, label }) => (
-            <button key={key} onClick={() => { setSection(key); if (key === 'general') loadUsers() }} style={navItemStyle(section === key)}>
-              {label}
-            </button>
-          ))}
-        </nav>
+      {/* Left nav — full-height panel */}
+      <nav style={{
+        width: 212,
+        flexShrink: 0,
+        borderRight: '0.5px solid var(--border)',
+        background: 'var(--bg)',
+        display: 'flex',
+        flexDirection: 'column',
+        padding: '28px 0',
+        position: 'sticky',
+        top: 0,
+        alignSelf: 'flex-start',
+        minHeight: 'calc(100vh - 52px)',
+      }}>
+        {/* "Settings" title — same left indent as nav items */}
+        <div style={{ padding: '0 12px 16px', borderBottom: '0.5px solid var(--border)', marginBottom: 8 }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', paddingLeft: 6 }}>Settings</span>
+        </div>
+
+        {NAV_GROUPS.map((group, i) => (
+          <React.Fragment key={group.heading}>
+            {i > 0 && <div style={{ borderTop: '0.5px solid var(--border)', margin: '8px 0' }} />}
+            <div style={{ padding: '8px 12px 0' }}>
+              <div style={{
+                fontSize: 10, fontWeight: 600, letterSpacing: '0.08em',
+                textTransform: 'uppercase', color: 'var(--text-tertiary)',
+                padding: '0 6px', marginBottom: 4,
+              }}>
+                {group.heading}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {group.items.map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => { setSection(key); if (key === 'general') loadUsers() }}
+                    style={navItemStyle(section === key)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </React.Fragment>
+        ))}
+      </nav>
 
         {/* Content */}
-        <div style={{ flex: 1, maxWidth: 580 }}>
+        <div style={{ flex: 1, maxWidth: 620, padding: '32px' }}>
 
           {/* ── Pricing ── */}
           {section === 'pricing' && (
@@ -792,8 +839,31 @@ export default function SettingsPage() {
             </>
           )}
 
+
+          {/* ── Tools ── */}
+          {section === 'tools' && (
+            <>
+              <div style={sectionHeaderStyle}>Logs</div>
+              <div style={rowStyle}>
+                <span style={labelStyle}>
+                  Email logs
+                  <span style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>All outgoing emails sent from this platform</span>
+                </span>
+                <a href="/admin/email-logs" style={{ padding: '6px 14px', fontSize: 13, fontWeight: 500, background: 'var(--bg)', color: 'var(--text)', border: '0.5px solid var(--border-hover)', borderRadius: 'var(--radius-sm)', textDecoration: 'none', flexShrink: 0 }}>Open →</a>
+              </div>
+
+              <div style={{ ...sectionHeaderStyle, marginTop: 28 }}>Developer</div>
+              <div style={{ ...rowStyle, borderBottom: 'none' }}>
+                <span style={labelStyle}>
+                  Parse evals
+                  <span style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>Test and evaluate email parsing accuracy</span>
+                </span>
+                <a href="/admin/parse-evals" style={{ padding: '6px 14px', fontSize: 13, fontWeight: 500, background: 'var(--bg)', color: 'var(--text)', border: '0.5px solid var(--border-hover)', borderRadius: 'var(--radius-sm)', textDecoration: 'none', flexShrink: 0 }}>Open →</a>
+              </div>
+            </>
+          )}
+
         </div>
-      </div>
     </div>
   )
 }

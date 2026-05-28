@@ -158,10 +158,8 @@ export default function EventsClient({ events }: { events: EventRecord[] }) {
 
   const filtered = events
     .filter(ev => {
-      if (filter === 'confirmed') {
-        if (!CONFIRMED_STATUSES.includes(ev.status as EventStatus)) return false
-        if (!includePast && ev.event_date && new Date(ev.event_date) < today) return false
-      }
+      if (filter === 'confirmed' && !CONFIRMED_STATUSES.includes(ev.status as EventStatus)) return false
+      if (!includePast && ev.event_date && new Date(ev.event_date) < today) return false
       return true
     })
     .sort((a, b) => {
@@ -196,9 +194,8 @@ export default function EventsClient({ events }: { events: EventRecord[] }) {
           <button onClick={() => setFilter('confirmed')} style={filterBtnStyle(filter === 'confirmed')}>Confirmed</button>
         </div>
 
-        {/* Include past toggle — only shown for Confirmed */}
-        {filter === 'confirmed' && (
-          <div
+        {/* Include past toggle */}
+        <div
             onClick={() => setIncludePast(p => !p)}
             style={{
               display: 'flex', alignItems: 'center', gap: 7,
@@ -223,7 +220,6 @@ export default function EventsClient({ events }: { events: EventRecord[] }) {
             </div>
             <span style={{ fontSize: 13, color: includePast ? 'var(--text-info)' : 'var(--text-secondary)' }}>Include past</span>
           </div>
-        )}
 
         {/* Spacer + view toggle */}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>

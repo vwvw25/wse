@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react' // useEffect kept for mobile close-on-navigate
 import { usePathname } from 'next/navigation'
 
 // ── Inline SVG icons ──────────────────────────────────────────────────────────
@@ -91,7 +91,6 @@ const BellIcon = () => <Ico>
 const navLinks = [
   { href: '/admin',                   label: 'Dashboard',         icon: <HomeIcon /> },
   { href: '/admin/events',            label: 'Events',            icon: <CalendarIcon /> },
-  { href: '/admin/band-builder',      label: 'Band builder',      icon: <PeopleIcon /> },
   { href: '/admin/musicians',         label: 'Musicians',         icon: <UserIcon /> },
   { href: '/admin/musician-invoices', label: 'Musician invoices', icon: <ReceiptIcon /> },
   { href: '/admin/quotes',            label: 'Quotes',            icon: <QuoteIcon /> },
@@ -99,10 +98,7 @@ const navLinks = [
   { href: '/admin/templates',         label: 'Templates',         icon: <TemplateIcon /> },
   { href: '/admin/clients',           label: 'Clients',           icon: <BriefcaseIcon /> },
   { href: '/admin/invoices',          label: 'Invoices',          icon: <InvoiceIcon /> },
-  { href: '/admin/email-logs',        label: 'Email logs',        icon: <MailIcon /> },
-  { href: '/admin/parse-evals',       label: 'Parse evals',       icon: <FlaskIcon /> },
-  { href: '/admin/notifications',     label: 'Notifications',     icon: <BellIcon /> },
-  // Settings lives in the user menu (top right)
+  // Settings lives in user menu; Email logs, Parse evals under Settings → Tools; Notifications in header bell
 ]
 
 // ── NavLinks ──────────────────────────────────────────────────────────────────
@@ -205,31 +201,14 @@ function NavLinks({
 // ── Desktop nav (used by AdminSidebar) ────────────────────────────────────────
 
 export default function AdminNav({ expanded }: { expanded: boolean }) {
-  const [unreadCount, setUnreadCount] = useState(0)
-
-  useEffect(() => {
-    fetch('/api/admin/notifications?unread=true')
-      .then(r => r.json())
-      .then((data: unknown[]) => setUnreadCount(data.length))
-      .catch(() => {})
-  }, [])
-
-  return <NavLinks unreadCount={unreadCount} expanded={expanded} />
+  return <NavLinks unreadCount={0} expanded={expanded} />
 }
 
 // ── Mobile drawer nav ─────────────────────────────────────────────────────────
 
 export function AdminMobileNav() {
   const [open, setOpen] = useState(false)
-  const [unreadCount, setUnreadCount] = useState(0)
   const pathname = usePathname()
-
-  useEffect(() => {
-    fetch('/api/admin/notifications?unread=true')
-      .then(r => r.json())
-      .then((data: unknown[]) => setUnreadCount(data.length))
-      .catch(() => {})
-  }, [])
 
   useEffect(() => { setOpen(false) }, [pathname])
 
@@ -286,7 +265,7 @@ export function AdminMobileNav() {
           <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>Admin</div>
         </div>
 
-        <NavLinks unreadCount={unreadCount} expanded onNavigate={() => setOpen(false)} />
+        <NavLinks unreadCount={0} expanded onNavigate={() => setOpen(false)} />
 
         <div style={{ marginTop: 'auto', padding: '16px 12px 0' }}>
           <a
