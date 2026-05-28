@@ -184,7 +184,12 @@ export async function updateEvent(eventId: string, formData: FormData) {
   const isAgency = formData.get('is_agency') === 'true'
   const agencyName = (formData.get('agency_name') as string)?.trim() || null
   const agentName = (formData.get('agent_name') as string)?.trim() || null
+  const agentFirstName = (formData.get('agent_first_name') as string)?.trim() || null
+  const agentSurname = (formData.get('agent_surname') as string)?.trim() || null
   const clientEmail = (formData.get('client_email') as string)?.trim() || null
+  const clientPhone = (formData.get('client_phone') as string)?.trim() || null
+  const source = (formData.get('source') as string)?.trim() || null
+  const sourceJobUrl = (formData.get('source_job_url') as string)?.trim() || null
   const eventDate = (formData.get('event_date') as string) || null
   const venueName = (formData.get('venue_name') as string)?.trim() || null
   const venuePostcode = (formData.get('venue_postcode') as string)?.trim() || null
@@ -219,9 +224,14 @@ export async function updateEvent(eventId: string, formData: FormData) {
     .from('events')
     .update({
       is_agency: isAgency,
-      agency_name: agencyName,
-      agent_name: agentName,
+      agency_name: isAgency ? agencyName : null,
+      agent_name: isAgency ? agentName : null,
+      agent_first_name: agentFirstName,
+      agent_surname: agentSurname,
       client_email: clientEmail,
+      client_phone: clientPhone,
+      source,
+      source_job_url: sourceJobUrl,
       event_date: eventDate,
       venue_name: venueName,
       venue_postcode: venuePostcode,

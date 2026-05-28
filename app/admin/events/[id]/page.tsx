@@ -106,9 +106,11 @@ export default async function EventDetailPage({
     return [{ description, cost: fee }]
   })()
 
-  const title = event.agency_name
-    ? (event.agent_name ? `${event.agent_name} at ${event.agency_name}` : event.agency_name)
-    : (event.agent_name ?? 'Unknown')
+  const title = event.is_agency
+    ? (event.agency_name
+        ? (event.agent_name ? `${event.agent_name} at ${event.agency_name}` : event.agency_name)
+        : (event.agent_name ?? 'Unknown'))
+    : ([event.agent_first_name, event.agent_surname].filter(Boolean).join(' ') || event.client_email || 'Direct booking')
 
   // Fetch musicians data when on the musicians tab
   let slots: EventMusician[] = []
@@ -319,15 +321,44 @@ export default async function EventDetailPage({
         <>
           <Section label="Event details">
             <PairGrid>
-              <Cell label="Agency" value={event.agency_name} />
-              <Cell label="Agent" value={event.agent_name} />
-              <Cell label="Date" value={formatDate(event.event_date)} />
-              <Cell label="Client email" value={event.client_email} />
+              {event.is_agency ? (
+                <>
+                  <Cell label="Agency" value={event.agency_name} />
+                  <Cell label="Agent" value={event.agent_name} />
+                  <Cell label="Date" value={formatDate(event.event_date)} />
+                  <Cell label="Email" value={event.client_email} />
+                </>
+              ) : (
+                <>
+                  <Cell label="First name" value={event.agent_first_name} />
+                  <Cell label="Surname" value={event.agent_surname} />
+                  <Cell label="Date" value={formatDate(event.event_date)} />
+                  <Cell label="Email" value={event.client_email} />
+                  <Cell label="Telephone" value={(event as unknown as { client_phone?: string | null }).client_phone} />
+                  <Cell label="Source" value={(event as unknown as { source?: string | null }).source} />
+                </>
+              )}
+              {event.is_agency && (
+                <Cell label="Source" value={(event as unknown as { source?: string | null }).source} />
+              )}
               <Cell label="Arrival" value={event.arrival_time} />
               <Cell label="Start" value={event.start_time} />
               <Cell label="Finish" value={event.finish_time} />
               <Cell label="Load out" value={event.load_out_time} />
             </PairGrid>
+            {(event as unknown as { source_job_url?: string | null }).source_job_url && (
+              <div style={{ padding: '10px 0', borderTop: '0.5px solid var(--border)' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 3, letterSpacing: '0.02em' }}>Job reference</div>
+                <a
+                  href={(event as unknown as { source_job_url?: string }).source_job_url!}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ fontSize: 13, color: 'var(--accent)', textDecoration: 'none' }}
+                >
+                  {(event as unknown as { source_job_url?: string }).source_job_url} →
+                </a>
+              </div>
+            )}
             <PairGrid>
               <Cell label="Venue" value={event.venue_name} />
               <Cell label="Guests" value={event.guests != null ? String(event.guests) : null} />

@@ -47,14 +47,19 @@ function SectionCard({ label, children }: { label: string; children: React.React
   )
 }
 
-export default function EditEventForm({ event, templates }: { event: EventRecord; templates: (BandTemplate & { slots: BandTemplateSlot[] })[] }) {
+export default function EditEventForm({ event, templates, sources }: { event: EventRecord; templates: (BandTemplate & { slots: BandTemplateSlot[] })[]; sources: string[] }) {
   const [isPending, startTransition] = useTransition()
   const rd = event.request_details
 
   const [isAgency, setIsAgency] = useState(event.is_agency)
   const [agencyName, setAgencyName] = useState(event.agency_name ?? '')
   const [agentName, setAgentName] = useState(event.agent_name ?? '')
+  const [agentFirstName, setAgentFirstName] = useState(event.agent_first_name ?? '')
+  const [agentSurname, setAgentSurname] = useState(event.agent_surname ?? '')
   const [clientEmail, setClientEmail] = useState(event.client_email ?? '')
+  const [clientPhone, setClientPhone] = useState((event as unknown as { client_phone?: string | null }).client_phone ?? '')
+  const [source, setSource] = useState((event as unknown as { source?: string | null }).source ?? '')
+  const [sourceJobUrl, setSourceJobUrl] = useState((event as unknown as { source_job_url?: string | null }).source_job_url ?? '')
   const [eventDate, setEventDate] = useState(event.event_date ?? '')
   const [venueName, setVenueName] = useState(event.venue_name ?? '')
   const [venuePostcode, setVenuePostcode] = useState(event.venue_postcode ?? '')
@@ -111,6 +116,11 @@ export default function EditEventForm({ event, templates }: { event: EventRecord
     fd.set('booked_band_template_id', bookedTemplateId)
     fd.set('booked_lineup', bookedLineup)
     fd.set('booked_sets', bookedSets === 'custom' ? bookedSetsCustom : bookedSets)
+    fd.set('agent_first_name', agentFirstName)
+    fd.set('agent_surname', agentSurname)
+    fd.set('client_phone', clientPhone)
+    fd.set('source', source)
+    fd.set('source_job_url', sourceJobUrl)
     startTransition(async () => {
       await updateEvent(event.id, fd)
     })
@@ -131,21 +141,77 @@ export default function EditEventForm({ event, templates }: { event: EventRecord
       {/* Contact */}
       <SectionCard label="Contact">
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-          <Field label={isAgency ? 'Agency name' : 'Client name'}>
-            <input name="agency_name" type="text" value={agencyName} onChange={e => setAgencyName(e.target.value)}
-              placeholder={isAgency ? 'e.g. Premier Talent' : 'e.g. Sarah Jones'}
-              style={inputBase} />
+          {isAgency ? (
+            <>
+              <Field label="Agency name">
+                <input name="agency_name" type="text" value={agencyName} onChange={e => setAgencyName(e.target.value)}
+                  placeholder="e.g. Premier Talent" style={inputBase} />
+              </Field>
+              <Field label="Agent name" hint="optional">
+                <input name="agent_name" type="text" value={agentName} onChange={e => setAgentName(e.target.value)}
+                  placeholder="e.g. Jane Smith" style={inputBase} />
+              </Field>
+              <Field label="Agent email" hint="optional">
+                <input name="client_email" type="email" value={clientEmail} onChange={e => setClientEmail(e.target.value)}
+                  placeholder="e.g. jane@agency.com" style={inputBase} />
+              </Field>
+            </>
+          ) : (
+            <>
+              <Field label="First name" hint="optional">
+                <input type="text" value={agentFirstName} onChange={e => setAgentFirstName(e.target.value)}
+                  placeholder="e.g. Sarah" style={inputBase} />
+              </Field>
+              <Field label="Surname" hint="optional">
+                <input type="text" value={agentSurname} onChange={e => setAgentSurname(e.target.value)}
+                  placeholder="e.g. Jones" style={inputBase} />
+              </Field>
+              <Field label="Email" hint="optional">
+                <input name="client_email" type="email" value={clientEmail} onChange={e => setClientEmail(e.target.value)}
+                  placeholder="e.g. sarah@example.com" style={inputBase} />
+              </Field>
+              <Field label="Telephone" hint="optional">
+                <input type="text" value={clientPhone} onChange={e => setClientPhone(e.target.value)}
+                  placeholder="e.g. 07700 900123" style={inputBase} />
+              </Field>
+            </>
+          )}
+
+          {/* Source — shown for all booking types */}
+          <Field label="Source" hint="optional">
+            <select
+              value={source}
+              onChange={e => {
+                const v = e.target.value
+                setSource(v)
+                if (v !== 'Poptop' && v !== 'Encore') setSourceJobUrl('')
+              }}
+              style={{ ...inputBase, appearance: 'auto' as React.CSSProperties['appearance'] }}
+            >
+              <option value="">— Not set —</option>
+              {sources.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
           </Field>
-          {isAgency && (
-            <Field label="Agent name" hint="optional">
-              <input name="agent_name" type="text" value={agentName} onChange={e => setAgentName(e.target.value)}
-                placeholder="e.g. Jane Smith" style={inputBase} />
+
+          {(source === 'Poptop' || source === 'Encore') && (
+            <Field label="Job reference URL" hint="optional">
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input
+                  type="url"
+                  value={sourceJobUrl}
+                  onChange={e => setSourceJobUrl(e.target.value)}
+                  placeholder="https://…"
+                  style={{ ...inputBase, flex: 1 }}
+                />
+                {sourceJobUrl && (
+                  <a href={sourceJobUrl} target="_blank" rel="noreferrer"
+                    style={{ flexShrink: 0, padding: '8px 12px', fontSize: 12, fontWeight: 500, color: 'var(--accent)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                    Open →
+                  </a>
+                )}
+              </div>
             </Field>
           )}
-          <Field label="Client email" hint="optional">
-            <input name="client_email" type="email" value={clientEmail} onChange={e => setClientEmail(e.target.value)}
-              placeholder="e.g. jane@agency.com" style={inputBase} />
-          </Field>
         </div>
       </SectionCard>
 

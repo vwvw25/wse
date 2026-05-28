@@ -8,10 +8,11 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
   const { id } = await params
   const supabase = createServiceClient()
 
-  const [{ data }, { data: templatesData }, { data: templateSlotsData }] = await Promise.all([
+  const [{ data }, { data: templatesData }, { data: templateSlotsData }, { data: invData }] = await Promise.all([
     supabase.from('events').select('*').eq('id', id).single(),
     supabase.from('band_templates').select('*').order('name'),
     supabase.from('band_template_slots').select('*').order('sort_order'),
+    supabase.from('invoice_settings').select('booking_sources').single(),
   ])
 
   if (!data) notFound()
@@ -30,7 +31,11 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
         <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0 0 4px', color: 'var(--text)' }}>Edit event</h1>
       </div>
 
-      <EditEventForm event={event} templates={templates} />
+      <EditEventForm
+    event={event}
+    templates={templates}
+    sources={(invData as { booking_sources?: string[] | null } | null)?.booking_sources ?? ['Encore', 'Poptop', 'Last Minute Musicians', 'Website']}
+  />
     </div>
   )
 }
