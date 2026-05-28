@@ -575,10 +575,45 @@ function RosterTab({ musicians }: { musicians: Musician[] }) {
   const [modal, setModal] = useState<Partial<Musician> | null | false>(false)
   const [onboardModal, setOnboardModal] = useState(false)
   const [requestInfoModal, setRequestInfoModal] = useState<Musician | null>(null)
+  const [instrumentFilter, setInstrumentFilter] = useState<string>('')
   const [, startTransition] = useTransition()
+
+  const visibleMusicians = instrumentFilter
+    ? musicians.filter(m =>
+        m.primary_instrument === instrumentFilter ||
+        m.secondary_instrument === instrumentFilter
+      )
+    : musicians
 
   return (
     <div>
+      {/* Instrument filter */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
+        <button
+          onClick={() => setInstrumentFilter('')}
+          style={{
+            padding: '4px 12px', fontSize: 12, cursor: 'pointer', fontFamily: 'var(--font)',
+            border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)',
+            background: instrumentFilter === '' ? 'var(--text)' : 'none',
+            color: instrumentFilter === '' ? 'var(--bg)' : 'var(--text-secondary)',
+            fontWeight: instrumentFilter === '' ? 500 : 400,
+          }}
+        >All</button>
+        {INSTRUMENTS.map(inst => (
+          <button
+            key={inst}
+            onClick={() => setInstrumentFilter(f => f === inst ? '' : inst)}
+            style={{
+              padding: '4px 12px', fontSize: 12, cursor: 'pointer', fontFamily: 'var(--font)',
+              border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)',
+              background: instrumentFilter === inst ? 'var(--text)' : 'none',
+              color: instrumentFilter === inst ? 'var(--bg)' : 'var(--text-secondary)',
+              fontWeight: instrumentFilter === inst ? 500 : 400,
+            }}
+          >{inst}</button>
+        ))}
+      </div>
+
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 16 }}>
         <button
           style={{ ...primaryBtn, background: 'var(--bg-secondary)', color: 'var(--text)', border: '0.5px solid var(--border)' }}
@@ -604,7 +639,10 @@ function RosterTab({ musicians }: { musicians: Musician[] }) {
               </tr>
             </thead>
             <tbody>
-              {musicians.map(m => {
+              {visibleMusicians.length === 0 ? (
+                <tr><td colSpan={13} style={{ padding: '24px 0', textAlign: 'center', fontSize: 13, color: 'var(--text-tertiary)' }}>No musicians play {instrumentFilter}.</td></tr>
+              ) : null}
+              {visibleMusicians.map(m => {
                 const dietaryLabels = (m.dietary_requirements ?? [])
                   .map(k => DIETARY_LABELS[k] ?? k)
                   .join(', ') || '—'

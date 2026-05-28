@@ -16,6 +16,7 @@ export type EmailType =
   | 'onboarding'
   | 'onboarding_reminder'
   | 'invoice'
+  | 'musician_payment_reminder'
 
 export async function sendEmail({
   type,

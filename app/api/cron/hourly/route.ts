@@ -18,16 +18,18 @@ export async function GET(req: NextRequest) {
     'x-cron-secret': cronSecret,
   }
 
-  const [remindersRes, onboardingRes, healthRes] = await Promise.allSettled([
+  const [remindersRes, onboardingRes, healthRes, musicianPaymentsRes] = await Promise.allSettled([
     fetch(`${baseUrl}/api/cron/reminders`, { headers }),
     fetch(`${baseUrl}/api/cron/onboarding-reminders`, { headers }),
     fetch(`${baseUrl}/api/cron/email-health`, { headers }),
+    fetch(`${baseUrl}/api/cron/musician-payment-reminders`, { headers }),
   ])
 
   const results = {
     reminders: remindersRes.status === 'fulfilled' ? await remindersRes.value.json() : { error: String((remindersRes as PromiseRejectedResult).reason) },
     onboarding: onboardingRes.status === 'fulfilled' ? await onboardingRes.value.json() : { error: String((onboardingRes as PromiseRejectedResult).reason) },
     emailHealth: healthRes.status === 'fulfilled' ? await healthRes.value.json() : { error: String((healthRes as PromiseRejectedResult).reason) },
+    musicianPayments: musicianPaymentsRes.status === 'fulfilled' ? await musicianPaymentsRes.value.json() : { error: String((musicianPaymentsRes as PromiseRejectedResult).reason) },
   }
 
   return NextResponse.json({ ok: true, ...results })

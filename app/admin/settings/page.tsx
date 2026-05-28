@@ -402,6 +402,12 @@ export default function SettingsPage() {
           {/* ── Invoicing ── */}
           {section === 'invoicing' && (
             invLoading ? <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Loading…</p> : <>
+              <div style={sectionHeaderStyle}>Account</div>
+              <div style={rowStyle}>
+                <span style={labelStyle}>Account owner email <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>(receives musician payment reminders)</span></span>
+                <input type="email" style={inputStyle} value={invSettings.account_owner_email ?? ''} onChange={e => handleInvChange('account_owner_email', e.target.value || null)} placeholder="e.g. victoria@wardsmith.co.uk" />
+              </div>
+
               <div style={sectionHeaderStyle}>VAT</div>
               <div style={rowStyle}>
                 <span style={labelStyle}>VAT registered</span>

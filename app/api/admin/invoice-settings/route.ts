@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
     'vat_registered', 'vat_number',
     'bank_name', 'account_name', 'sort_code', 'account_number', 'iban', 'swift',
     'logo_url', 'default_notes', 'invoice_email_subject', 'invoice_email_body',
+    'account_owner_email',
   ]
   const update: Record<string, unknown> = {}
   for (const key of allowed) {

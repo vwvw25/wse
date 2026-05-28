@@ -26,6 +26,7 @@ export interface InvoiceSettings {
   year_counters: Record<string, number>
   invoice_email_subject: string | null
   invoice_email_body: string | null
+  account_owner_email: string | null
 }
 
 export interface InvoiceLineItem {
