@@ -2,7 +2,7 @@
 
 import React, { useState, useTransition } from 'react'
 import type { EventMusician, Musician, BandTemplate, BandTemplateSlot } from '@/types/musicians'
-import { musicianFullName } from '@/types/musicians'
+import { musicianFullName, INSTRUMENTS } from '@/types/musicians'
 import {
   applyTemplateToEvent,
   addEventMusicianSlot,
@@ -477,21 +477,25 @@ export default function EventMusiciansClient({ eventId, eventLabel, eventFood, s
         )}
 
         <form onSubmit={handleAddSlot} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <input
+          <select
             style={{ ...inputStyle, width: 160 }}
             value={addInstrument}
             onChange={e => setAddInstrument(e.target.value)}
-            placeholder="Add instrument slot…"
-          />
+          >
+            <option value="">Add instrument slot…</option>
+            {INSTRUMENTS.map(inst => (
+              <option key={inst} value={inst}>{inst}</option>
+            ))}
+          </select>
           <button
             type="submit"
-            disabled={!addInstrument.trim()}
+            disabled={!addInstrument}
             style={{
               padding: '0 14px', height: 32, fontSize: 13,
               background: 'var(--bg-secondary)', color: 'var(--text)',
               border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)',
               cursor: 'pointer', fontFamily: 'var(--font)',
-              opacity: !addInstrument.trim() ? 0.5 : 1,
+              opacity: !addInstrument ? 0.5 : 1,
             }}
           >Add slot</button>
         </form>
