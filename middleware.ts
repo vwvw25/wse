@@ -26,7 +26,7 @@ export async function middleware(request: NextRequest) {
 
   // Validate the session server-side (getUser makes a network call — cannot be spoofed)
   const { data: { user } } = await supabase.auth.getUser()
-  const isLoginPage = request.nextUrl.pathname === '/admin/login'
+  const isLoginPage = request.nextUrl.pathname === '/login'
 
   // Already logged in → don't show login page
   if (user && isLoginPage) {
@@ -35,7 +35,7 @@ export async function middleware(request: NextRequest) {
 
   // Not logged in → redirect to login
   if (!user && !isLoginPage) {
-    return NextResponse.redirect(new URL('/admin/login', request.url))
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
   return supabaseResponse
