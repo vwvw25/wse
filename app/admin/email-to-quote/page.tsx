@@ -173,15 +173,35 @@ export default function EmailToQuotePage() {
               <Field label="Event date">
                 <TextInput value={autoFill.event_date ?? ''} onChange={v => setAF('event_date', v || null)} placeholder="YYYY-MM-DD" />
               </Field>
-              <Field label="Agency name">
-                <TextInput value={autoFill.agency_name ?? ''} onChange={v => setAF('agency_name', v || null)} placeholder="—" />
-              </Field>
-              <Field label="Agent name">
-                <TextInput value={autoFill.agent_name ?? ''} onChange={v => setAF('agent_name', v || null)} placeholder="—" />
-              </Field>
-              <Field label="Agent email" style={{ gridColumn: '1 / -1' }}>
-                <TextInput value={autoFill.client_email ?? ''} onChange={v => setAF('client_email', v || null)} placeholder="—" />
-              </Field>
+
+              {autoFill.is_agency ? (
+                <>
+                  <Field label="Agency name">
+                    <TextInput value={autoFill.agency_name ?? ''} onChange={v => setAF('agency_name', v || null)} placeholder="—" />
+                  </Field>
+                  <Field label="Agent name">
+                    <TextInput value={autoFill.agent_name ?? ''} onChange={v => setAF('agent_name', v || null)} placeholder="—" />
+                  </Field>
+                  <Field label="Agent email" style={{ gridColumn: '1 / -1' }}>
+                    <TextInput value={autoFill.client_email ?? ''} onChange={v => setAF('client_email', v || null)} placeholder="—" />
+                  </Field>
+                </>
+              ) : (
+                <>
+                  <Field label="First name">
+                    <TextInput value={autoFill.agent_first_name ?? ''} onChange={v => setAF('agent_first_name', v || null)} placeholder="—" />
+                  </Field>
+                  <Field label="Surname">
+                    <TextInput value={autoFill.agent_surname ?? ''} onChange={v => setAF('agent_surname', v || null)} placeholder="—" />
+                  </Field>
+                  <Field label="Email">
+                    <TextInput value={autoFill.client_email ?? ''} onChange={v => setAF('client_email', v || null)} placeholder="—" />
+                  </Field>
+                  <Field label="Telephone">
+                    <TextInput value={autoFill.client_phone ?? ''} onChange={v => setAF('client_phone', v || null)} placeholder="—" />
+                  </Field>
+                </>
+              )}
             </div>
 
             <div style={{ height: 1, background: 'var(--border)', margin: '16px 0' }} />

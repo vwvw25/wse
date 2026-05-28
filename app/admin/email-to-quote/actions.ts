@@ -24,6 +24,7 @@ export interface ExtractedAutoFill {
   agent_first_name: string | null
   agent_surname: string | null
   client_email: string | null
+  client_phone: string | null
   event_date: string | null
   event_type: string | null
   venue_name: string | null
@@ -48,11 +49,12 @@ const SYSTEM_PROMPT = `You are extracting booking enquiry details from an email 
 
 AUTO_FILL fields:
 - is_agency: boolean (true if from an agent/agency, false if direct client)
-- agency_name: string or null
-- agent_name: string or null — full name (e.g. "Hettie Ralph")
-- agent_first_name: string or null — first name only (e.g. "Hettie")
-- agent_surname: string or null — surname only (e.g. "Ralph")
+- agency_name: string or null (only when is_agency true)
+- agent_name: string or null — full name (e.g. "Hettie Ralph") — for agents only; for direct clients use agent_first_name + agent_surname
+- agent_first_name: string or null — first name only (e.g. "Hettie"); for direct clients this is the client's first name
+- agent_surname: string or null — surname only (e.g. "Ralph"); for direct clients this is the client's surname
 - client_email: string or null (sender's email)
+- client_phone: string or null (phone number — especially useful for direct bookings)
 - event_date: string or null — YYYY-MM-DD
 - event_type: string or null — e.g. "Corporate Event", "Charity Ball", "Wedding", "Summer Party", "Awards Ceremony", "Private Dinner", "Birthday Party"
 - venue_name: string or null — name of the venue
@@ -123,6 +125,7 @@ export async function saveEvent(
       agent_first_name: af.agent_first_name,
       agent_surname: af.agent_surname,
       client_email: af.client_email,
+      client_phone: af.client_phone,
       is_agency: af.is_agency,
       event_date: af.event_date,
       event_type: af.event_type,

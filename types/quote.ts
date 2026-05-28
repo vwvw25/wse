@@ -260,6 +260,7 @@ export interface EventRecord {
   agent_first_name: string | null
   agent_surname: string | null
   client_email: string | null
+  client_phone: string | null
   is_agency: boolean
   event_date: string | null
   event_type: string | null
