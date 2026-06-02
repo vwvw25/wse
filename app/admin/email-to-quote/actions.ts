@@ -47,7 +47,11 @@ export interface EmailExtractResult {
   request_details: RequestDetails
 }
 
-const SYSTEM_PROMPT = `You are extracting booking enquiry details from an email sent to a music entertainment agency. Return ONLY valid JSON — no explanation, no markdown, no code fences.
+function buildSystemPrompt() {
+  const year = new Date().getFullYear()
+  return `You are extracting booking enquiry details from an email sent to a music entertainment agency. Return ONLY valid JSON — no explanation, no markdown, no code fences.
+
+The current year is ${year}. When a date is given without a year (e.g. "14th March", "22nd November"), assume it is in ${year}.
 
 AUTO_FILL fields:
 - is_agency: boolean (true if from an agent/agency, false if direct client)
@@ -95,13 +99,14 @@ Output: {"auto_fill":{"is_agency":true,"agency_name":"Blank Canvas Entertainment
 Email: "Hi Victoria, Can you let me know if Harper and Bailey duo can do 22nd November at The Bradfield Centre, 184 Cambridge Science Park Rd, Milton, Cambridge CB4 0GA. Quote bringing PA, 150 guests, 3x45 mins over 3 hours, early evening. Laura Elliott, Sternberg Clarke"
 Output: {"auto_fill":{"is_agency":true,"agency_name":"Sternberg Clarke","agent_name":"Laura Elliott","agent_first_name":"Laura","agent_surname":"Elliott","client_email":"laura@sternbergclarke.co.uk","event_date":null,"event_type":null,"venue_name":"The Bradfield Centre","venue_postcode":"CB4 0GA","venue_address":"184 Cambridge Science Park Rd, Milton, Cambridge CB4 0GA","location":"Cambridge","guests":150,"arrival_time":null,"start_time":null,"finish_time":null,"load_out_time":null,"booking_types":["background"],"travel_type":"uk"},"request_details":{"special_requirements":null,"sound_requirements":"PA required","band_size_requested":"duo","sets_requested":"3 x 45 mins","notes":null}}
 `
+}
 
 export async function extractFromEmail(emailText: string): Promise<EmailExtractResult> {
   const client = new Anthropic({ apiKey: getAnthropicKey() })
   const message = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 1024,
-    system: SYSTEM_PROMPT,
+    system: buildSystemPrompt(),
     messages: [{ role: 'user', content: emailText }],
   })
 

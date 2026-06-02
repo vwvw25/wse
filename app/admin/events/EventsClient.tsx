@@ -150,7 +150,7 @@ type FilterMode = 'all' | 'confirmed'
 export default function EventsClient({ events }: { events: EventRecord[] }) {
   const [view, setView] = useState<'list' | 'kanban'>('list')
   const [filter, setFilter] = useState<FilterMode>('all')
-  const [includePast, setIncludePast] = useState(false)
+  const [includePast, setIncludePast] = useState(true)
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
   const today = new Date()
@@ -200,25 +200,25 @@ export default function EventsClient({ events }: { events: EventRecord[] }) {
             style={{
               display: 'flex', alignItems: 'center', gap: 7,
               padding: '5px 12px',
-              border: `0.5px solid ${includePast ? 'var(--border-info)' : 'var(--border)'}`,
+              border: `0.5px solid ${!includePast ? 'var(--border-info)' : 'var(--border)'}`,
               borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-              background: includePast ? 'var(--bg-info)' : 'var(--bg)',
+              background: !includePast ? 'var(--bg-info)' : 'var(--bg)',
               userSelect: 'none', transition: 'all 0.1s',
             }}
           >
             <div style={{
               width: 14, height: 14, borderRadius: 3, flexShrink: 0,
-              border: `1.5px solid ${includePast ? 'var(--text-info)' : 'var(--border-hover)'}`,
-              background: includePast ? 'var(--text-info)' : 'transparent',
+              border: `1.5px solid ${!includePast ? 'var(--text-info)' : 'var(--border-hover)'}`,
+              background: !includePast ? 'var(--text-info)' : 'transparent',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              {includePast && (
+              {!includePast && (
                 <svg width="8" height="6" viewBox="0 0 8 6" fill="none">
                   <path d="M1 3L3 5L7 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               )}
             </div>
-            <span style={{ fontSize: 13, color: includePast ? 'var(--text-info)' : 'var(--text-secondary)' }}>Include past</span>
+            <span style={{ fontSize: 13, color: includePast ? 'var(--text-secondary)' : 'var(--text-info)' }}>Upcoming only</span>
           </div>
 
         {/* Spacer + view toggle */}
