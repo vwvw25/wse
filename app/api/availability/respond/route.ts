@@ -2,6 +2,105 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { sendEmail } from '@/lib/send-email'
 import { musicianFullName } from '@/types/musicians'
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+// ── Cascade helper ────────────────────────────────────────────────────────────
+// Called when a musician declines or a deadline expires.
+// Finds the next musician from the slot's cascade template (or falls back to
+// preference_orders), then updates the existing slot in-place and sends a new invite.
+export async function triggerCascade({
+  supabase,
+  slot,
+  currentMusicianId,
+  origin,
+}: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  slot: Record<string, any>
+  currentMusicianId: string
+  origin: string
+}) {
+  // Supabase returns joined data as arrays — normalise to flat objects
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function normaliseMusician(raw: any): { email: string | null; default_fee: number } | null {
+    if (!raw) return null
+    if (Array.isArray(raw)) return raw[0] ?? null
+    return raw
+  }
+
+  // Determine the ordered musician list: cascade template > preference_orders
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let orderedMusicians: { musician_id: string; _raw_musician: any }[] = []
+
+  if (slot.cascade_template_id) {
+    const { data: templateMusicians } = await supabase
+      .from('cascade_template_musicians')
+      .select('musician_id, musician:musicians(email, default_fee)')
+      .eq('template_id', slot.cascade_template_id)
+      .order('rank')
+    orderedMusicians = (templateMusicians ?? []).map((r: Record<string, unknown>) => ({ musician_id: r.musician_id as string, _raw_musician: r.musician }))
+  } else {
+    // Fall back to preference_orders for backwards compatibility
+    const { data: prefOrder } = await supabase
+      .from('preference_orders')
+      .select('musician_id, musician:musicians(email, default_fee)')
+      .eq('instrument', slot.instrument)
+      .order('rank')
+    orderedMusicians = (prefOrder ?? []).map((r: Record<string, unknown>) => ({ musician_id: r.musician_id as string, _raw_musician: r.musician }))
+  }
+
+  if (orderedMusicians.length === 0) return
+
+  // Get all musicians already invited for this slot (to avoid re-inviting)
+  const { data: existingInvites } = await supabase
+    .from('musician_invites')
+    .select('musician_id')
+    .eq('slot_id', slot.id)
+
+  const alreadyInvited = new Set((existingInvites ?? []).map((i: { musician_id: string }) => i.musician_id))
+
+  // Also skip musicians already confirmed on any other slot for this event (avoid double-booking)
+  const { data: confirmedElsewhere } = await supabase
+    .from('event_musicians')
+    .select('musician_id')
+    .eq('event_id', slot.event_id)
+    .eq('availability', 'yes')
+    .neq('id', slot.id)
+
+  const confirmedOnEvent = new Set((confirmedElsewhere ?? []).map((s: { musician_id: string }) => s.musician_id))
+
+  // Find the next musician after current who hasn't already been invited and isn't already confirmed elsewhere
+  const currentIdx = orderedMusicians.findIndex(p => p.musician_id === currentMusicianId)
+  let nextEntry: typeof orderedMusicians[0] | undefined
+  for (let i = currentIdx + 1; i < orderedMusicians.length; i++) {
+    if (!alreadyInvited.has(orderedMusicians[i].musician_id) && !confirmedOnEvent.has(orderedMusicians[i].musician_id)) {
+      nextEntry = orderedMusicians[i]
+      break
+    }
+  }
+
+  if (!nextEntry) return
+  const nextMusician = normaliseMusician(nextEntry._raw_musician)
+  if (!nextMusician?.email) return
+
+  // Update the existing slot in-place (don't create a new slot)
+  await supabase
+    .from('event_musicians')
+    .update({
+      musician_id: nextEntry.musician_id,
+      fee: nextMusician.default_fee ?? 0,
+      availability: 'tbc',
+    })
+    .eq('id', slot.id)
+
+  // Send availability invite to next musician
+  fetch(`${origin}/api/musicians/send-availability`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slotId: slot.id }),
+  }).catch(() => {})
+}
 
 function formatDate(d: string | null) {
   if (!d) return '—'
@@ -133,6 +232,69 @@ function buildConfirmationEmail({
 </html>`
 }
 
+export function buildAdminNotificationEmail({
+  musicianName,
+  instrument,
+  fee,
+  response,
+  eventDate,
+  venueName,
+  eventId,
+  origin,
+}: {
+  musicianName: string
+  instrument: string
+  fee: number
+  response: 'yes' | 'no'
+  eventDate: string | null
+  venueName: string | null
+  eventId: string
+  origin: string
+}): string {
+  const accepted = response === 'yes'
+  const statusColor = accepted ? '#16a34a' : '#dc2626'
+  const statusText = accepted ? 'Accepted' : 'Declined'
+
+  const rows: [string, string][] = [
+    ['Musician', musicianName],
+    ['Instrument', instrument],
+    ['Date', formatDate(eventDate)],
+    ...(venueName ? [['Venue', venueName] as [string, string]] : []),
+    ...(accepted ? [['Fee', `£${fee.toFixed(2)}`] as [string, string]] : []),
+    ['Response', statusText],
+  ]
+
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <div style="max-width:480px;margin:40px auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+    <div style="background:#111827;padding:20px 28px;">
+      <div style="font-size:12px;font-weight:600;color:#9ca3af;letter-spacing:0.08em;text-transform:uppercase;">Ward Smith Entertainment</div>
+      <div style="font-size:18px;font-weight:700;color:#fff;margin-top:4px;">Musician response received</div>
+    </div>
+    <div style="padding:24px 28px;">
+      <p style="font-size:14px;color:#374151;margin:0 0 20px;">
+        <strong>${musicianName}</strong> has <span style="color:${statusColor};font-weight:600;">${statusText.toLowerCase()}</span> their availability request.
+      </p>
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:16px;margin-bottom:20px;">
+        <table style="width:100%;border-collapse:collapse;">
+          ${rows.map(([label, value]) => `
+          <tr>
+            <td style="padding:4px 0;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;width:90px;vertical-align:top;">${label}</td>
+            <td style="padding:4px 0;font-size:13px;color:${label === 'Response' ? statusColor : '#111827'};${label === 'Response' ? 'font-weight:600;' : ''}">${value}</td>
+          </tr>`).join('')}
+        </table>
+      </div>
+      <a href="${origin}/admin/events/${eventId}/musicians" style="display:block;text-align:center;padding:11px 0;background:#111827;color:#fff;font-size:13px;font-weight:600;border-radius:6px;text-decoration:none;">
+        View event musicians →
+      </a>
+    </div>
+  </div>
+</body>
+</html>`
+}
+
 const pendingStates = ['tbc', 'email_sent', 'reminder_sent']
 
 export async function POST(req: NextRequest) {
@@ -183,6 +345,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, availability: invite.availability, alreadyRecorded: true })
     }
 
+    // Deadline check: if the response window has passed, expire the invite and cascade rather than accept/decline
+    if (invite.email_sent_at) {
+      const deadlineHours = ((slot?.deadline_hours ?? invite.deadline_hours ?? 24)) as number
+      const sentAt = new Date(invite.email_sent_at as string)
+      const deadlineAt = new Date(sentAt.getTime() + deadlineHours * 60 * 60 * 1000)
+      if (new Date() >= deadlineAt) {
+        await supabase
+          .from('musician_invites')
+          .update({ availability: 'deadline_expired' })
+          .eq('token', token)
+        if (slot.cascade_enabled !== false) {
+          triggerCascade({ supabase, slot, currentMusicianId: invite.musician_id as string, origin: req.nextUrl.origin }).catch(() => {})
+        }
+        return NextResponse.json({ ok: false, error: 'deadline_expired' }, { status: 410 })
+      }
+    }
+
     // Stamp link_clicked_at
     await supabase
       .from('musician_invites')
@@ -216,41 +395,41 @@ export async function POST(req: NextRequest) {
       throw new Error(`Slot update failed: ${slotUpdateError.message}`)
     }
 
-    // If declined: cascade to next musician in preference order (fire-and-forget)
-    if (availability === 'no') {
-      const { data: prefOrder } = await supabase
-        .from('preference_orders')
-        .select('*, musician:musicians(*)')
-        .eq('instrument', slot.instrument)
-        .order('rank')
+    // Admin notification email — sent on every accept or decline
+    try {
+      const { data: monRow } = await supabase
+        .from('monitoring_settings')
+        .select('alert_email')
+        .eq('id', 1)
+        .single()
+      const adminEmail = monRow?.alert_email as string | null
+      if (adminEmail) {
+        await sendEmail({
+          type: 'admin_notification',
+          to: adminEmail,
+          subject: `${musicianName} has ${availability === 'yes' ? 'accepted' : 'declined'} — ${formatDate(event.event_date as string | null)}${event.venue_name ? `, ${event.venue_name as string}` : ''}`,
+          html: buildAdminNotificationEmail({
+            musicianName,
+            instrument: slot.instrument as string,
+            fee: (slot.fee as number | null) ?? 0,
+            response: availability,
+            eventDate: event.event_date as string | null,
+            venueName: event.venue_name as string | null,
+            eventId: event.id as string,
+            origin: req.nextUrl.origin,
+          }),
+        })
+      }
+    } catch (e) {
+      console.error('admin notification error (non-fatal):', e)
+    }
 
-      if (prefOrder && prefOrder.length > 0) {
-        const currentIdx = prefOrder.findIndex((p: { musician_id: string }) => p.musician_id === invite.musician_id)
-        const next = prefOrder[currentIdx + 1]
-
-        if (next?.musician?.email) {
-          const { data: newSlot } = await supabase
-            .from('event_musicians')
-            .insert({
-              event_id: slot.event_id,
-              musician_id: next.musician_id,
-              instrument: slot.instrument,
-              fee: next.musician.default_fee ?? 0,
-              additional_costs: 0,
-              availability: 'tbc',
-              deadline_hours: slot.deadline_hours ?? 24,
-            })
-            .select()
-            .single()
-
-          if (newSlot) {
-            fetch(`${req.nextUrl.origin}/api/musicians/send-availability`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ slotId: newSlot.id }),
-            }).catch(() => {})
-          }
-        }
+    // If declined: cascade to next musician (fire-and-forget)
+    if (availability === 'no' && slot.cascade_enabled !== false) {
+      try {
+        await triggerCascade({ supabase, slot, currentMusicianId: invite.musician_id, origin: req.nextUrl.origin })
+      } catch (e) {
+        console.error('cascade error (non-fatal):', e)
       }
     }
 

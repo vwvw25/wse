@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useTransition } from 'react'
-import type { EventMusician, Musician, BandTemplate, BandTemplateSlot } from '@/types/musicians'
+import type { EventMusician, Musician, BandTemplate, BandTemplateSlot, CascadeTemplate, MusicianInvite } from '@/types/musicians'
 import { musicianFullName, INSTRUMENTS } from '@/types/musicians'
 import {
   applyTemplateToEvent,
@@ -10,6 +10,8 @@ import {
   updateSlotFees,
   updateSlotDeadline,
   updateSlotAvailability,
+  updateSlotCascadeTemplate,
+  updateSlotCascadeEnabled,
   removeEventMusicianSlot,
 } from './actions'
 
@@ -20,6 +22,7 @@ interface Props {
   slots: EventMusician[]
   musicians: Musician[]
   templates: (BandTemplate & { slots: BandTemplateSlot[] })[]
+  cascadeTemplates?: CascadeTemplate[]
 }
 
 const inputStyle: React.CSSProperties = {
@@ -73,11 +76,13 @@ function SlotRow({
   musicians,
   eventId,
   eventFood,
+  cascadeTemplates,
 }: {
   slot: EventMusician
   musicians: Musician[]
   eventId: string
   eventFood: 'yes' | 'no' | 'tbc' | null
+  cascadeTemplates: CascadeTemplate[]
 }) {
   const [editing, setEditing] = useState(false)
   const [fee, setFee] = useState(String(slot.fee))
@@ -141,6 +146,22 @@ function SlotRow({
       await updateSlotDeadline(slot.id, eventId, hours)
     })
   }
+
+  function handleCascadeTemplateChange(templateId: string) {
+    startTransition(async () => {
+      await updateSlotCascadeTemplate(slot.id, eventId, templateId || null)
+    })
+  }
+
+  function handleCascadeEnabledChange(enabled: boolean) {
+    startTransition(async () => {
+      await updateSlotCascadeEnabled(slot.id, eventId, enabled)
+    })
+  }
+
+  const templatesForInstrument = cascadeTemplates.filter(
+    t => t.instrument.toLowerCase() === slot.instrument.toLowerCase()
+  )
 
   async function handleAvailabilityChange(value: string) {
     setAvailUpdating(true)
@@ -253,6 +274,37 @@ function SlotRow({
             <option key={h} value={h}>{h}h</option>
           ))}
         </select>
+      </td>
+      {/* Cascade template */}
+      <td style={{ padding: '10px 12px 10px 0' }}>
+        <select
+          value={slot.cascade_template_id ?? ''}
+          onChange={e => handleCascadeTemplateChange(e.target.value)}
+          style={{ ...inputStyle, width: 130, fontSize: 11 }}
+          title={templatesForInstrument.length === 0 ? `No cascade templates for ${slot.instrument}` : undefined}
+        >
+          <option value="">— none —</option>
+          {templatesForInstrument.map(t => (
+            <option key={t.id} value={t.id}>{t.name}</option>
+          ))}
+        </select>
+      </td>
+      {/* Cascade enabled toggle */}
+      <td style={{ padding: '10px 12px 10px 0' }}>
+        <div
+          onClick={() => handleCascadeEnabledChange(!slot.cascade_enabled)}
+          title={slot.cascade_enabled ? 'Auto-cascade on — click to disable' : 'Manual mode — click to enable auto-cascade'}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            cursor: 'pointer', userSelect: 'none', padding: '3px 7px',
+            borderRadius: 4, fontSize: 11, fontWeight: 500,
+            background: slot.cascade_enabled ? '#f0fdf4' : 'var(--bg-secondary)',
+            color: slot.cascade_enabled ? '#16a34a' : 'var(--text-tertiary)',
+            border: `0.5px solid ${slot.cascade_enabled ? '#bbf7d0' : 'var(--border)'}`,
+          }}
+        >
+          {slot.cascade_enabled ? '↓ Auto' : '◎ Manual'}
+        </div>
       </td>
       {/* Email status + Send */}
       <td style={{ padding: '10px 12px 10px 0', whiteSpace: 'nowrap' }}>
@@ -399,16 +451,111 @@ function SlotRow({
   )
 }
 
+// ── History tab ───────────────────────────────────────────────────────────────
+function HistoryTab({ slots, musicians }: { slots: EventMusician[]; musicians: Musician[] }) {
+  const OUTCOME_LABELS: Record<string, { label: string; color: string; bg: string }> = {
+    no:               { label: 'Declined',         color: '#dc2626', bg: '#fef2f2' },
+    deadline_expired: { label: 'No response',      color: '#92400e', bg: '#fffbeb' },
+  }
+
+  // Collect all historical invites (declined or deadline_expired) across all slots
+  const rows: { slot: EventMusician; invite: MusicianInvite; musician: Musician | undefined }[] = []
+  for (const slot of slots) {
+    const allInvites = slot.invites ?? []
+    for (const invite of allInvites) {
+      if (invite.availability === 'no' || invite.availability === 'deadline_expired') {
+        // Only show if this invite is NOT the current active musician (already shown in active tab)
+        if (invite.musician_id !== slot.musician_id || slot.availability === 'no') {
+          const musician = musicians.find(m => m.id === invite.musician_id)
+          rows.push({ slot, invite, musician })
+        }
+      }
+    }
+  }
+
+  // Sort by email_sent_at descending
+  rows.sort((a, b) => {
+    const ta = a.invite.email_sent_at ?? a.invite.created_at
+    const tb = b.invite.email_sent_at ?? b.invite.created_at
+    return new Date(tb).getTime() - new Date(ta).getTime()
+  })
+
+  if (rows.length === 0) {
+    return (
+      <div style={{
+        padding: '40px 24px', textAlign: 'center',
+        color: 'var(--text-tertiary)', fontSize: 13,
+        border: '0.5px solid var(--border)', borderRadius: 'var(--radius-lg)',
+      }}>
+        No declined or non-responsive invites yet.
+      </div>
+    )
+  }
+
+  function fmt(iso: string | null) {
+    if (!iso) return '—'
+    return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+  }
+
+  return (
+    <div style={{ border: '0.5px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+            {['Instrument', 'Musician', 'Invited', 'Responded', 'Outcome'].map((h, i) => (
+              <th key={i} style={{ textAlign: 'left', padding: '8px 12px 8px 0', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', paddingLeft: i === 0 ? 16 : 0 }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(({ slot, invite, musician }) => {
+            const cfg = OUTCOME_LABELS[invite.availability] ?? OUTCOME_LABELS['no']
+            return (
+              <tr key={invite.id} style={{ borderBottom: '0.5px solid var(--border)' }}>
+                <td style={{ padding: '10px 12px 10px 16px', fontSize: 13, color: 'var(--text-secondary)' }}>{slot.instrument}</td>
+                <td style={{ padding: '10px 12px 10px 0', fontSize: 13, color: 'var(--text)', fontWeight: 500 }}>
+                  {musician ? musicianFullName(musician) : '—'}
+                </td>
+                <td style={{ padding: '10px 12px 10px 0', fontSize: 12, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                  {fmt(invite.email_sent_at)}
+                </td>
+                <td style={{ padding: '10px 12px 10px 0', fontSize: 12, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                  {fmt(invite.link_clicked_at)}
+                </td>
+                <td style={{ padding: '10px 12px 10px 0' }}>
+                  <span style={{
+                    display: 'inline-block', padding: '2px 8px', borderRadius: 4,
+                    fontSize: 11, fontWeight: 500,
+                    background: cfg.bg, color: cfg.color,
+                  }}>
+                    {cfg.label}
+                  </span>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
-export default function EventMusiciansClient({ eventId, eventLabel, eventFood, slots, musicians, templates }: Props) {
+export default function EventMusiciansClient({ eventId, eventLabel, eventFood, slots, musicians, templates, cascadeTemplates = [] }: Props) {
   const [addInstrument, setAddInstrument] = useState('')
+  const [activeTab, setActiveTab] = useState<'active' | 'history'>('active')
   const [, startTransition] = useTransition()
 
   const totalFee = slots.reduce((sum, s) => sum + s.fee + s.additional_costs, 0)
-
-  // Summary grid at top — booked musicians per instrument
-  const bookedSlots = slots.filter(s => s.musician_id)
   const missingSlots = slots.filter(s => !s.musician_id)
+
+  // Count history entries for badge
+  const historyCount = slots.reduce((n, slot) => {
+    return n + (slot.invites ?? []).filter(i =>
+      (i.availability === 'no' || i.availability === 'deadline_expired') &&
+      (i.musician_id !== slot.musician_id || slot.availability === 'no')
+    ).length
+  }, 0)
 
   function handleApplyTemplate(templateId: string) {
     if (!templateId) return
@@ -426,6 +573,14 @@ export default function EventMusiciansClient({ eventId, eventLabel, eventFood, s
       setAddInstrument('')
     })
   }
+
+  const tabBtnStyle = (active: boolean): React.CSSProperties => ({
+    padding: '5px 14px', fontSize: 13, fontWeight: active ? 600 : 400,
+    background: active ? 'var(--bg)' : 'transparent',
+    color: active ? 'var(--text)' : 'var(--text-secondary)',
+    border: active ? '0.5px solid var(--border)' : '0.5px solid transparent',
+    borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'var(--font)',
+  })
 
   return (
     <div>
@@ -458,51 +613,70 @@ export default function EventMusiciansClient({ eventId, eventLabel, eventFood, s
         </div>
       )}
 
-      {/* Controls: apply template + add slot */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-        {templates.length > 0 && (
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Apply template:</span>
-            <select
-              style={{ ...inputStyle, width: 160 }}
-              defaultValue=""
-              onChange={e => { handleApplyTemplate(e.target.value); e.target.value = '' }}
-            >
-              <option value="" disabled>Choose template…</option>
-              {templates.map(t => (
-                <option key={t.id} value={t.id}>{t.name} ({t.slots.length} slots)</option>
-              ))}
-            </select>
+      {/* Tab bar + controls row */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 4, background: 'var(--bg-secondary)', padding: 3, borderRadius: 'var(--radius-sm)' }}>
+          <button style={tabBtnStyle(activeTab === 'active')} onClick={() => setActiveTab('active')}>
+            Active ({slots.length})
+          </button>
+          <button style={tabBtnStyle(activeTab === 'history')} onClick={() => setActiveTab('history')}>
+            Declined / non-responsive{historyCount > 0 ? ` (${historyCount})` : ''}
+          </button>
+        </div>
+
+        {/* Controls: apply template + add slot (only shown on active tab) */}
+        {activeTab === 'active' && (
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+            {templates.length > 0 && (
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Apply template:</span>
+                <select
+                  style={{ ...inputStyle, width: 160 }}
+                  defaultValue=""
+                  onChange={e => { handleApplyTemplate(e.target.value); e.target.value = '' }}
+                >
+                  <option value="" disabled>Choose template…</option>
+                  {templates.map(t => (
+                    <option key={t.id} value={t.id}>{t.name} ({t.slots.length} slots)</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <form onSubmit={handleAddSlot} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <select
+                style={{ ...inputStyle, width: 160 }}
+                value={addInstrument}
+                onChange={e => setAddInstrument(e.target.value)}
+              >
+                <option value="">Add instrument slot…</option>
+                {INSTRUMENTS.map(inst => (
+                  <option key={inst} value={inst}>{inst}</option>
+                ))}
+              </select>
+              <button
+                type="submit"
+                disabled={!addInstrument}
+                style={{
+                  padding: '0 14px', height: 32, fontSize: 13,
+                  background: 'var(--bg-secondary)', color: 'var(--text)',
+                  border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)',
+                  cursor: 'pointer', fontFamily: 'var(--font)',
+                  opacity: !addInstrument ? 0.5 : 1,
+                }}
+              >Add slot</button>
+            </form>
           </div>
         )}
-
-        <form onSubmit={handleAddSlot} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <select
-            style={{ ...inputStyle, width: 160 }}
-            value={addInstrument}
-            onChange={e => setAddInstrument(e.target.value)}
-          >
-            <option value="">Add instrument slot…</option>
-            {INSTRUMENTS.map(inst => (
-              <option key={inst} value={inst}>{inst}</option>
-            ))}
-          </select>
-          <button
-            type="submit"
-            disabled={!addInstrument}
-            style={{
-              padding: '0 14px', height: 32, fontSize: 13,
-              background: 'var(--bg-secondary)', color: 'var(--text)',
-              border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)',
-              cursor: 'pointer', fontFamily: 'var(--font)',
-              opacity: !addInstrument ? 0.5 : 1,
-            }}
-          >Add slot</button>
-        </form>
       </div>
 
-      {/* Slot table */}
-      {slots.length === 0 ? (
+      {/* History tab */}
+      {activeTab === 'history' && (
+        <HistoryTab slots={slots} musicians={musicians} />
+      )}
+
+      {/* Active tab — Slot table */}
+      {activeTab === 'active' && (slots.length === 0 ? (
         <div style={{
           padding: '40px 24px', textAlign: 'center',
           color: 'var(--text-tertiary)', fontSize: 13,
@@ -511,30 +685,30 @@ export default function EventMusiciansClient({ eventId, eventLabel, eventFood, s
           No musician slots yet.{templates.length > 0 ? ' Apply a template or add slots individually above.' : ' Add slots individually above.'}
         </div>
       ) : (
-        <div style={{ border: '0.5px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div style={{ border: '0.5px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
-                {['Musician', 'Instrument', 'Date added', 'Invite', 'Reminder', 'Response', 'Deadline', 'Email', 'Fee', 'Additional costs', 'Total fee', ''].map((h, i) => (
+                {['Musician', 'Instrument', 'Date added', 'Invite', 'Reminder', 'Response', 'Deadline', 'Cascade', 'Mode', 'Email', 'Fee', 'Additional costs', 'Total fee', ''].map((h, i) => (
                   <th key={i} style={{ textAlign: 'left', padding: '8px 12px 8px 0', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', paddingLeft: i === 0 ? 16 : 0 }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {slots.map(slot => (
-                <SlotRow key={slot.id} slot={slot} musicians={musicians} eventId={eventId} eventFood={eventFood} />
+                <SlotRow key={slot.id} slot={slot} musicians={musicians} eventId={eventId} eventFood={eventFood} cascadeTemplates={cascadeTemplates} />
               ))}
             </tbody>
             <tfoot>
               <tr style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
-                <td colSpan={9} style={{ padding: '8px 12px 8px 16px', fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>Totals</td>
+                <td colSpan={11} style={{ padding: '8px 12px 8px 16px', fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>Totals</td>
                 <td style={{ padding: '8px 12px', fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>£{totalFee.toFixed(2)}</td>
                 <td />
               </tr>
             </tfoot>
           </table>
         </div>
-      )}
+      ))}
 
       {/* Status summary */}
       {slots.length > 0 && (

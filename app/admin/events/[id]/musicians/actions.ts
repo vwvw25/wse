@@ -109,6 +109,20 @@ export async function updateSlotDeadline(slotId: string, eventId: string, deadli
   paths(eventId)
 }
 
+// Update cascade template for a slot
+export async function updateSlotCascadeTemplate(slotId: string, eventId: string, cascadeTemplateId: string | null) {
+  const supabase = createServiceClient()
+  await supabase.from('event_musicians').update({ cascade_template_id: cascadeTemplateId }).eq('id', slotId)
+  paths(eventId)
+}
+
+// Update cascade enabled for a slot
+export async function updateSlotCascadeEnabled(slotId: string, eventId: string, cascadeEnabled: boolean) {
+  const supabase = createServiceClient()
+  await supabase.from('event_musicians').update({ cascade_enabled: cascadeEnabled }).eq('id', slotId)
+  paths(eventId)
+}
+
 // Remove a slot from an event
 export async function removeEventMusicianSlot(slotId: string, eventId: string) {
   const supabase = createServiceClient()

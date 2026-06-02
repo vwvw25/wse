@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import { musicianFullName } from '@/types/musicians'
 import { sendEmail } from '@/lib/send-email'
+import { triggerCascade, buildAdminNotificationEmail } from '@/app/api/availability/respond/route'
 
 async function getSiteUrl(): Promise<string> {
   const h = await headers()
@@ -149,7 +150,7 @@ export default async function AvailabilityPage({
   searchParams,
 }: {
   params: Promise<{ token: string }>
-  searchParams: Promise<{ response?: string; confirmed?: string; error?: string }>
+  searchParams: Promise<{ response?: string; confirmed?: string; error?: string | 'deadline_expired' }>
 }) {
   const { token } = await params
   const { response, confirmed, error } = await searchParams
@@ -204,126 +205,146 @@ export default async function AvailabilityPage({
       .update({ link_clicked_at: now })
       .eq('token', token)
 
-    if (pendingStates.includes(invite.availability)) {
-      try {
-        const emailStatus = availability === 'yes' ? 'accepted' : 'declined'
-        const statusUpdate = invite.reminder_sent_at
-          ? { reminder_status: emailStatus }
-          : { invite_status: emailStatus }
+    // Already responded — lock them in and show their original answer, not the new attempt
+    if (!pendingStates.includes(invite.availability)) {
+      redirect(`/availability/${token}?confirmed=${invite.availability}`)
+    }
 
-        // Update the invite record
-        const { error: inviteUpdateError } = await supabase
+    // Deadline check: if the response window has passed, expire the invite rather than process it
+    if (invite.email_sent_at) {
+      const deadlineHours = (slot?.deadline_hours ?? invite.deadline_hours ?? 24) as number
+      const sentAt = new Date(invite.email_sent_at as string)
+      const deadlineAt = new Date(sentAt.getTime() + deadlineHours * 60 * 60 * 1000)
+      if (new Date() >= deadlineAt) {
+        await supabase
           .from('musician_invites')
-          .update({ availability, ...statusUpdate })
+          .update({ availability: 'deadline_expired' })
           .eq('token', token)
-
-        if (inviteUpdateError) throw new Error(`Invite update failed: ${inviteUpdateError.message}`)
-
-        // Also update the slot-level availability on event_musicians (yes/no/tbc)
-        const { error: slotUpdateError } = await supabase
-          .from('event_musicians')
-          .update({ availability })
-          .eq('id', slot.id)
-
-        if (slotUpdateError) throw new Error(`Slot update failed: ${slotUpdateError.message}`)
-
-        // If declined and preference order exists, contact next musician
-        if (availability === 'no') {
-          const { data: prefOrder } = await supabase
-            .from('preference_orders')
-            .select('*, musician:musicians(*)')
-            .eq('instrument', slot.instrument)
-            .order('rank')
-
-          if (prefOrder && prefOrder.length > 0) {
-            const currentIdx = prefOrder.findIndex((p: { musician_id: string }) => p.musician_id === invite.musician_id)
-            const next = prefOrder[currentIdx + 1]
-
-            if (next?.musician?.email) {
-              const { data: newSlot } = await supabase
-                .from('event_musicians')
-                .insert({
-                  event_id: slot.event_id,
-                  musician_id: next.musician_id,
-                  instrument: slot.instrument,
-                  fee: next.musician.default_fee ?? 0,
-                  additional_costs: 0,
-                  availability: 'tbc',
-                  deadline_hours: slot.deadline_hours ?? 24,
-                })
-                .select()
-                .single()
-
-              if (newSlot) {
-                const nextBaseUrl = await getSiteUrl()
-                fetch(`${nextBaseUrl}/api/musicians/send-availability`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ slotId: newSlot.id }),
-                }).catch(() => {})
-              }
-            }
-          }
+        const siteUrl = await getSiteUrl()
+        if (slot.cascade_enabled !== false) {
+          triggerCascade({ supabase, slot, currentMusicianId: invite.musician_id as string, origin: siteUrl }).catch(() => {})
         }
-
-        // Confirmation email for 'yes'
-        if (availability === 'yes' && musician?.email) {
-          try {
-            const eventDate = event.event_date as string | null
-            const gcStart = toGCalDate(eventDate, event.start_time as string | null)
-            const gcEnd = toGCalDate(eventDate, event.finish_time as string | null)
-            const gcEventTitle = (event.venue_name as string | null) ?? formatDate(event.event_date as string | null)
-            const gcTitle = encodeURIComponent(`WSE — ${gcEventTitle}`)
-            const gcLocation = encodeURIComponent([event.venue_name, event.venue_address ?? event.location].filter(Boolean).join(', '))
-            const gcDetails = encodeURIComponent(`Your role: ${slot.instrument}`)
-            const googleCalUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${gcTitle}&dates=${gcStart}/${gcEnd}&location=${gcLocation}&details=${gcDetails}`
-            const siteUrl = await getSiteUrl()
-            // ical URL uses the same invite token
-            const icalUrl = `${siteUrl}/api/ical/${token}`
-
-            await sendEmail({
-              type: 'confirmation',
-              to: musician.email as string,
-              recipientName: musicianName,
-              subject: `Gig confirmed — ${formatDate(event.event_date as string | null)}`,
-              html: buildConfirmationEmail({
-                musicianName,
-                instrument: slot.instrument as string,
-                fee: (slot.fee as number | null) ?? 0,
-                eventDate: event.event_date as string | null,
-                venueName: event.venue_name as string | null,
-                venueAddress: event.venue_address as string | null,
-                location: event.location as string | null,
-                arrivalTime: event.arrival_time as string | null,
-                startTime: event.start_time as string | null,
-                finishTime: event.finish_time as string | null,
-                band: (event.booked_template as { name: string } | null)?.name ?? null,
-                lineup: (event.booked_lineup as string | null) ?? null,
-                sets: (event.booked_sets as string | null) ?? null,
-                food: (event.food as 'yes' | 'no' | 'tbc' | null) ?? 'tbc',
-                dietaryRequirements: (musician?.dietary_requirements as string[] | null) ?? [],
-                googleCalUrl,
-                icalUrl,
-                gifUrl: randomGif,
-              }),
-            })
-          } catch (e) {
-            console.error('confirmation email error:', e)
-          }
-        }
-      } catch (err) {
-        // Something went wrong recording the response — alert admin immediately
-        console.error('availability response processing error:', err)
-        const errMsg = err instanceof Error ? err.message : String(err)
-        try {
-          await supabase.from('notifications').insert({
-            type: 'response_failed',
-            message: `⚠️ ${musicianName} (${slot.instrument}) clicked ${availability.toUpperCase()} but their response FAILED to record. Error: ${errMsg}. Token: ${token}`,
-            link: `/admin/events/${slot.event_id}/musicians`,
-          })
-        } catch { /* best-effort */ }
-        redirect(`/availability/${token}?error=1`)
+        redirect(`/availability/${token}?error=deadline_expired`)
       }
+    }
+
+    try {
+      const emailStatus = availability === 'yes' ? 'accepted' : 'declined'
+      const statusUpdate = invite.reminder_sent_at
+        ? { reminder_status: emailStatus }
+        : { invite_status: emailStatus }
+
+      // Update the invite record
+      const { error: inviteUpdateError } = await supabase
+        .from('musician_invites')
+        .update({ availability, ...statusUpdate })
+        .eq('token', token)
+
+      if (inviteUpdateError) throw new Error(`Invite update failed: ${inviteUpdateError.message}`)
+
+      // Update the slot-level availability on event_musicians
+      const { error: slotUpdateError } = await supabase
+        .from('event_musicians')
+        .update({ availability })
+        .eq('id', slot.id)
+
+      if (slotUpdateError) throw new Error(`Slot update failed: ${slotUpdateError.message}`)
+
+      // Admin notification
+      try {
+        const { data: monRow } = await supabase
+          .from('monitoring_settings')
+          .select('alert_email')
+          .eq('id', 1)
+          .single()
+        const adminEmail = monRow?.alert_email as string | null
+        if (adminEmail) {
+          const siteUrl = await getSiteUrl()
+          await sendEmail({
+            type: 'admin_notification',
+            to: adminEmail,
+            subject: `${musicianName} has ${availability === 'yes' ? 'accepted' : 'declined'} — ${formatDate(event.event_date as string | null)}${event.venue_name ? `, ${event.venue_name as string}` : ''}`,
+            html: buildAdminNotificationEmail({
+              musicianName,
+              instrument: slot.instrument as string,
+              fee: (slot.fee as number | null) ?? 0,
+              response: availability,
+              eventDate: event.event_date as string | null,
+              venueName: event.venue_name as string | null,
+              eventId: event.id as string,
+              origin: await getSiteUrl(),
+            }),
+          })
+        }
+      } catch (e) {
+        console.error('admin notification error (non-fatal):', e)
+      }
+
+      // If declined: cascade to next musician
+      if (availability === 'no' && slot.cascade_enabled !== false) {
+        const siteUrl = await getSiteUrl()
+        try {
+          await triggerCascade({ supabase, slot, currentMusicianId: invite.musician_id as string, origin: siteUrl })
+        } catch (e) {
+          console.error('cascade error (non-fatal):', e)
+        }
+      }
+
+      // Confirmation email for 'yes'
+      if (availability === 'yes' && musician?.email) {
+        try {
+          const eventDate = event.event_date as string | null
+          const gcStart = toGCalDate(eventDate, event.start_time as string | null)
+          const gcEnd = toGCalDate(eventDate, event.finish_time as string | null)
+          const gcEventTitle = (event.venue_name as string | null) ?? formatDate(event.event_date as string | null)
+          const gcTitle = encodeURIComponent(`WSE — ${gcEventTitle}`)
+          const gcLocation = encodeURIComponent([event.venue_name, event.venue_address ?? event.location].filter(Boolean).join(', '))
+          const gcDetails = encodeURIComponent(`Your role: ${slot.instrument}`)
+          const googleCalUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${gcTitle}&dates=${gcStart}/${gcEnd}&location=${gcLocation}&details=${gcDetails}`
+          const siteUrl = await getSiteUrl()
+          const icalUrl = `${siteUrl}/api/ical/${token}`
+
+          await sendEmail({
+            type: 'confirmation',
+            to: musician.email as string,
+            recipientName: musicianName,
+            subject: `Gig confirmed — ${formatDate(event.event_date as string | null)}`,
+            html: buildConfirmationEmail({
+              musicianName,
+              instrument: slot.instrument as string,
+              fee: (slot.fee as number | null) ?? 0,
+              eventDate: event.event_date as string | null,
+              venueName: event.venue_name as string | null,
+              venueAddress: event.venue_address as string | null,
+              location: event.location as string | null,
+              arrivalTime: event.arrival_time as string | null,
+              startTime: event.start_time as string | null,
+              finishTime: event.finish_time as string | null,
+              band: (event.booked_template as { name: string } | null)?.name ?? null,
+              lineup: (event.booked_lineup as string | null) ?? null,
+              sets: (event.booked_sets as string | null) ?? null,
+              food: (event.food as 'yes' | 'no' | 'tbc' | null) ?? 'tbc',
+              dietaryRequirements: (musician?.dietary_requirements as string[] | null) ?? [],
+              googleCalUrl,
+              icalUrl,
+              gifUrl: randomGif,
+            }),
+          })
+        } catch (e) {
+          console.error('confirmation email error:', e)
+        }
+      }
+    } catch (err) {
+      console.error('availability response processing error:', err)
+      const errMsg = err instanceof Error ? err.message : String(err)
+      try {
+        await supabase.from('notifications').insert({
+          type: 'response_failed',
+          message: `⚠️ ${musicianName} (${slot.instrument}) clicked ${availability.toUpperCase()} but their response FAILED to record. Error: ${errMsg}. Token: ${token}`,
+          link: `/admin/events/${slot.event_id}/musicians`,
+        })
+      } catch { /* best-effort */ }
+      redirect(`/availability/${token}?error=1`)
     }
 
     redirect(`/availability/${token}?confirmed=${availability}`)
@@ -331,6 +352,50 @@ export default async function AvailabilityPage({
 
   const alreadyResponded = !pendingStates.includes(invite.availability)
   const responseWas = confirmed ?? (alreadyResponded ? invite.availability : null)
+
+  // ── Deadline expired — full-page message, no booking actions ────────────
+  if (error === 'deadline_expired' || invite.availability === 'deadline_expired') {
+    return (
+      <div style={{ minHeight: '100vh', background: '#f9fafb', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif' }}>
+        <div style={{ background: '#fff', borderRadius: 10, boxShadow: '0 2px 12px rgba(0,0,0,0.1)', width: '100%', maxWidth: 480, overflow: 'hidden' }}>
+          <div style={{ background: '#111827', padding: '24px 28px' }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Ward Smith Entertainment</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>Booking request</div>
+          </div>
+          <div style={{ padding: '24px 28px' }}>
+            <div style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 6, padding: '14px 16px', marginBottom: 24 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#78350f', marginBottom: 4 }}>Response window closed</div>
+              <p style={{ fontSize: 13, color: '#92400e', margin: 0 }}>
+                The deadline to respond to this booking request has passed.
+              </p>
+            </div>
+            <p style={{ fontSize: 14, color: '#374151', margin: '0 0 8px' }}>
+              Hi <strong>{musicianName}</strong>,
+            </p>
+            <p style={{ fontSize: 14, color: '#374151', margin: '0 0 24px' }}>
+              If you&apos;re still interested in this gig, please reply to the original email and we&apos;ll let you know whether the booking is still available.
+            </p>
+            <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 6, padding: '16px 20px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <tbody>
+                  {([
+                    ['Date', formatDate(event.event_date)],
+                    event.venue_name ? ['Venue', `${event.venue_name as string}${event.location ? `, ${event.location as string}` : ''}`] : null,
+                    ['Your role', slot.instrument],
+                  ] as ([string, string] | null)[]).filter((r): r is [string, string] => r !== null).map(([label, value], i) => (
+                    <tr key={i}>
+                      <td style={{ padding: '5px 0', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', width: 110, verticalAlign: 'top' }}>{label}</td>
+                      <td style={{ padding: '5px 0', fontSize: 13, color: '#111827' }}>{value}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   // ── Shared card layout for all states ───────────────────────────────────
   return (

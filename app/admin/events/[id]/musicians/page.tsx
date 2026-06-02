@@ -1,7 +1,7 @@
 import { createServiceClient } from '@/lib/supabase'
 import { notFound } from 'next/navigation'
 import type { EventRecord } from '@/types/quote'
-import type { EventMusician, Musician, BandTemplate, BandTemplateSlot } from '@/types/musicians'
+import type { EventMusician, Musician, BandTemplate, BandTemplateSlot, CascadeTemplate } from '@/types/musicians'
 import EventMusiciansClient from './EventMusiciansClient'
 
 function formatDate(d: string | null) {
@@ -21,12 +21,14 @@ export default async function EventMusiciansPage({ params }: { params: Promise<{
     { data: musiciansData },
     { data: templatesData },
     { data: templateSlotsData },
+    { data: cascadeTemplatesData },
   ] = await Promise.all([
     supabase.from('events').select('id, agency_name, agent_name, event_date, food').eq('id', id).single(),
     supabase.from('event_musicians').select('*, invites:musician_invites(*)').eq('event_id', id).order('date_added').order('id'),
-    supabase.from('musicians').select('*').order('name'),
+    supabase.from('musicians').select('*').order('first_name').order('last_name'),
     supabase.from('band_templates').select('*').order('name'),
     supabase.from('band_template_slots').select('*').order('sort_order'),
+    supabase.from('cascade_templates').select('*').order('instrument').order('name'),
   ])
 
   if (!eventData) notFound()
@@ -36,6 +38,7 @@ export default async function EventMusiciansPage({ params }: { params: Promise<{
   const musicians = (musiciansData ?? []) as Musician[]
   const templates = (templatesData ?? []) as BandTemplate[]
   const templateSlots = (templateSlotsData ?? []) as BandTemplateSlot[]
+  const cascadeTemplates = (cascadeTemplatesData ?? []) as CascadeTemplate[]
 
   const templatesWithSlots = templates.map(t => ({
     ...t,
@@ -115,6 +118,7 @@ export default async function EventMusiciansPage({ params }: { params: Promise<{
         slots={enrichedSlots}
         musicians={musicians}
         templates={templatesWithSlots}
+        cascadeTemplates={cascadeTemplates}
       />
     </div>
   )

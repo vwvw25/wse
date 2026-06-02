@@ -49,7 +49,7 @@ export function musicianFullName(m: Pick<Musician, 'first_name' | 'last_name'>):
 }
 
 export type MusicianAvailability = 'yes' | 'no' | 'tbc'
-export type InviteAvailability = 'tbc' | 'email_sent' | 'reminder_sent' | 'yes' | 'no'
+export type InviteAvailability = 'tbc' | 'email_sent' | 'reminder_sent' | 'yes' | 'no' | 'deadline_expired'
 export type MusicianEmailStatus = '—' | 'sent' | 'accepted' | 'declined' | 'replied' | 'failed'
 
 export interface MusicianInvite {
@@ -80,12 +80,30 @@ export interface EventMusician {
   deadline_hours: number
   date_added: string
   notes: string | null
+  cascade_template_id: string | null
+  cascade_enabled: boolean
   // Joined
   musician?: Musician | null
   // All invites for this slot (filtered to current musician in UI)
   invites?: MusicianInvite[]
   // Computed: latest invite for current musician
   latest_invite?: MusicianInvite | null
+}
+
+export interface CascadeTemplate {
+  id: string
+  name: string
+  instrument: string
+  created_at: string
+  musicians?: CascadeTemplateMusicianEntry[]
+}
+
+export interface CascadeTemplateMusicianEntry {
+  id: string
+  template_id: string
+  musician_id: string
+  rank: number
+  musician?: Musician
 }
 
 export interface BandTemplate {

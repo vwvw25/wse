@@ -24,7 +24,7 @@ export default function QuoteLayout({ children }: { children: React.ReactNode })
           <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>Admin</div>
         </div>
 
-        <AdminNav />
+        <AdminNav expanded={true} />
 
         <div style={{ marginTop: 'auto', paddingTop: 16 }}>
           <a

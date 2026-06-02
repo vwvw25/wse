@@ -83,7 +83,7 @@ function FieldRow({
   )
 }
 
-type Section = 'pricing' | 'invoicing' | 'email' | 'general' | 'tools'
+type Section = 'pricing' | 'invoicing' | 'email' | 'pages' | 'general' | 'tools'
 
 const NAV_GROUPS: { heading: string; items: { key: Section; label: string }[] }[] = [
   {
@@ -92,6 +92,7 @@ const NAV_GROUPS: { heading: string; items: { key: Section; label: string }[] }[
       { key: 'pricing',   label: 'Pricing' },
       { key: 'invoicing', label: 'Invoicing' },
       { key: 'email',     label: 'Email' },
+      { key: 'pages',     label: 'Pages' },
       { key: 'general',   label: 'General' },
     ],
   },
@@ -839,6 +840,58 @@ export default function SettingsPage() {
             </>
           )}
 
+
+          {/* ── Pages ── */}
+          {section === 'pages' && (
+            <>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 24px', lineHeight: 1.6 }}>
+                Preview the pages musicians see when they respond to a booking request. Open these periodically to make sure they look right and the messaging is current.
+              </p>
+
+              <div style={sectionHeaderStyle}>Musician response pages</div>
+              {([
+                {
+                  key: 'accepted',
+                  label: 'Accepted',
+                  description: 'Shown when a musician confirms availability.',
+                  href: '/availability/preview?state=yes',
+                  color: '#16a34a',
+                },
+                {
+                  key: 'declined',
+                  label: 'Declined',
+                  description: 'Shown when a musician says they\'re not available.',
+                  href: '/availability/preview?state=no',
+                  color: '#dc2626',
+                },
+                {
+                  key: 'expired',
+                  label: 'Response window closed',
+                  description: 'Shown when a musician responds after their deadline has passed.',
+                  href: '/availability/preview?state=expired',
+                  color: '#d97706',
+                },
+              ]).map(({ key, label, description, href, color }) => (
+                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '0.5px solid var(--border)' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
+                      {label}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2, paddingLeft: 16 }}>{description}</div>
+                  </div>
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, background: 'var(--bg)', color: 'var(--text)', border: '0.5px solid var(--border-hover)', borderRadius: 'var(--radius-sm)', textDecoration: 'none', flexShrink: 0 }}
+                  >
+                    Preview ↗
+                  </a>
+                </div>
+              ))}
+            </>
+          )}
 
           {/* ── Tools ── */}
           {section === 'tools' && (

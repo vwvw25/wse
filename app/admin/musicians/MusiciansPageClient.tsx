@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import MusicianClient from './MusicianClient'
 import BandBuilderClient from '../band-builder/BandBuilderClient'
-import type { Musician, BandTemplate, BandTemplateSlot, PreferenceOrder, OnboardingToken, EventMusician } from '@/types/musicians'
+import type { Musician, BandTemplate, BandTemplateSlot, CascadeTemplate, OnboardingToken, EventMusician } from '@/types/musicians'
 import type { EventRecord } from '@/types/quote'
 
 interface EventWithMusicians extends Pick<EventRecord, 'id' | 'agency_name' | 'agent_name' | 'event_date' | 'status'> {
@@ -13,14 +13,14 @@ interface EventWithMusicians extends Pick<EventRecord, 'id' | 'agency_name' | 'a
 interface Props {
   musicians: Musician[]
   templates: (BandTemplate & { slots: BandTemplateSlot[] })[]
-  preferenceOrders: PreferenceOrder[]
+  cascadeTemplates: CascadeTemplate[]
   onboardingTokens: OnboardingToken[]
   events: EventWithMusicians[]
 }
 
 type TopTab = 'musicians' | 'band-builder'
 
-export default function MusiciansPageClient({ musicians, templates, preferenceOrders, onboardingTokens, events }: Props) {
+export default function MusiciansPageClient({ musicians, templates, cascadeTemplates, onboardingTokens, events }: Props) {
   const [tab, setTab] = useState<TopTab>('musicians')
 
   const tabItemStyle = (active: boolean): React.CSSProperties => ({
@@ -59,7 +59,7 @@ export default function MusiciansPageClient({ musicians, templates, preferenceOr
         <MusicianClient
           musicians={musicians}
           templates={templates}
-          preferenceOrders={preferenceOrders}
+          cascadeTemplates={cascadeTemplates}
           onboardingTokens={onboardingTokens}
         />
       ) : (

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useTransition } from 'react'
-import type { Musician, BandTemplate, BandTemplateSlot, PreferenceOrder, OnboardingToken } from '@/types/musicians'
+import type { Musician, BandTemplate, BandTemplateSlot, OnboardingToken, CascadeTemplate } from '@/types/musicians'
 import { INSTRUMENTS, musicianFullName, ONBOARDING_OPTIONAL_FIELDS, ONBOARDING_BASE_FIELDS } from '@/types/musicians'
 import {
   upsertMusician, deleteMusician,
@@ -9,14 +9,17 @@ import {
   addTemplateSlot, deleteTemplateSlot,
   createMusicianForOnboarding,
 } from './actions'
-import { addToPreferenceOrder, removeFromPreferenceOrder, reorderPreference } from './preference-actions'
+import {
+  createCascadeTemplate, renameCascadeTemplate, deleteCascadeTemplate,
+  addMusicianToCascadeTemplate, removeMusicianFromCascadeTemplate, reorderCascadeTemplate,
+} from './cascade-actions'
 
-type Tab = 'roster' | 'templates' | 'preference' | 'onboarding'
+type Tab = 'roster' | 'templates' | 'cascade' | 'onboarding'
 
 interface Props {
   musicians: Musician[]
   templates: (BandTemplate & { slots: BandTemplateSlot[] })[]
-  preferenceOrders: PreferenceOrder[]
+  cascadeTemplates: CascadeTemplate[]
   onboardingTokens: OnboardingToken[]
 }
 
@@ -833,132 +836,215 @@ function TemplatesTab({ templates }: { templates: (BandTemplate & { slots: BandT
   )
 }
 
-// ── Preference orders tab ─────────────────────────────────────────────────────
-function PreferenceTab({ musicians, preferenceOrders }: { musicians: Musician[]; preferenceOrders: PreferenceOrder[] }) {
-  const [selectedInstrument, setSelectedInstrument] = useState<string>(INSTRUMENTS[0])
-  const [addMusician, setAddMusician] = useState('')
+// ── Cascade templates tab ──────────────────────────────────────────────────────
+function CascadeTab({ musicians, cascadeTemplates }: { musicians: Musician[]; cascadeTemplates: CascadeTemplate[] }) {
+  const [creating, setCreating] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [newInstrument, setNewInstrument] = useState('')
+  const [addMusician, setAddMusician] = useState<Record<string, string>>({})
+  const [editingName, setEditingName] = useState<Record<string, string>>({})
   const [, startTransition] = useTransition()
 
-  const orderForInstrument = preferenceOrders
-    .filter(p => p.instrument === selectedInstrument)
-    .sort((a, b) => a.rank - b.rank)
-
-  const assignedIds = new Set(orderForInstrument.map(p => p.musician_id))
-  const available = musicians.filter(m => !assignedIds.has(m.id))
+  function handleCreate(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newName.trim() || !newInstrument) return
+    startTransition(async () => {
+      await createCascadeTemplate(newName.trim(), newInstrument)
+      setNewName('')
+      setNewInstrument('')
+      setCreating(false)
+    })
+  }
 
   return (
     <div>
-      <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20, marginTop: 0 }}>
-        Set a ranked preference order per instrument. When a musician declines, the next in the list is automatically contacted.
-      </p>
-
-      {/* Instrument picker */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
-        {INSTRUMENTS.map(inst => {
-          const count = preferenceOrders.filter(p => p.instrument === inst).length
-          const active = inst === selectedInstrument
-          return (
-            <button
-              key={inst}
-              onClick={() => { setSelectedInstrument(inst); setAddMusician('') }}
-              style={{
-                padding: '5px 12px', fontSize: 12, borderRadius: 20, cursor: 'pointer',
-                fontFamily: 'var(--font)', border: '0.5px solid var(--border)',
-                background: active ? 'var(--accent)' : 'var(--bg-secondary)',
-                color: active ? '#fff' : 'var(--text-secondary)',
-                fontWeight: active ? 500 : 400,
-              }}
-            >
-              {inst}{count > 0 ? ` (${count})` : ''}
-            </button>
-          )
-        })}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>
+          Named cascade lists per instrument. When a musician declines or misses a deadline, the next in the list is contacted automatically.
+        </p>
+        <button style={{ ...primaryBtn, whiteSpace: 'nowrap', marginLeft: 16 }} onClick={() => setCreating(true)}>
+          + New template
+        </button>
       </div>
 
-      {/* Ranked list for selected instrument */}
-      <div style={{ border: '0.5px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', maxWidth: 480 }}>
-        <div style={{ padding: '10px 14px', background: 'var(--bg-secondary)', borderBottom: '0.5px solid var(--border)', fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
-          {selectedInstrument} — preference order
-        </div>
+      {/* Create template modal */}
+      {creating && (
+        <Overlay onClose={() => setCreating(false)} width={400}>
+          <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>New cascade template</div>
+          <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Template name</label>
+              <input
+                autoFocus
+                style={inputStyle}
+                value={newName}
+                onChange={e => setNewName(e.target.value)}
+                placeholder="e.g. Vocals A-list"
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Instrument</label>
+              <select
+                style={inputStyle}
+                value={newInstrument}
+                onChange={e => setNewInstrument(e.target.value)}
+              >
+                <option value="">— choose instrument —</option>
+                {INSTRUMENTS.map(inst => (
+                  <option key={inst} value={inst}>{inst}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+              <button type="button" onClick={() => setCreating(false)} style={cancelBtn}>Cancel</button>
+              <button type="submit" disabled={!newName.trim() || !newInstrument} style={{ ...primaryBtn, opacity: (!newName.trim() || !newInstrument) ? 0.5 : 1 }}>Create</button>
+            </div>
+          </form>
+        </Overlay>
+      )}
 
-        {orderForInstrument.length === 0 ? (
-          <div style={{ padding: '16px 14px', fontSize: 13, color: 'var(--text-tertiary)' }}>
-            No preference order set for {selectedInstrument}.
-          </div>
-        ) : (
-          <div>
-            {orderForInstrument.map((p, i) => {
-              const m = musicians.find(mu => mu.id === p.musician_id)
-              return (
-                <div key={p.id} style={{
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  padding: '10px 14px', borderBottom: '0.5px solid var(--border)',
-                }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-tertiary)', width: 20, textAlign: 'center' }}>
-                    {i + 1}
+      {cascadeTemplates.length === 0 ? (
+        <div style={{ padding: '32px 24px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 13, border: '0.5px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
+          No cascade templates yet.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {cascadeTemplates.map(t => {
+            const entries = (t.musicians ?? []).sort((a, b) => a.rank - b.rank)
+            const assignedIds = new Set(entries.map(e => e.musician_id))
+            // Only show musicians who play this instrument
+            const eligible = musicians.filter(m => {
+              const p = m.primary_instrument?.toLowerCase()
+              const s = m.secondary_instrument?.toLowerCase()
+              const inst = t.instrument.toLowerCase()
+              return p === inst || s === inst
+            })
+            const available = eligible.filter(m => !assignedIds.has(m.id))
+            const nameVal = editingName[t.id] ?? t.name
+            const addVal = addMusician[t.id] ?? ''
+
+            return (
+              <div key={t.id} style={{ border: '0.5px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+                {/* Header */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--bg-secondary)', borderBottom: '0.5px solid var(--border)' }}>
+                  <input
+                    style={{ ...inputStyle, width: 200, height: 30 }}
+                    value={nameVal}
+                    onChange={e => setEditingName(prev => ({ ...prev, [t.id]: e.target.value }))}
+                    onBlur={() => {
+                      if (nameVal.trim() && nameVal !== t.name) {
+                        startTransition(async () => { await renameCascadeTemplate(t.id, nameVal.trim()) })
+                      }
+                    }}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        if (nameVal.trim() && nameVal !== t.name) startTransition(async () => { await renameCascadeTemplate(t.id, nameVal.trim()) })
+                      }
+                    }}
+                  />
+                  <span style={{
+                    fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 10,
+                    background: 'var(--bg)', border: '0.5px solid var(--border)',
+                    color: 'var(--text-secondary)', whiteSpace: 'nowrap',
+                  }}>
+                    {t.instrument}
                   </span>
-                  <span style={{ flex: 1, fontSize: 13, color: 'var(--text)' }}>
-                    {m ? musicianFullName(m) : 'Unknown'}
-                  </span>
-                  <div style={{ display: 'flex', gap: 2 }}>
-                    <button
-                      disabled={i === 0}
-                      onClick={() => {
-                        const ids = orderForInstrument.map(x => x.musician_id)
-                        ;[ids[i - 1], ids[i]] = [ids[i], ids[i - 1]]
-                        startTransition(async () => { await reorderPreference(selectedInstrument, ids) })
-                      }}
-                      style={{ background: 'none', border: 'none', cursor: i === 0 ? 'default' : 'pointer', fontSize: 13, color: i === 0 ? 'var(--text-tertiary)' : 'var(--text-secondary)', padding: '0 4px', fontFamily: 'var(--font)', opacity: i === 0 ? 0.3 : 1 }}
-                    >↑</button>
-                    <button
-                      disabled={i === orderForInstrument.length - 1}
-                      onClick={() => {
-                        const ids = orderForInstrument.map(x => x.musician_id)
-                        ;[ids[i], ids[i + 1]] = [ids[i + 1], ids[i]]
-                        startTransition(async () => { await reorderPreference(selectedInstrument, ids) })
-                      }}
-                      style={{ background: 'none', border: 'none', cursor: i === orderForInstrument.length - 1 ? 'default' : 'pointer', fontSize: 13, color: i === orderForInstrument.length - 1 ? 'var(--text-tertiary)' : 'var(--text-secondary)', padding: '0 4px', fontFamily: 'var(--font)', opacity: i === orderForInstrument.length - 1 ? 0.3 : 1 }}
-                    >↓</button>
-                    <button
-                      onClick={() => { if (confirm(`Remove ${m ? musicianFullName(m) : 'this musician'} from ${selectedInstrument} order?`)) startTransition(async () => { await removeFromPreferenceOrder(p.id) }) }}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--text-danger)', padding: '0 4px', fontFamily: 'var(--font)' }}
-                    >✕</button>
-                  </div>
+                  <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{entries.length} musician{entries.length !== 1 ? 's' : ''}</span>
+                  <div style={{ flex: 1 }} />
+                  <button
+                    onClick={() => { if (confirm(`Delete cascade template "${t.name}"?`)) startTransition(async () => deleteCascadeTemplate(t.id)) }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--text-danger)', padding: '2px 8px', fontFamily: 'var(--font)' }}
+                  >Delete</button>
                 </div>
-              )
-            })}
-          </div>
-        )}
 
-        {/* Add musician to order */}
-        <div style={{ padding: '10px 14px', display: 'flex', gap: 6 }}>
-          <select
-            value={addMusician}
-            onChange={e => setAddMusician(e.target.value)}
-            style={{ ...inputStyle, flex: 1, height: 32 }}
-          >
-            <option value="">Add musician to order…</option>
-            {available.map(m => (
-              <option key={m.id} value={m.id}>{musicianFullName(m)}</option>
-            ))}
-          </select>
-          <button
-            disabled={!addMusician}
-            onClick={() => {
-              if (!addMusician) return
-              startTransition(async () => { await addToPreferenceOrder(selectedInstrument, addMusician) })
-              setAddMusician('')
-            }}
-            style={{
-              padding: '0 12px', height: 32, fontSize: 13,
-              background: 'var(--bg-secondary)', color: 'var(--text)',
-              border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)',
-              cursor: 'pointer', fontFamily: 'var(--font)',
-              opacity: !addMusician ? 0.5 : 1,
-            }}
-          >Add</button>
+                {/* Ranked musician list */}
+                {entries.length === 0 ? (
+                  <div style={{ padding: '12px 14px', fontSize: 13, color: 'var(--text-tertiary)' }}>
+                    No musicians yet — add one below.
+                  </div>
+                ) : (
+                  entries.map((entry, i) => {
+                    const m = entry.musician ?? musicians.find(mu => mu.id === entry.musician_id)
+                    return (
+                      <div key={entry.id} style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '9px 14px', borderBottom: '0.5px solid var(--border)',
+                      }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-tertiary)', width: 18, textAlign: 'center', flexShrink: 0 }}>
+                          {i + 1}
+                        </span>
+                        <span style={{ flex: 1, fontSize: 13, color: 'var(--text)', fontWeight: 500 }}>
+                          {m ? musicianFullName(m) : 'Unknown'}
+                        </span>
+                        <div style={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                          <button
+                            disabled={i === 0}
+                            onClick={() => {
+                              const ids = entries.map(x => x.musician_id)
+                              ;[ids[i - 1], ids[i]] = [ids[i], ids[i - 1]]
+                              startTransition(async () => { await reorderCascadeTemplate(t.id, ids) })
+                            }}
+                            style={{ background: 'none', border: 'none', cursor: i === 0 ? 'default' : 'pointer', fontSize: 14, color: 'var(--text-secondary)', padding: '0 5px', fontFamily: 'var(--font)', opacity: i === 0 ? 0.25 : 1 }}
+                          >↑</button>
+                          <button
+                            disabled={i === entries.length - 1}
+                            onClick={() => {
+                              const ids = entries.map(x => x.musician_id)
+                              ;[ids[i], ids[i + 1]] = [ids[i + 1], ids[i]]
+                              startTransition(async () => { await reorderCascadeTemplate(t.id, ids) })
+                            }}
+                            style={{ background: 'none', border: 'none', cursor: i === entries.length - 1 ? 'default' : 'pointer', fontSize: 14, color: 'var(--text-secondary)', padding: '0 5px', fontFamily: 'var(--font)', opacity: i === entries.length - 1 ? 0.25 : 1 }}
+                          >↓</button>
+                          <button
+                            onClick={() => startTransition(async () => { await removeMusicianFromCascadeTemplate(entry.id) })}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--text-danger)', padding: '0 5px', fontFamily: 'var(--font)' }}
+                          >✕</button>
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
+
+                {/* Add musician (filtered to instrument) */}
+                <div style={{ padding: '10px 14px', display: 'flex', gap: 6 }}>
+                  <select
+                    value={addVal}
+                    onChange={e => setAddMusician(prev => ({ ...prev, [t.id]: e.target.value }))}
+                    style={{ ...inputStyle, flex: 1, height: 32 }}
+                  >
+                    <option value="">
+                      {available.length === 0
+                        ? eligible.length === 0
+                          ? `No ${t.instrument} players in roster`
+                          : 'All eligible musicians added'
+                        : `Add ${t.instrument} player…`}
+                    </option>
+                    {available.map(m => (
+                      <option key={m.id} value={m.id}>{musicianFullName(m)}</option>
+                    ))}
+                  </select>
+                  <button
+                    disabled={!addVal}
+                    onClick={() => {
+                      if (!addVal) return
+                      startTransition(async () => { await addMusicianToCascadeTemplate(t.id, addVal) })
+                      setAddMusician(prev => ({ ...prev, [t.id]: '' }))
+                    }}
+                    style={{
+                      padding: '0 12px', height: 32, fontSize: 13,
+                      background: 'var(--bg-secondary)', color: 'var(--text)',
+                      border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)',
+                      cursor: addVal ? 'pointer' : 'not-allowed', fontFamily: 'var(--font)',
+                      opacity: !addVal ? 0.5 : 1,
+                    }}
+                  >Add</button>
+                </div>
+              </div>
+            )
+          })}
         </div>
-      </div>
+      )}
     </div>
   )
 }
@@ -1031,7 +1117,7 @@ function OnboardingTab({ tokens, musicians }: { tokens: OnboardingToken[]; music
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function MusicianClient({ musicians, templates, preferenceOrders, onboardingTokens }: Props) {
+export default function MusicianClient({ musicians, templates, cascadeTemplates, onboardingTokens }: Props) {
   const [tab, setTab] = useState<Tab>('roster')
 
   const tabStyle = (active: boolean): React.CSSProperties => ({
@@ -1052,8 +1138,8 @@ export default function MusicianClient({ musicians, templates, preferenceOrders,
           <button style={tabStyle(tab === 'templates')} onClick={() => setTab('templates')}>
             Band templates ({templates.length})
           </button>
-          <button style={tabStyle(tab === 'preference')} onClick={() => setTab('preference')}>
-            Preference orders
+          <button style={tabStyle(tab === 'cascade')} onClick={() => setTab('cascade')}>
+            Cascade ({cascadeTemplates.length})
           </button>
           <button style={tabStyle(tab === 'onboarding')} onClick={() => setTab('onboarding')}>
             Requests ({onboardingTokens.length})
@@ -1063,7 +1149,7 @@ export default function MusicianClient({ musicians, templates, preferenceOrders,
 
       {tab === 'roster' && <RosterTab musicians={musicians} />}
       {tab === 'templates' && <TemplatesTab templates={templates} />}
-      {tab === 'preference' && <PreferenceTab musicians={musicians} preferenceOrders={preferenceOrders} />}
+      {tab === 'cascade' && <CascadeTab musicians={musicians} cascadeTemplates={cascadeTemplates} />}
       {tab === 'onboarding' && <OnboardingTab tokens={onboardingTokens} musicians={musicians} />}
     </div>
   )
