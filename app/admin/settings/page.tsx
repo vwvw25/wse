@@ -83,7 +83,7 @@ function FieldRow({
   )
 }
 
-type Section = 'pricing' | 'invoicing' | 'email' | 'pages' | 'general' | 'tools'
+type Section = 'pricing' | 'invoicing' | 'email' | 'pages' | 'general' | 'tools' | 'style'
 
 const NAV_GROUPS: { heading: string; items: { key: Section; label: string }[] }[] = [
   {
@@ -100,9 +100,144 @@ const NAV_GROUPS: { heading: string; items: { key: Section; label: string }[] }[
     heading: 'Developer',
     items: [
       { key: 'tools', label: 'Tools' },
+      { key: 'style', label: 'Style guide' },
     ],
   },
 ]
+
+// ── Style Guide ──────────────────────────────────────────────────────────────
+
+const LIGHT_SWATCHES = [
+  { name: '--bg', value: '#ffffff', label: 'Page background' },
+  { name: '--bg-secondary', value: '#f7f6f3', label: 'Body background' },
+  { name: '--bg-info', value: '#e6f1fb', label: 'Info background' },
+  { name: '--text', value: '#1a1a1a', label: 'Primary text' },
+  { name: '--text-secondary', value: '#6b6b6b', label: 'Secondary text' },
+  { name: '--text-tertiary', value: '#9b9b9b', label: 'Tertiary text' },
+  { name: '--text-info', value: '#185fa5', label: 'Info / active' },
+  { name: '--accent', value: '#4f46e5', label: 'Primary action' },
+]
+
+const DARK_SWATCHES = [
+  { name: '--bg', value: '#1c1c1c', label: 'Page background' },
+  { name: '--bg-secondary', value: '#252525', label: 'Body background' },
+  { name: '--bg-info', value: '#0c2a44', label: 'Info background' },
+  { name: '--text', value: '#f0f0f0', label: 'Primary text' },
+  { name: '--text-secondary', value: '#a0a0a0', label: 'Secondary text' },
+  { name: '--text-tertiary', value: '#666666', label: 'Tertiary text' },
+  { name: '--text-info', value: '#85b7eb', label: 'Info / active' },
+  { name: '--accent', value: '#818cf8', label: 'Primary action' },
+]
+
+const STATUS_BADGES = [
+  { label: 'Enquiry',      bg: '#fef9c3', color: '#854d0e' },
+  { label: 'Quoted',       bg: '#dbeafe', color: '#1e40af' },
+  { label: 'Confirmed STC',bg: '#dcfce7', color: '#166534' },
+  { label: 'Contracted',   bg: '#f0fdf4', color: '#16a34a' },
+  { label: 'Cancelled',    bg: '#fee2e2', color: '#991b1b' },
+  { label: 'Paid',         bg: '#f0fdf4', color: '#16a34a' },
+  { label: 'Outstanding',  bg: '#fffbeb', color: '#92400e' },
+  { label: 'Not invoiced', bg: '#fff7ed', color: '#9a3412' },
+]
+
+const TYPE_SCALE = [
+  { size: 22, weight: 600, label: 'Page heading', sample: 'Events' },
+  { size: 15, weight: 400, label: 'Body', sample: 'The quick brown fox jumps over the lazy dog' },
+  { size: 13, weight: 500, label: 'UI label / button', sample: 'New from email' },
+  { size: 13, weight: 400, label: 'Secondary', sample: 'Gray\'s Inn · London', secondary: true },
+  { size: 12, weight: 500, label: 'Field label', sample: 'Venue name', tertiary: true },
+  { size: 11, weight: 600, label: 'Column header', sample: 'DATE', caps: true, tertiary: true },
+]
+
+function StyleGuideSection() {
+  const sgHead: React.CSSProperties = { fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-tertiary)', margin: '28px 0 12px' }
+  const swatchGrid: React.CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 10 }
+
+  return (
+    <div style={{ paddingBottom: 48 }}>
+
+      {/* Colours */}
+      <div style={sgHead}>Colours — Light mode</div>
+      <div style={swatchGrid}>
+        {LIGHT_SWATCHES.map(s => (
+          <div key={s.name} style={{ width: 140, borderRadius: 'var(--radius-md)', border: '0.5px solid var(--border)', overflow: 'hidden' }}>
+            <div style={{ height: 56, background: s.value, borderBottom: '0.5px solid var(--border)' }} />
+            <div style={{ padding: '8px 10px', background: 'var(--bg)' }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', fontFamily: 'monospace' }}>{s.name}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 1, fontFamily: 'monospace' }}>{s.value}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{s.label}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={sgHead}>Colours — Dark mode</div>
+      <div style={swatchGrid}>
+        {DARK_SWATCHES.map(s => (
+          <div key={s.name} style={{ width: 140, borderRadius: 'var(--radius-md)', border: '0.5px solid var(--border)', overflow: 'hidden' }}>
+            <div style={{ height: 56, background: s.value, borderBottom: '0.5px solid var(--border)' }} />
+            <div style={{ padding: '8px 10px', background: 'var(--bg)' }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', fontFamily: 'monospace' }}>{s.name}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 1, fontFamily: 'monospace' }}>{s.value}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{s.label}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Typography */}
+      <div style={sgHead}>Typography — DM Sans</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {TYPE_SCALE.map((t, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'baseline', gap: 20, padding: '10px 14px', background: 'var(--bg)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
+            <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'monospace', whiteSpace: 'nowrap', minWidth: 100 }}>{t.size}px / {t.weight}</span>
+            <span style={{ fontSize: 11, color: 'var(--text-tertiary)', minWidth: 120 }}>{t.label}</span>
+            <span style={{
+              fontSize: t.size, fontWeight: t.weight,
+              color: t.tertiary ? 'var(--text-tertiary)' : t.secondary ? 'var(--text-secondary)' : 'var(--text)',
+              textTransform: t.caps ? 'uppercase' : undefined,
+              letterSpacing: t.caps ? '0.07em' : undefined,
+            }}>{t.sample}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Border radius */}
+      <div style={sgHead}>Border Radius</div>
+      <div style={{ display: 'flex', gap: 12 }}>
+        {[{ name: '--radius-sm', value: '6px' }, { name: '--radius-md', value: '8px' }, { name: '--radius-lg', value: '12px' }].map(r => (
+          <div key={r.name} style={{ width: 100, height: 72, background: 'var(--bg)', border: '0.5px solid var(--border)', borderRadius: r.value, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', fontFamily: 'monospace' }}>{r.name}</span>
+            <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'monospace' }}>{r.value}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Buttons */}
+      <div style={sgHead}>Buttons</div>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <button style={{ padding: '8px 16px', fontSize: 13, fontWeight: 500, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font)', cursor: 'pointer' }}>Primary</button>
+        <button style={{ padding: '8px 16px', fontSize: 13, fontWeight: 500, background: 'var(--bg)', color: 'var(--text)', border: '0.5px solid var(--border-hover)', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font)', cursor: 'pointer' }}>Secondary</button>
+        <button style={{ padding: '8px 16px', fontSize: 13, fontWeight: 500, background: 'transparent', color: 'var(--text-secondary)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font)', cursor: 'pointer' }}>Ghost</button>
+      </div>
+
+      {/* Badges */}
+      <div style={sgHead}>Status Badges</div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {STATUS_BADGES.map(b => (
+          <span key={b.label} style={{ display: 'inline-block', padding: '3px 8px', fontSize: 11, fontWeight: 500, borderRadius: 4, background: b.bg, color: b.color, whiteSpace: 'nowrap' }}>{b.label}</span>
+        ))}
+      </div>
+
+      {/* Info state */}
+      <div style={sgHead}>Info State</div>
+      <div style={{ background: 'var(--bg-info)', border: '0.5px solid var(--border-info)', borderRadius: 'var(--radius-md)', padding: '12px 16px', fontSize: 13, color: 'var(--text-info)', maxWidth: 420 }}>
+        Info message — uses <code style={{ fontFamily: 'monospace' }}>--bg-info</code>, <code style={{ fontFamily: 'monospace' }}>--text-info</code>, <code style={{ fontFamily: 'monospace' }}>--border-info</code>
+      </div>
+
+    </div>
+  )
+}
 
 export default function SettingsPage() {
   const [section, setSection] = useState<Section>('pricing')
@@ -915,6 +1050,8 @@ export default function SettingsPage() {
               </div>
             </>
           )}
+
+          {section === 'style' && <StyleGuideSection />}
 
         </div>
     </div>
