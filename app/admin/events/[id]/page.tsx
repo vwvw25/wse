@@ -76,13 +76,14 @@ export default async function EventDetailPage({
 
   const supabase = createServiceClient()
 
-  const [{ data: eventData }, { data: quotesData }, { data: invoicesData }, { data: invoiceSettingsData }, { data: allClientsData }, { data: monitoringData }] = await Promise.all([
+  const [{ data: eventData }, { data: quotesData }, { data: invoicesData }, { data: invoiceSettingsData }, { data: allClientsData }, { data: monitoringData }, { data: activityLogData }] = await Promise.all([
     supabase.from('events').select('*, booked_template:band_templates!booked_band_template_id(name)').eq('id', id).single(),
     supabase.from('quotes').select('id, created_at, inputs, calculated, version, status, accepted_option').eq('event_id', id).order('version', { ascending: false }),
     supabase.from('invoices').select('*, line_items:invoice_line_items(*)').eq('event_id', id).order('created_at'),
     supabase.from('invoice_settings').select('*').single(),
     supabase.from('clients').select('*').order('name'),
     supabase.from('monitoring_settings').select('reply_to_email').eq('id', 1).single(),
+    supabase.from('event_activity_log').select('*').eq('event_id', id).order('changed_at', { ascending: false }),
   ])
 
   if (!eventData) notFound()
@@ -94,6 +95,8 @@ export default async function EventDetailPage({
   const allClients = (allClientsData ?? []) as Client[]
   const linkedClient = allClients.find(c => c.id === event.client_id) ?? null
   const adminEmail = (monitoringData as { reply_to_email?: string | null } | null)?.reply_to_email ?? null
+  type ActivityEntry = { id: string; field: string; field_label: string; old_value: string | null; new_value: string | null; source: string; changed_at: string }
+  const activityLog = (activityLogData ?? []) as ActivityEntry[]
   const rd = event.request_details
   const quotePrice: number | null = quotes[0]?.calculated?.total_fee ?? null
 
@@ -369,6 +372,9 @@ export default async function EventDetailPage({
               <Cell label="Food provided" value={event.food === 'yes' ? 'Yes' : event.food === 'no' ? 'No' : event.food === 'tbc' ? 'TBC' : null} />
               <Cell label="Food notes" value={event.food_notes} />
             </PairGrid>
+            {(event as unknown as { dress_code?: string | null }).dress_code && (
+              <FullRow label="Dress code" value={(event as unknown as { dress_code?: string | null }).dress_code} />
+            )}
             <FullRow label="Address" value={event.venue_address} />
           </Section>
 
@@ -434,6 +440,33 @@ export default async function EventDetailPage({
             </div>
           </Section>
 
+
+          {activityLog.length > 0 && (
+            <Section label="Change log">
+              <div>
+                {activityLog.map((entry, i) => (
+                  <div key={entry.id} style={{
+                    display: 'grid', gridTemplateColumns: '130px 1fr 1fr',
+                    gap: '0 12px', padding: '9px 0', alignItems: 'start',
+                    borderTop: i === 0 ? 'none' : '0.5px solid var(--border)',
+                  }}>
+                    <div>
+                      <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{entry.field_label}</div>
+                      <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 2 }}>
+                        {new Date(entry.changed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 13, color: 'var(--text-secondary)', textDecoration: 'line-through' }}>
+                      {entry.old_value || <em style={{ fontStyle: 'normal', color: 'var(--text-tertiary)' }}>—</em>}
+                    </div>
+                    <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 500 }}>
+                      {entry.new_value || <em style={{ fontStyle: 'normal', color: 'var(--text-tertiary)' }}>—</em>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )}
 
           {event.raw_email && (
             <details style={{ marginTop: 24 }}>

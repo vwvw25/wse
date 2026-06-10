@@ -20,6 +20,42 @@ export interface ContractFlag {
   event_value: string
 }
 
+const FIELD_LABELS: Record<string, string> = {
+  event_date: 'Event date',
+  agency_name: 'Agency',
+  agent_name: 'Agent',
+  client_email: 'Client email',
+  venue_name: 'Venue',
+  venue_address: 'Venue address',
+  venue_postcode: 'Postcode',
+  location: 'Location',
+  guests: 'Guests',
+  arrival_time: 'Arrival time',
+  start_time: 'Start time',
+  finish_time: 'Finish time',
+  load_out_time: 'Load out time',
+  band_size_requested: 'Band size',
+  sets_requested: 'Sets',
+}
+
+async function logFieldChange(
+  supabase: ReturnType<typeof import('@/lib/supabase').createServiceClient>,
+  eventId: string,
+  field: string,
+  oldValue: string | null | undefined,
+  newValue: string | number | null,
+  source: string,
+) {
+  await supabase.from('event_activity_log').insert({
+    event_id: eventId,
+    field,
+    field_label: FIELD_LABELS[field] ?? field,
+    old_value: oldValue ?? null,
+    new_value: newValue != null ? String(newValue) : null,
+    source,
+  })
+}
+
 export async function saveContractReview(
   eventId: string,
   acceptedFields: Record<string, string | number | null>,
@@ -42,14 +78,30 @@ export async function saveContractReview(
   }
 
   // Merge request_details if needed
+  let currentRd: Record<string, unknown> = {}
   if (Object.keys(rdUpdate).length > 0) {
     const { data: current } = await supabase
       .from('events')
       .select('request_details')
       .eq('id', eventId)
       .single()
-    eventUpdate.request_details = { ...(current?.request_details ?? {}), ...rdUpdate }
+    currentRd = current?.request_details ?? {}
+    eventUpdate.request_details = { ...currentRd, ...rdUpdate }
   }
+
+  // Fetch current event values for the activity log
+  const { data: currentEvent0 } = await supabase.from('events').select('*').eq('id', eventId).single()
+
+  // Log accepted field changes
+  const logPromises: Promise<unknown>[] = []
+  for (const [key, newValue] of Object.entries(acceptedFields)) {
+    const isRd = RD_FIELDS.includes(key)
+    const oldValue = isRd
+      ? String((currentRd[key] ?? currentEvent0?.request_details?.[key]) ?? '')
+      : String((currentEvent0?.[key as keyof typeof currentEvent0] ?? '') ?? '')
+    logPromises.push(logFieldChange(supabase, eventId, key, oldValue || null, newValue, 'contract_review'))
+  }
+  await Promise.all(logPromises)
 
   // Fetch current contract so we can preserve file info and attachments
   const { data: currentEvent } = await supabase.from('events').select('contract').eq('id', eventId).single()
@@ -130,6 +182,9 @@ export async function acceptContractFlag(eventId: string, flag: ContractFlag) {
     eventUpdate[flag.field] = flag.contract_value
   }
 
+  // Log the change
+  await logFieldChange(supabase, eventId, flag.field, flag.event_value || null, flag.contract_value, 'contract_review')
+
   // Remove the flag
   const { data } = await supabase.from('events').select('contract').eq('id', eventId).single()
   const contract = (data?.contract ?? {}) as { parsed?: unknown; flags?: ContractFlag[]; uploaded_at?: string }
@@ -209,6 +264,7 @@ export async function updateEvent(eventId: string, formData: FormData) {
   const bookedLineup = (formData.get('booked_lineup') as string)?.trim() || null
   const bookedSets = (formData.get('booked_sets') as string)?.trim() || null
   const foodNotes = (formData.get('food_notes') as string)?.trim() || null
+  const dressCode = (formData.get('dress_code') as string)?.trim() || null
 
   const bandSizeRequested = (formData.get('band_size_requested') as string)?.trim() || null
   const setsRequested = (formData.get('sets_requested') as string)?.trim() || null
@@ -244,6 +300,7 @@ export async function updateEvent(eventId: string, formData: FormData) {
       guests,
       food,
       food_notes: foodNotes,
+      dress_code: dressCode,
       booked_band_template_id: bookedBandTemplateId,
       booked_lineup: bookedLineup,
       booked_sets: bookedSets,

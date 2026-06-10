@@ -73,6 +73,7 @@ export default function EditEventForm({ event, templates, sources }: { event: Ev
 
   const [food, setFood] = useState<'yes' | 'no' | 'tbc' | null>(event.food ?? null)
   const [foodNotes, setFoodNotes] = useState(event.food_notes ?? '')
+  const [dressCode, setDressCode] = useState((event as unknown as { dress_code?: string | null }).dress_code ?? '')
 
   const [bookedTemplateId, setBookedTemplateId] = useState(event.booked_band_template_id ?? '')
   const [bookedLineup, setBookedLineup] = useState(event.booked_lineup ?? '')
@@ -244,6 +245,12 @@ export default function EditEventForm({ event, templates, sources }: { event: Ev
             <Field label="Food notes" hint="optional — internal only">
               <textarea name="food_notes" value={foodNotes} onChange={e => setFoodNotes(e.target.value)}
                 placeholder="e.g. Crew meal at 17:00, dietary info to catering…" style={textareaBase} />
+            </Field>
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Field label="Dress code" hint="optional">
+              <textarea name="dress_code" value={dressCode} onChange={e => setDressCode(e.target.value)}
+                placeholder="e.g. Black tie, smart casual…" style={textareaBase} />
             </Field>
           </div>
           <Field label="Venue name" hint="optional">
