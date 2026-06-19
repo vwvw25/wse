@@ -7,7 +7,8 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID
   const accessToken = await getGmailAccessToken()
   const result = await registerGmailWatch(accessToken)
-  return NextResponse.json(result)
+  return NextResponse.json({ projectId, result })
 }
