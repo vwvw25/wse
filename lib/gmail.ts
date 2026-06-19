@@ -75,7 +75,7 @@ export async function registerGmailWatch(accessToken: string) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      topicName: `projects/${projectId}/topics/gmail-inbox`,
+      topicName: `projects/${projectId}/topics/gmail.-inbox`,
       labelIds: ['INBOX'],
     }),
   })
