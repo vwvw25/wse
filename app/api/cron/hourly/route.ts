@@ -18,12 +18,13 @@ export async function GET(req: NextRequest) {
     'x-cron-secret': cronSecret,
   }
 
-  const [remindersRes, onboardingRes, healthRes, musicianPaymentsRes, cascadeRes] = await Promise.allSettled([
+  const [remindersRes, onboardingRes, healthRes, musicianPaymentsRes, cascadeRes, inboxRes] = await Promise.allSettled([
     fetch(`${baseUrl}/api/cron/reminders`, { headers }),
     fetch(`${baseUrl}/api/cron/onboarding-reminders`, { headers }),
     fetch(`${baseUrl}/api/cron/email-health`, { headers }),
     fetch(`${baseUrl}/api/cron/musician-payment-reminders`, { headers }),
     fetch(`${baseUrl}/api/cron/cascade`, { headers }),
+    fetch(`${baseUrl}/api/cron/process-inbox`, { method: 'POST', headers }),
   ])
 
   const results = {
@@ -32,6 +33,7 @@ export async function GET(req: NextRequest) {
     emailHealth: healthRes.status === 'fulfilled' ? await healthRes.value.json() : { error: String((healthRes as PromiseRejectedResult).reason) },
     musicianPayments: musicianPaymentsRes.status === 'fulfilled' ? await musicianPaymentsRes.value.json() : { error: String((musicianPaymentsRes as PromiseRejectedResult).reason) },
     cascade: cascadeRes.status === 'fulfilled' ? await cascadeRes.value.json() : { error: String((cascadeRes as PromiseRejectedResult).reason) },
+    inbox: inboxRes.status === 'fulfilled' ? await inboxRes.value.json() : { error: String((inboxRes as PromiseRejectedResult).reason) },
   }
 
   return NextResponse.json({ ok: true, ...results })

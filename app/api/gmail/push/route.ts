@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { getGmailAccessToken, fetchEmailById, extractEmailText } from '@/lib/gmail'
+import { getBaseUrl } from '@/lib/get-base-url'
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
@@ -41,17 +42,29 @@ export async function POST(req: NextRequest) {
 
     const messages = history.history?.flatMap((h: any) => h.messagesAdded ?? []) ?? []
 
+    let newEmailCount = 0
     for (const { message } of messages) {
       const full = await fetchEmailById(message.id, accessToken)
       const { subject, from, body: emailBody } = extractEmailText(full)
 
-      // Store as a pending inbox item for classification
-      await supabase.from('gmail_inbox').insert({
+      const { error } = await supabase.from('gmail_inbox').insert({
         gmail_message_id: message.id,
         from_address: from,
         subject,
         body: emailBody,
         status: 'pending',
+      })
+      if (!error) newEmailCount++
+    }
+
+    // Trigger classification immediately if we stored new emails
+    if (newEmailCount > 0) {
+      const baseUrl = getBaseUrl(req)
+      await fetch(`${baseUrl}/api/cron/process-inbox`, {
+        method: 'POST',
+        headers: { 'x-internal': '1' },
+      }).catch(() => {
+        // Non-critical — daily cron will catch any that fail
       })
     }
   } catch (err) {

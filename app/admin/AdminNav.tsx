@@ -42,6 +42,16 @@ const ReceiptIcon = () => <Ico>
   <path d="M5.5 6h5M5.5 9h5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
 </Ico>
 
+const TriageIcon = () => <Ico>
+  <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.3" strokeDasharray="2.5 1.5"/>
+  <path d="M8 5.5v2.8l1.8 1.2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+</Ico>
+
+const IssuesIcon = () => <Ico>
+  <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.3"/>
+  <path d="M7 4.5v2.8l1.8 1.8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+</Ico>
+
 const QuoteIcon = () => <Ico>
   <path d="M1.5 3.5h13a.5.5 0 01.5.5v7a.5.5 0 01-.5.5H9l-3 3-1-3H2a.5.5 0 01-.5-.5V4a.5.5 0 01.5-.5z"
     stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
@@ -91,6 +101,8 @@ const BellIcon = () => <Ico>
 const navLinks = [
   { href: '/admin',                   label: 'Dashboard',         icon: <HomeIcon /> },
   { href: '/admin/events',            label: 'Events',            icon: <CalendarIcon /> },
+  { href: '/admin/triage',            label: 'Triage',            icon: <TriageIcon /> },
+  { href: '/admin/issues',            label: 'Issues',            icon: <IssuesIcon /> },
   { href: '/admin/musicians',         label: 'Musicians',         icon: <UserIcon /> },
   { href: '/admin/musician-invoices', label: 'Musician invoices', icon: <ReceiptIcon /> },
   { href: '/admin/quotes',            label: 'Quotes',            icon: <QuoteIcon /> },
