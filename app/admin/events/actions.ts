@@ -271,9 +271,10 @@ export async function updateEvent(eventId: string, formData: FormData) {
   const specialRequirements = (formData.get('special_requirements') as string)?.trim() || null
   const soundRequirements = (formData.get('sound_requirements') as string)?.trim() || null
   const notes = (formData.get('notes') as string)?.trim() || null
+  const roamingRequested = formData.get('roaming_requested') === 'on' ? true : false
 
-  const requestDetails = (bandSizeRequested || setsRequested || specialRequirements || soundRequirements || notes)
-    ? { band_size_requested: bandSizeRequested, sets_requested: setsRequested, special_requirements: specialRequirements, sound_requirements: soundRequirements, notes }
+  const requestDetails = (bandSizeRequested || setsRequested || specialRequirements || soundRequirements || notes || roamingRequested)
+    ? { band_size_requested: bandSizeRequested, sets_requested: setsRequested, special_requirements: specialRequirements, sound_requirements: soundRequirements, notes, roaming_requested: roamingRequested || null }
     : null
 
   const { error } = await supabase

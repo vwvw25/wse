@@ -162,8 +162,8 @@ function InvoiceCard({
   }
 
   const statusCfg = invoice.status === 'paid'
-    ? { label: 'Paid', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' }
-    : { label: 'Outstanding', color: '#92400e', bg: '#fffbeb', border: '#fde68a' }
+    ? { label: 'Paid', color: 'var(--pill-paid-text)', bg: 'var(--pill-paid-bg)', border: 'none' }
+    : { label: 'Outstanding', color: 'var(--pill-outstanding-text)', bg: 'var(--pill-outstanding-bg)', border: 'none' }
 
   return (
     <div style={{ border: '0.5px solid var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden', marginBottom: 12 }}>
@@ -183,7 +183,7 @@ function InvoiceCard({
             background: statusCfg.bg, color: statusCfg.color, border: `0.5px solid ${statusCfg.border}`,
           }}>{statusCfg.label}</span>
           {invoice.sent_at
-            ? <span style={{ fontSize: 11, color: '#16a34a' }}>✓ Sent {formatDate(invoice.sent_at)}</span>
+            ? <span style={{ fontSize: 11, color: 'var(--pill-stc-text)' }}>✓ Sent {formatDate(invoice.sent_at)}</span>
             : <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>Not sent</span>
           }
           {invoice.due_date && <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>Due {formatDate(invoice.due_date)}</span>}
@@ -482,7 +482,7 @@ export default function InvoiceSection({
         onClick={handleCreate}
         style={{
           padding: '7px 16px', fontSize: 13, fontWeight: 500,
-          background: 'var(--accent)', color: '#fff', border: 'none',
+          background: 'var(--accent)', color: 'var(--accent-text-on)', border: 'none',
           borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'var(--font)',
         }}
       >

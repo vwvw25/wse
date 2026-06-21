@@ -240,7 +240,7 @@ function GenerateEmailContent() {
                 onClick={handleCopy}
                 style={{
                   padding: '10px 22px', fontSize: 13, fontWeight: 500,
-                  background: copied ? '#276749' : 'var(--accent)', color: '#fff',
+                  background: copied ? '#276749' : 'var(--accent)', color: 'var(--accent-text-on)',
                   border: 'none', borderRadius: 'var(--radius-md)',
                   cursor: 'pointer', fontFamily: 'var(--font)', transition: 'background 0.15s',
                 }}

@@ -29,3 +29,13 @@ export async function updateMusicianInvoiceDueDate(slotId: string, date: string 
     .eq('id', slotId)
   revalidatePath('/admin/musician-invoices')
 }
+
+export async function removeMusicianInvoice(slotId: string, storagePath: string) {
+  const supabase = createServiceClient()
+  await supabase.storage.from('musician-invoices').remove([storagePath]).catch(() => {})
+  await supabase
+    .from('event_musicians')
+    .update({ musician_invoice_path: null, musician_invoice_filename: null })
+    .eq('id', slotId)
+  revalidatePath('/admin/musician-invoices')
+}

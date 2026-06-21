@@ -268,7 +268,7 @@ export default function RequestsSection({
                   disabled={adding || !parsedMatches.some(m => m.accepted && m.match)}
                   style={{
                     padding: '7px 18px', fontSize: 13, fontWeight: 500, cursor: 'pointer',
-                    background: 'var(--accent)', color: '#fff',
+                    background: 'var(--accent)', color: 'var(--accent-text-on)',
                     border: 'none', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font)',
                     opacity: adding ? 0.6 : 1,
                   }}
@@ -302,7 +302,7 @@ export default function RequestsSection({
               onClick={() => setShowSongForm(true)}
               style={{
                 marginBottom: 24, padding: '7px 18px', fontSize: 13, fontWeight: 500, cursor: 'pointer',
-                background: 'var(--accent)', color: '#fff',
+                background: 'var(--accent)', color: 'var(--accent-text-on)',
                 border: 'none', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font)',
               }}
             >

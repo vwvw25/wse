@@ -108,7 +108,7 @@ export default async function QuoteRequestPage({ params }: { params: Promise<{ i
           href={`/quote/new?${quoteParams.toString()}`}
           style={{
             display: 'inline-block', padding: '8px 20px', fontSize: 13, fontWeight: 500,
-            background: 'var(--accent)', color: '#fff', borderRadius: 'var(--radius-sm)', textDecoration: 'none',
+            background: 'var(--accent)', color: 'var(--accent-text-on)', borderRadius: 'var(--radius-sm)', textDecoration: 'none',
           }}
         >
           Generate quote →
@@ -190,9 +190,9 @@ export default async function QuoteRequestPage({ params }: { params: Promise<{ i
                 const maxP = prices.length ? Math.max(...prices) : null
                 const priceStr = minP == null || maxP == null ? '—' : minP === maxP ? fmt(minP) : `${fmt(minP)} – ${fmt(maxP)}`
                 const statusStyles: Record<string, React.CSSProperties> = {
-                  accepted:   { background: '#f0fdf4', color: '#16a34a', border: '0.5px solid #bbf7d0' },
-                  superseded: { background: '#f9fafb', color: '#9ca3af', border: '0.5px solid #e5e7eb' },
-                  sent:       { background: '#eff6ff', color: '#1d4ed8', border: '0.5px solid #bfdbfe' },
+                  accepted:   { background: 'var(--pill-stc-bg)',        color: 'var(--pill-stc-text)' },
+                  superseded: { background: 'var(--pill-uninvoiced-bg)', color: 'var(--pill-uninvoiced-text)' },
+                  sent:       { background: 'var(--pill-enquiry-bg)',    color: 'var(--pill-enquiry-text)' },
                 }
                 return (
                   <div key={q.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderTop: '0.5px solid var(--border)' }}>

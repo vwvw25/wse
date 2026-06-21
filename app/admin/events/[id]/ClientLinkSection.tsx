@@ -148,7 +148,7 @@ function CreateClientModal({
       />
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 18 }}>
         <button onClick={onClose} style={{ padding: '7px 16px', fontSize: 13, background: 'none', border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', color: 'var(--text-secondary)', fontFamily: 'var(--font)' }}>Cancel</button>
-        <button onClick={handleSave} disabled={!name.trim()} style={{ padding: '7px 16px', fontSize: 13, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', cursor: name.trim() ? 'pointer' : 'not-allowed', opacity: name.trim() ? 1 : 0.5, fontFamily: 'var(--font)', fontWeight: 500 }}>Create & link</button>
+        <button onClick={handleSave} disabled={!name.trim()} style={{ padding: '7px 16px', fontSize: 13, background: 'var(--accent)', color: 'var(--accent-text-on)', border: 'none', borderRadius: 'var(--radius-sm)', cursor: name.trim() ? 'pointer' : 'not-allowed', opacity: name.trim() ? 1 : 0.5, fontFamily: 'var(--font)', fontWeight: 500 }}>Create & link</button>
       </div>
     </Modal>
   )
@@ -199,7 +199,7 @@ function EditClientModal({
       />
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 18 }}>
         <button onClick={onClose} style={{ padding: '7px 16px', fontSize: 13, background: 'none', border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', color: 'var(--text-secondary)', fontFamily: 'var(--font)' }}>Cancel</button>
-        <button onClick={handleSave} disabled={!name.trim()} style={{ padding: '7px 16px', fontSize: 13, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', cursor: name.trim() ? 'pointer' : 'not-allowed', opacity: name.trim() ? 1 : 0.5, fontFamily: 'var(--font)', fontWeight: 500 }}>Save</button>
+        <button onClick={handleSave} disabled={!name.trim()} style={{ padding: '7px 16px', fontSize: 13, background: 'var(--accent)', color: 'var(--accent-text-on)', border: 'none', borderRadius: 'var(--radius-sm)', cursor: name.trim() ? 'pointer' : 'not-allowed', opacity: name.trim() ? 1 : 0.5, fontFamily: 'var(--font)', fontWeight: 500 }}>Save</button>
       </div>
     </Modal>
   )
@@ -344,7 +344,7 @@ export default function ClientLinkSection({
         <span style={{ fontSize: 13, color: 'var(--text-tertiary)', flex: 1 }}>No client linked.</span>
         <button
           onClick={() => setModal('create')}
-          style={{ padding: '5px 12px', fontSize: 12, fontWeight: 500, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'var(--font)' }}
+          style={{ padding: '5px 12px', fontSize: 12, fontWeight: 500, background: 'var(--accent)', color: 'var(--accent-text-on)', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'var(--font)' }}
         >
           + Create client
         </button>

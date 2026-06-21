@@ -219,7 +219,7 @@ export default function InvoiceEmailModal({
               disabled={sending || !to.trim()}
               style={{
                 padding: '7px 16px', fontSize: 13, fontWeight: 500,
-                background: 'var(--accent)', color: '#fff', border: 'none',
+                background: 'var(--accent)', color: 'var(--accent-text-on)', border: 'none',
                 borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font)',
                 cursor: sending || !to.trim() ? 'not-allowed' : 'pointer',
                 opacity: sending || !to.trim() ? 0.6 : 1,

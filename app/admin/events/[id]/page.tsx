@@ -294,7 +294,7 @@ export default async function EventDetailPage({
             href={`/quote/new?event=${event.id}`}
             style={{
               display: 'inline-block', padding: '8px 18px', fontSize: 13, fontWeight: 500,
-              background: 'var(--accent)', color: '#fff', borderRadius: 'var(--radius-sm)', textDecoration: 'none',
+              background: 'var(--accent)', color: 'var(--accent-text-on)', borderRadius: 'var(--radius-sm)', textDecoration: 'none',
             }}
           >
             Generate quote →
@@ -405,6 +405,7 @@ export default async function EventDetailPage({
                 <Cell label="Band size requested" value={rd.band_size_requested} />
                 <Cell label="Sets requested" value={rd.sets_requested} />
               </PairGrid>
+              {rd.roaming_requested && <FullRow label="Roaming requested" value="Yes" />}
               <FullRow label="Special requirements" value={rd.special_requirements} />
               <FullRow label="Sound requirements" value={rd.sound_requirements} />
               <FullRow label="Notes" value={rd.notes} />

@@ -36,7 +36,7 @@ export default async function AdminQuotesPage() {
           </a>
           <a href="/quote/new" style={{
             display: 'inline-block', padding: '8px 16px', fontSize: 13, fontWeight: 500,
-            background: 'var(--accent)', color: '#fff', borderRadius: 'var(--radius-sm)',
+            background: 'var(--accent)', color: 'var(--accent-text-on)', borderRadius: 'var(--radius-sm)',
             textDecoration: 'none',
           }}>
             New quote

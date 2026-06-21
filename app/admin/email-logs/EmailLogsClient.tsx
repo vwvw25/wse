@@ -20,17 +20,17 @@ interface EmailLog {
 }
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
-  pending:   { bg: '#f3f4f6', color: '#6b7280' },
-  sent:      { bg: '#eff6ff', color: '#1d4ed8' },
-  delivered: { bg: '#f0fdf4', color: '#16a34a' },
-  failed:    { bg: '#fef2f2', color: '#dc2626' },
-  bounced:   { bg: '#fef2f2', color: '#dc2626' },
-  complained:{ bg: '#fff7ed', color: '#ea580c' },
+  pending:   { bg: 'var(--pill-uninvoiced-bg)', color: 'var(--pill-uninvoiced-text)' },
+  sent:      { bg: 'var(--pill-enquiry-bg)',    color: 'var(--pill-enquiry-text)' },
+  delivered: { bg: 'var(--pill-stc-bg)',        color: 'var(--pill-stc-text)' },
+  failed:    { bg: 'var(--pill-cancelled-bg)',  color: 'var(--pill-cancelled-text)' },
+  bounced:   { bg: 'var(--pill-cancelled-bg)',  color: 'var(--pill-cancelled-text)' },
+  complained:{ bg: 'var(--pill-outstanding-bg)',color: 'var(--pill-outstanding-text)' },
 }
 
 const RESPONSE_COLORS: Record<string, { bg: string; color: string; label: string }> = {
-  yes: { bg: '#f0fdf4', color: '#16a34a', label: 'Accepted' },
-  no:  { bg: '#fef2f2', color: '#dc2626', label: 'Declined' },
+  yes: { bg: 'var(--pill-stc-bg)',       color: 'var(--pill-stc-text)',       label: 'Accepted' },
+  no:  { bg: 'var(--pill-cancelled-bg)', color: 'var(--pill-cancelled-text)', label: 'Declined' },
 }
 
 function formatDate(iso: string) {

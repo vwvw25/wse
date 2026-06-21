@@ -37,7 +37,7 @@ export default function SetListsTab({
             onClick={() => setShowForm(true)}
             style={{
               padding: '7px 16px', fontSize: 13, fontWeight: 500, cursor: 'pointer',
-              background: 'var(--accent)', color: '#fff',
+              background: 'var(--accent)', color: 'var(--accent-text-on)',
               border: 'none', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font)',
             }}
           >
@@ -62,7 +62,7 @@ export default function SetListsTab({
               disabled={!name.trim() || creating}
               style={{
                 padding: '7px 16px', fontSize: 13, fontWeight: 500, cursor: 'pointer',
-                background: 'var(--accent)', color: '#fff',
+                background: 'var(--accent)', color: 'var(--accent-text-on)',
                 border: 'none', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font)',
                 opacity: creating ? 0.6 : 1,
               }}

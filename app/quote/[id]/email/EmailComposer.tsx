@@ -158,7 +158,7 @@ export default function EmailComposer({ templates, event, quoteHtml, bookingDeta
                   onClick={handleCopy}
                   style={{
                     padding: '7px 18px', fontSize: 12, fontWeight: 500,
-                    background: copied ? '#276749' : 'var(--accent)', color: '#fff',
+                    background: copied ? '#276749' : 'var(--accent)', color: 'var(--accent-text-on)',
                     border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
                     fontFamily: 'var(--font)',
                   }}

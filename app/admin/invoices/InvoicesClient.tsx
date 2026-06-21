@@ -175,11 +175,11 @@ export default function InvoicesClient({
         {(() => {
           const hasAny = uninvoicedEvents.length > 0
           const isActive = statusFilter === 'not_invoiced'
-          const bg = isActive ? '#9a3412' : hasAny ? '#c2410c' : 'var(--bg)'
+          const bg = isActive ? '#ff3b5c' : hasAny ? '#ff5470' : 'var(--bg)'
           const labelCol = isActive || hasAny ? 'rgba(255,255,255,0.65)' : 'var(--text-secondary)'
           const amountCol = isActive || hasAny ? '#fff' : 'var(--text)'
           const subCol = isActive || hasAny ? 'rgba(255,255,255,0.55)' : 'var(--text-tertiary)'
-          const borderCol = isActive ? '#7c2d12' : hasAny ? '#9a3412' : 'var(--border)'
+          const borderCol = isActive ? '#cc1f40' : hasAny ? '#ff3b5c' : 'var(--border)'
           return (
             <div
               onClick={() => setStatusFilter(f => f === 'not_invoiced' ? 'all' : 'not_invoiced')}
@@ -310,14 +310,13 @@ export default function InvoicesClient({
                     <td style={{ padding: '10px 12px' }}>
                       <span style={{
                         fontSize: 11, fontWeight: 500, padding: '2px 7px', borderRadius: 4,
-                        background: isPaid ? '#f0fdf4' : '#fffbeb',
-                        color: isPaid ? '#16a34a' : '#92400e',
-                        border: `0.5px solid ${isPaid ? '#bbf7d0' : '#fde68a'}`,
+                        background: isPaid ? 'var(--pill-paid-bg)' : 'var(--pill-outstanding-bg)',
+                        color: isPaid ? 'var(--pill-paid-text)' : 'var(--pill-outstanding-text)',
                       }}>
                         {isPaid ? 'Paid' : 'Outstanding'}
                       </span>
                     </td>
-                    <td style={{ padding: '10px 12px', fontSize: 12, color: inv.sent_at ? '#16a34a' : 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '10px 12px', fontSize: 12, color: inv.sent_at ? 'var(--pill-stc-text)' : 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
                       {inv.sent_at ? `✓ ${formatDate(inv.sent_at)}` : 'Not sent'}
                     </td>
                   </tr>

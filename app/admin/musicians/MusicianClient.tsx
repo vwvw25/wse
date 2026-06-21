@@ -37,7 +37,7 @@ const cancelBtn: React.CSSProperties = {
 }
 const primaryBtn: React.CSSProperties = {
   padding: '7px 18px', fontSize: 13, fontWeight: 500,
-  background: 'var(--accent)', color: '#fff', border: 'none',
+  background: 'var(--accent)', color: 'var(--accent-text-on)', border: 'none',
   borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'var(--font)',
 }
 

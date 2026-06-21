@@ -89,7 +89,7 @@ export default function BookingDetailsSection({
           disabled={saving}
           style={{
             padding: '5px 14px', fontSize: 12, fontWeight: 500,
-            background: 'var(--accent)', color: '#fff', border: 'none',
+            background: 'var(--accent)', color: 'var(--accent-text-on)', border: 'none',
             borderRadius: 'var(--radius-sm)', cursor: saving ? 'not-allowed' : 'pointer',
             opacity: saving ? 0.6 : 1, fontFamily: 'var(--font)',
           }}

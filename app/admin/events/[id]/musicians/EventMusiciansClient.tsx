@@ -440,7 +440,7 @@ function SlotRow({
                 >Cancel</button>
                 <button
                   onClick={handleConfirmSave}
-                  style={{ padding: '7px 16px', fontSize: 13, cursor: 'pointer', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font)', fontWeight: 500 }}
+                  style={{ padding: '7px 16px', fontSize: 13, cursor: 'pointer', background: 'var(--accent)', color: 'var(--accent-text-on)', border: 'none', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font)', fontWeight: 500 }}
                 >Confirm &amp; save</button>
               </div>
             </div>

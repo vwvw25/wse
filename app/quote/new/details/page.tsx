@@ -21,9 +21,72 @@ export default async function DetailsPage({ searchParams }: { searchParams: Prom
   const eventId = typeof sp.event === 'string' ? sp.event : null
   const requestId = typeof sp.request === 'string' ? sp.request : null
 
-  let eventPrefill: { formFields: Partial<import('@/types/quote').QuoteInputs>; eventCardData: EventCardData } | null = null
+  let eventPrefill: { formFields: Partial<import('@/types/quote').QuoteInputs>; eventCardData: EventCardData; roamingRequested?: boolean } | null = null
 
-  if (eventId && !requestId) {
+  if (requestId) {
+    const supabase = createServiceClient()
+    const { data } = await supabase
+      .from('quote_requests')
+      .select('auto_fill, request_details')
+      .eq('id', requestId)
+      .single()
+    if (data) {
+      const af = data.auto_fill as Record<string, unknown>
+      const rd = data.request_details as RequestDetails | null
+      const startTime = af.start_time as string | null
+      const arrivalTime = af.arrival_time as string | null
+      const finishTime = af.finish_time as string | null
+      const loadOutTime = af.load_out_time as string | null
+      const autoArrival = arrivalTime
+        ?? (startTime
+          ? (() => {
+              const [h, m] = startTime.split(':').map(Number)
+              const arrMins = h * 60 + m - 60
+              const norm = ((arrMins % 1440) + 1440) % 1440
+              return `${String(Math.floor(norm / 60)).padStart(2, '0')}:${String(norm % 60).padStart(2, '0')}`
+            })()
+          : null)
+      const autoLoadOut = loadOutTime ?? finishTime ?? null
+      eventPrefill = {
+        formFields: {
+          agency_name: (af.agency_name as string | null) ?? undefined,
+          agent_name: (af.agent_name as string | null) ?? undefined,
+          client_email: (af.client_email as string | null) ?? undefined,
+          event_date: (af.event_date as string | null) ?? undefined,
+          venue_name: (af.venue_name as string | null) ?? undefined,
+          venue_postcode: (af.venue_postcode as string | null) ?? undefined,
+          location: (af.location as string | null) ?? undefined,
+          band_size_requested: rd?.band_size_requested ?? undefined,
+          sets_requested: rd?.sets_requested ?? undefined,
+          arrival_time: autoArrival ?? undefined,
+          start_time: startTime ?? undefined,
+          finish_time: finishTime ?? undefined,
+          load_out_time: autoLoadOut ?? undefined,
+        },
+        eventCardData: {
+          agency_name: af.agency_name as string | null,
+          agent_name: af.agent_name as string | null,
+          client_email: af.client_email as string | null,
+          event_date: af.event_date as string | null,
+          venue_name: af.venue_name as string | null,
+          venue_postcode: af.venue_postcode as string | null,
+          venue_address: af.venue_address as string | null,
+          location: af.location as string | null,
+          guests: af.guests as number | null,
+          arrival_time: arrivalTime,
+          start_time: startTime,
+          finish_time: finishTime,
+          load_out_time: loadOutTime,
+          band_size_requested: rd?.band_size_requested ?? null,
+          sets_requested: rd?.sets_requested ?? null,
+          special_requirements: rd?.special_requirements ?? null,
+          sound_requirements: rd?.sound_requirements ?? null,
+          notes: rd?.notes ?? null,
+        },
+        roamingRequested: rd?.roaming_requested ?? false,
+      }
+    }
+  } else if (eventId) {
     const supabase = createServiceClient()
     const { data } = await supabase
       .from('events')
@@ -78,6 +141,7 @@ export default async function DetailsPage({ searchParams }: { searchParams: Prom
           sound_requirements: rd?.sound_requirements ?? null,
           notes: rd?.notes ?? null,
         },
+        roamingRequested: rd?.roaming_requested ?? false,
       }
     }
   }

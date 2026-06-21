@@ -235,7 +235,7 @@ export default function TemplatesPage() {
             onClick={startNew}
             style={{
               width: '100%', height: 32, fontSize: 12, fontWeight: 500,
-              background: 'var(--accent)', color: '#fff',
+              background: 'var(--accent)', color: 'var(--accent-text-on)',
               border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
               fontFamily: 'var(--font)',
             }}

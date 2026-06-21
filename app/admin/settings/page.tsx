@@ -110,34 +110,34 @@ const NAV_GROUPS: { heading: string; items: { key: Section; label: string }[] }[
 const LIGHT_SWATCHES = [
   { name: '--bg', value: '#ffffff', label: 'Page background' },
   { name: '--bg-secondary', value: '#f7f6f3', label: 'Body background' },
-  { name: '--bg-info', value: '#e6f1fb', label: 'Info background' },
+  { name: '--bg-info', value: '#efeaff', label: 'Info background' },
   { name: '--text', value: '#1a1a1a', label: 'Primary text' },
   { name: '--text-secondary', value: '#6b6b6b', label: 'Secondary text' },
   { name: '--text-tertiary', value: '#9b9b9b', label: 'Tertiary text' },
-  { name: '--text-info', value: '#185fa5', label: 'Info / active' },
-  { name: '--accent', value: '#4f46e5', label: 'Primary action' },
+  { name: '--text-info', value: '#5b3fa8', label: 'Info / active' },
+  { name: '--accent', value: '#22e07a', label: 'Primary action' },
 ]
 
 const DARK_SWATCHES = [
   { name: '--bg', value: '#1c1c1c', label: 'Page background' },
   { name: '--bg-secondary', value: '#252525', label: 'Body background' },
-  { name: '--bg-info', value: '#0c2a44', label: 'Info background' },
+  { name: '--bg-info', value: '#2c2350', label: 'Info background' },
   { name: '--text', value: '#f0f0f0', label: 'Primary text' },
   { name: '--text-secondary', value: '#a0a0a0', label: 'Secondary text' },
   { name: '--text-tertiary', value: '#666666', label: 'Tertiary text' },
-  { name: '--text-info', value: '#85b7eb', label: 'Info / active' },
-  { name: '--accent', value: '#818cf8', label: 'Primary action' },
+  { name: '--text-info', value: '#b9a6ff', label: 'Info / active' },
+  { name: '--accent', value: '#22e07a', label: 'Primary action' },
 ]
 
 const STATUS_BADGES = [
-  { label: 'Enquiry',      bg: '#fef9c3', color: '#854d0e' },
-  { label: 'Quoted',       bg: '#dbeafe', color: '#1e40af' },
-  { label: 'Confirmed STC',bg: '#dcfce7', color: '#166534' },
-  { label: 'Contracted',   bg: '#f0fdf4', color: '#16a34a' },
-  { label: 'Cancelled',    bg: '#fee2e2', color: '#991b1b' },
-  { label: 'Paid',         bg: '#f0fdf4', color: '#16a34a' },
-  { label: 'Outstanding',  bg: '#fffbeb', color: '#92400e' },
-  { label: 'Not invoiced', bg: '#fff7ed', color: '#9a3412' },
+  { label: 'Enquiry',      bg: 'var(--pill-enquiry-bg)',    color: 'var(--pill-enquiry-text)' },
+  { label: 'Quoted',       bg: 'var(--pill-quoted-bg)',     color: 'var(--pill-quoted-text)' },
+  { label: 'Confirmed STC',bg: 'var(--pill-stc-bg)',        color: 'var(--pill-stc-text)' },
+  { label: 'Contracted',   bg: 'var(--pill-contracted-bg)', color: 'var(--pill-contracted-text)' },
+  { label: 'Paid',         bg: 'var(--pill-paid-bg)',       color: 'var(--pill-paid-text)' },
+  { label: 'Outstanding',  bg: 'var(--pill-outstanding-bg)',color: 'var(--pill-outstanding-text)' },
+  { label: 'Cancelled',    bg: 'var(--pill-cancelled-bg)',  color: 'var(--pill-cancelled-text)' },
+  { label: 'Not invoiced', bg: 'var(--pill-uninvoiced-bg)', color: 'var(--pill-uninvoiced-text)' },
 ]
 
 const TYPE_SCALE = [
@@ -216,7 +216,7 @@ function StyleGuideSection() {
       {/* Buttons */}
       <div style={sgHead}>Buttons</div>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-        <button style={{ padding: '8px 16px', fontSize: 13, fontWeight: 500, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font)', cursor: 'pointer' }}>Primary</button>
+        <button style={{ padding: '8px 16px', fontSize: 13, fontWeight: 500, background: 'var(--accent)', color: 'var(--accent-text-on)', border: 'none', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font)', cursor: 'pointer' }}>Primary</button>
         <button style={{ padding: '8px 16px', fontSize: 13, fontWeight: 500, background: 'var(--bg)', color: 'var(--text)', border: '0.5px solid var(--border-hover)', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font)', cursor: 'pointer' }}>Secondary</button>
         <button style={{ padding: '8px 16px', fontSize: 13, fontWeight: 500, background: 'transparent', color: 'var(--text-secondary)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font)', cursor: 'pointer' }}>Ghost</button>
       </div>
@@ -573,7 +573,7 @@ export default function SettingsPage() {
   })
 
   const saveBtn = (onClick: () => void, disabled: boolean, label: string): React.CSSProperties => ({
-    padding: '9px 20px', background: 'var(--accent)', color: '#fff',
+    padding: '9px 20px', background: 'var(--accent)', color: 'var(--accent-text-on)',
     border: 'none', borderRadius: 'var(--radius-sm)', fontSize: 14,
     fontWeight: 500, fontFamily: 'var(--font)',
     cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.7 : 1,
@@ -692,7 +692,7 @@ export default function SettingsPage() {
               <FieldRow label="No-drive zone surcharge" fieldKey="location_surcharge_no_drive" value={settings.location_surcharge_no_drive} onChange={handleChange} />
 
               <div style={{ marginTop: 28, display: 'flex', alignItems: 'center', gap: 16 }}>
-                <button onClick={handleSave} disabled={saving} style={{ padding: '9px 20px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: 14, fontWeight: 500, fontFamily: 'var(--font)', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+                <button onClick={handleSave} disabled={saving} style={{ padding: '9px 20px', background: 'var(--accent)', color: 'var(--accent-text-on)', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: 14, fontWeight: 500, fontFamily: 'var(--font)', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
                   {saving ? 'Saving…' : 'Save pricing'}
                 </button>
                 {message && <span style={{ fontSize: 13, color: message.type === 'success' ? '#166534' : '#b91c1c' }}>{message.text}</span>}
@@ -763,7 +763,7 @@ export default function SettingsPage() {
               </div>
 
               <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 16 }}>
-                <button onClick={handleInvSave} disabled={invSaving} style={{ padding: '9px 20px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: 14, fontWeight: 500, fontFamily: 'var(--font)', cursor: invSaving ? 'not-allowed' : 'pointer', opacity: invSaving ? 0.7 : 1 }}>
+                <button onClick={handleInvSave} disabled={invSaving} style={{ padding: '9px 20px', background: 'var(--accent)', color: 'var(--accent-text-on)', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: 14, fontWeight: 500, fontFamily: 'var(--font)', cursor: invSaving ? 'not-allowed' : 'pointer', opacity: invSaving ? 0.7 : 1 }}>
                   {invSaving ? 'Saving…' : 'Save invoice settings'}
                 </button>
                 {invMessage && <span style={{ fontSize: 13, color: invMessage.type === 'success' ? '#166534' : '#b91c1c' }}>{invMessage.text}</span>}
@@ -796,7 +796,7 @@ export default function SettingsPage() {
                 <a href="/admin/email-logs" style={{ padding: '6px 14px', fontSize: 13, fontWeight: 500, background: 'var(--bg)', color: 'var(--text)', border: '0.5px solid var(--border-hover)', borderRadius: 'var(--radius-sm)', textDecoration: 'none' }}>View logs</a>
               </div>
               <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 16 }}>
-                <button onClick={handleMonSave} disabled={monSaving} style={{ padding: '9px 20px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: 14, fontWeight: 500, fontFamily: 'var(--font)', cursor: monSaving ? 'not-allowed' : 'pointer', opacity: monSaving ? 0.7 : 1 }}>
+                <button onClick={handleMonSave} disabled={monSaving} style={{ padding: '9px 20px', background: 'var(--accent)', color: 'var(--accent-text-on)', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: 14, fontWeight: 500, fontFamily: 'var(--font)', cursor: monSaving ? 'not-allowed' : 'pointer', opacity: monSaving ? 0.7 : 1 }}>
                   {monSaving ? 'Saving…' : 'Save email settings'}
                 </button>
                 {monMessage && <span style={{ fontSize: 13, color: monMessage.type === 'success' ? '#166534' : '#b91c1c' }}>{monMessage.text}</span>}
@@ -875,7 +875,7 @@ export default function SettingsPage() {
                 <button
                   onClick={createUser}
                   disabled={userCreating || !newUserEmail.trim() || newUserPassword.length < 8}
-                  style={{ padding: '9px 20px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: 14, fontWeight: 500, fontFamily: 'var(--font)', cursor: userCreating || !newUserEmail.trim() || newUserPassword.length < 8 ? 'not-allowed' : 'pointer', opacity: userCreating || !newUserEmail.trim() || newUserPassword.length < 8 ? 0.6 : 1 }}
+                  style={{ padding: '9px 20px', background: 'var(--accent)', color: 'var(--accent-text-on)', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: 14, fontWeight: 500, fontFamily: 'var(--font)', cursor: userCreating || !newUserEmail.trim() || newUserPassword.length < 8 ? 'not-allowed' : 'pointer', opacity: userCreating || !newUserEmail.trim() || newUserPassword.length < 8 ? 0.6 : 1 }}
                 >
                   {userCreating ? 'Creating…' : 'Create account'}
                 </button>
@@ -924,7 +924,7 @@ export default function SettingsPage() {
                 <button
                   onClick={saveBookingSources}
                   disabled={sourcesSaving}
-                  style={{ padding: '9px 20px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: 14, fontWeight: 500, fontFamily: 'var(--font)', cursor: sourcesSaving ? 'not-allowed' : 'pointer', opacity: sourcesSaving ? 0.7 : 1 }}
+                  style={{ padding: '9px 20px', background: 'var(--accent)', color: 'var(--accent-text-on)', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: 14, fontWeight: 500, fontFamily: 'var(--font)', cursor: sourcesSaving ? 'not-allowed' : 'pointer', opacity: sourcesSaving ? 0.7 : 1 }}
                 >
                   {sourcesSaving ? 'Saving…' : 'Save sources'}
                 </button>
@@ -939,7 +939,7 @@ export default function SettingsPage() {
               </div>
               <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
                 <input type="url" placeholder="Paste a GIF URL…" value={newGifUrl} onChange={e => setNewGifUrl(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addGif() }} style={{ flex: 1, padding: '7px 10px', border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)', fontSize: 13, fontFamily: 'var(--font)', background: 'var(--bg)', color: 'var(--text)', outline: 'none' }} />
-                <button onClick={addGif} disabled={gifAdding || !newGifUrl.trim()} style={{ padding: '7px 16px', fontSize: 13, fontWeight: 500, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', cursor: gifAdding || !newGifUrl.trim() ? 'not-allowed' : 'pointer', opacity: gifAdding || !newGifUrl.trim() ? 0.6 : 1, fontFamily: 'var(--font)' }}>{gifAdding ? 'Adding…' : 'Add'}</button>
+                <button onClick={addGif} disabled={gifAdding || !newGifUrl.trim()} style={{ padding: '7px 16px', fontSize: 13, fontWeight: 500, background: 'var(--accent)', color: 'var(--accent-text-on)', border: 'none', borderRadius: 'var(--radius-sm)', cursor: gifAdding || !newGifUrl.trim() ? 'not-allowed' : 'pointer', opacity: gifAdding || !newGifUrl.trim() ? 0.6 : 1, fontFamily: 'var(--font)' }}>{gifAdding ? 'Adding…' : 'Add'}</button>
               </div>
               {gifError && <p style={{ fontSize: 12, color: '#b91c1c', margin: '-8px 0 12px' }}>{gifError}</p>}
               {gifsLoading ? (

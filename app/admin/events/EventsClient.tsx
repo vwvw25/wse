@@ -17,8 +17,8 @@ function StatusBadge({ status }: { status: string }) {
   const st = STATUS_MAP[status as EventStatus] ?? STATUS_MAP['enquiry']
   return (
     <span style={{
-      display: 'inline-block', padding: '3px 8px',
-      fontSize: 11, fontWeight: 500, borderRadius: 4,
+      display: 'inline-block', padding: '4px 12px',
+      fontSize: 12, fontWeight: 500, borderRadius: 6,
       background: st.bg, color: st.color, whiteSpace: 'nowrap',
     }}>
       {st.label}
@@ -32,7 +32,7 @@ function BandStatusBadge({ eventMusicians }: { eventMusicians?: { id: string; mu
   const allFilled = slots.every(s => s.musician_id)
   if (!allFilled) return null
   return (
-    <span style={{ fontSize: 11, fontWeight: 500, padding: '2px 7px', borderRadius: 4, background: '#eff6ff', color: '#1d4ed8', border: '0.5px solid #bfdbfe', whiteSpace: 'nowrap' }}>
+    <span style={{ fontSize: 11, fontWeight: 500, padding: '4px 12px', borderRadius: 6, background: 'var(--pill-stc-bg)', color: 'var(--pill-stc-text)', whiteSpace: 'nowrap' }}>
       Booked
     </span>
   )
@@ -44,7 +44,7 @@ function InvoiceBadge({ invoices, status }: { invoices?: { id: string; status: s
   const list = invoices ?? []
   if (list.length === 0) {
     return (
-      <span style={{ fontSize: 11, fontWeight: 500, padding: '2px 7px', borderRadius: 4, background: '#fff7ed', color: '#9a3412', border: '0.5px solid #fed7aa' }}>
+      <span style={{ fontSize: 11, fontWeight: 500, padding: '4px 12px', borderRadius: 6, background: 'var(--pill-uninvoiced-bg)', color: 'var(--pill-uninvoiced-text)' }}>
         Not invoiced
       </span>
     )
@@ -52,10 +52,9 @@ function InvoiceBadge({ invoices, status }: { invoices?: { id: string; status: s
   const allPaid = list.every(i => i.status === 'paid')
   return (
     <span style={{
-      fontSize: 11, fontWeight: 500, padding: '2px 7px', borderRadius: 4,
-      background: allPaid ? '#f0fdf4' : '#fffbeb',
-      color: allPaid ? '#16a34a' : '#92400e',
-      border: `0.5px solid ${allPaid ? '#bbf7d0' : '#fde68a'}`,
+      fontSize: 12, fontWeight: 500, padding: '4px 12px', borderRadius: 6,
+      background: allPaid ? 'var(--pill-paid-bg)' : 'var(--pill-outstanding-bg)',
+      color: allPaid ? 'var(--pill-paid-text)' : 'var(--pill-outstanding-text)',
     }}>
       {allPaid ? 'Paid' : 'Outstanding'}
     </span>

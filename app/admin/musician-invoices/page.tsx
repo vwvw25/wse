@@ -18,7 +18,7 @@ export default async function MusicianInvoicesPage() {
   const rows = (data ?? []) as unknown as MusicianInvoiceRow[]
 
   return (
-    <div style={{ padding: '32px 32px', fontFamily: 'var(--font)', maxWidth: 1100 }}>
+    <div style={{ padding: '32px 32px', fontFamily: 'var(--font)' }}>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0 0 4px', color: 'var(--text)' }}>Musician invoices</h1>
         <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>

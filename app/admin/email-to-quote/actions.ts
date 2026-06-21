@@ -81,6 +81,7 @@ REQUEST_DETAILS (shown for reference, not auto-filled):
 - band_size_requested: string or null — e.g. "acoustic duo", "trio", "4 piece", "3-5 artists"
 - sets_requested: string or null — e.g. "2 x 45 min", "3 sets of 45"
 - notes: string or null — anything else relevant (urgency, charity rate request, specific artist request, etc.)
+- roaming_requested: boolean or null — true if client has specifically requested a roaming/walkabout set or roaming band
 
 Return exactly:
 {"auto_fill":{...},"request_details":{...}}
@@ -157,7 +158,7 @@ export async function saveEvent(
   if (error || !data) throw new Error(error?.message ?? 'Failed to save event')
   const eventId = data.id as string
 
-  // Create quote request — non-fatal if table doesn't exist yet
+  // Create quote request record
   let quoteRequestId: string | null = null
   try {
     const { data: qr } = await supabase
@@ -171,10 +172,10 @@ export async function saveEvent(
       .single()
     quoteRequestId = qr?.id ?? null
   } catch {
-    // quote_requests table may not exist yet — not blocking
+    // non-fatal
   }
 
-  // Save eval record — non-critical, must not block or fail the event save
+  // Save eval record — non-critical
   try {
     await supabase.from('email_parse_evals').insert({
       event_id: eventId,
@@ -183,8 +184,8 @@ export async function saveEvent(
       saved_auto_fill: result.auto_fill,
       saved_request_details: result.request_details,
     })
-  } catch (evalErr) {
-    console.error('eval insert failed (non-fatal):', evalErr)
+  } catch {
+    // non-fatal
   }
 
   return { eventId, quoteRequestId }

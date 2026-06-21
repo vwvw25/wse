@@ -225,6 +225,7 @@ export interface RequestDetails {
   band_size_requested: string | null
   sets_requested: string | null
   notes: string | null
+  roaming_requested: boolean | null
 }
 
 export interface ContractFlag {

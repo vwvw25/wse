@@ -479,7 +479,7 @@ export default function SetListEditor({ setList, setListSongs: initialSongs, all
                 <div style={{ display: 'flex', gap: 4 }}>
                   {setNumbers.map(n => (
                     <button key={n} onClick={() => handleAddSong(song, n)} style={{
-                      padding: '3px 8px', fontSize: 11, background: 'var(--accent)', color: '#fff',
+                      padding: '3px 8px', fontSize: 11, background: 'var(--accent)', color: 'var(--accent-text-on)',
                       border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'var(--font)',
                     }}>Set {n}</button>
                   ))}

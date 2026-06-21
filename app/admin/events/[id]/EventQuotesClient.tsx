@@ -139,7 +139,7 @@ export default function EventQuotesClient({
           href={`/quote/new?event=${eventId}`}
           style={{
             display: 'inline-block', padding: '8px 18px', fontSize: 13, fontWeight: 500,
-            background: 'var(--accent)', color: '#fff', borderRadius: 'var(--radius-sm)', textDecoration: 'none',
+            background: 'var(--accent)', color: 'var(--accent-text-on)', borderRadius: 'var(--radius-sm)', textDecoration: 'none',
           }}
         >
           Generate quote →

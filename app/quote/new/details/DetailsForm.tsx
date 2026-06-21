@@ -19,6 +19,7 @@ interface Props {
   eventPrefill: {
     formFields: Partial<QuoteInputs>
     eventCardData: EventCardData
+    roamingRequested?: boolean
   } | null
 }
 
@@ -84,7 +85,12 @@ function DetailsFormInner({ eventPrefill }: Props) {
 
   const [bandSizesByType, setBandSizesByType] = useState<Partial<Record<BookingType, Set<BandSize>>>>({})
   const [setConfigsByType, setSetConfigsByType] = useState<Partial<Record<BookingType, Set<SetConfig>>>>({})
-  const [bandTypeByType, setBandTypeByType] = useState<Partial<Record<BookingType, BandType>>>({})
+  const [bandTypeByType, setBandTypeByType] = useState<Partial<Record<BookingType, BandType>>>(() => {
+    if (eventPrefill?.roamingRequested) {
+      return Object.fromEntries(bookingTypes.map(bt => [bt, 'roaming' as BandType]))
+    }
+    return {}
+  })
 
   function getBandType(bt: BookingType): BandType {
     return bandTypeByType[bt] ?? (bt === 'background' ? 'acoustic' : 'electric')

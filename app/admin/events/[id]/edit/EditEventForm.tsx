@@ -99,6 +99,7 @@ export default function EditEventForm({ event, templates, sources }: { event: Ev
   const [specialRequirements, setSpecialRequirements] = useState(rd?.special_requirements ?? '')
   const [soundRequirements, setSoundRequirements] = useState(rd?.sound_requirements ?? '')
   const [notes, setNotes] = useState(rd?.notes ?? '')
+  const [roamingRequested, setRoamingRequested] = useState(rd?.roaming_requested ?? false)
 
   const toggleStyle = (active: boolean): React.CSSProperties => ({
     flex: 1, padding: '8px 12px', fontSize: 13, fontWeight: 500,
@@ -362,6 +363,11 @@ export default function EditEventForm({ event, templates, sources }: { event: Ev
             <textarea name="notes" value={notes} onChange={e => setNotes(e.target.value)}
               placeholder="Internal notes…" style={{ ...textareaBase, gridColumn: '1 / -1' }} />
           </Field>
+          <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input type="checkbox" name="roaming_requested" id="roaming_requested" checked={roamingRequested}
+              onChange={e => setRoamingRequested(e.target.checked)} style={{ width: 16, height: 16, cursor: 'pointer' }} />
+            <label htmlFor="roaming_requested" style={{ fontSize: 13, color: 'var(--text)', cursor: 'pointer' }}>Roaming requested</label>
+          </div>
         </div>
       </SectionCard>
 

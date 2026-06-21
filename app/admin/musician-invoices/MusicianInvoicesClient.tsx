@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { updateMusicianInvoiceStatus, updateMusicianPaymentDate, updateMusicianInvoiceDueDate } from './actions'
+import { updateMusicianInvoiceStatus, updateMusicianPaymentDate, updateMusicianInvoiceDueDate, removeMusicianInvoice } from './actions'
 
 function fmt(n: number) {
   return `£${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`
@@ -33,10 +33,17 @@ function computeDefaultDueDate(eventDate: string | null): string {
   return d.toISOString().split('T')[0]
 }
 
+function isPastDue(dueDate: string | null): boolean {
+  if (!dueDate) return false
+  return new Date(dueDate) < new Date(new Date().toDateString())
+}
+
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  received: { label: 'Received', color: '#1d4ed8', bg: '#eff6ff', border: '#bfdbfe' },
-  queried:  { label: 'Queried',  color: '#92400e', bg: '#fffbeb', border: '#fde68a' },
-  paid:     { label: 'Paid',     color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
+  received:         { label: 'Received',          color: 'var(--pill-enquiry-text)',     bg: 'var(--pill-enquiry-bg)',     border: 'transparent' },
+  received_due:     { label: 'Received – due',     color: 'var(--pill-cancelled-text)',   bg: 'var(--pill-cancelled-bg)',   border: 'transparent' },
+  queried:          { label: 'Queried',            color: 'var(--pill-outstanding-text)', bg: 'var(--pill-outstanding-bg)', border: 'transparent' },
+  paid:             { label: 'Paid',               color: 'var(--pill-paid-text)',        bg: 'var(--pill-paid-bg)',        border: 'transparent' },
+  not_received_due: { label: 'Not received – due', color: 'var(--pill-cancelled-text)',   bg: 'var(--pill-cancelled-bg)',   border: 'transparent' },
 }
 
 const inputStyle: React.CSSProperties = {
@@ -46,40 +53,79 @@ const inputStyle: React.CSSProperties = {
   fontFamily: 'var(--font)', outline: 'none',
 }
 
-function StatusCell({ slotId, status }: { slotId: string; status: string | null }) {
+function StatusCell({ slotId, status, dueDate, eventDate }: { slotId: string; status: string | null; dueDate: string | null; eventDate: string | null }) {
   const router = useRouter()
   const [, startTransition] = useTransition()
   const [current, setCurrent] = useState(status ?? '')
+  const [open, setOpen] = useState(false)
+  const selectRef = useRef<HTMLSelectElement>(null)
 
   function handleChange(val: string) {
     setCurrent(val)
+    setOpen(false)
     startTransition(async () => {
       await updateMusicianInvoiceStatus(slotId, val || null)
       router.refresh()
     })
   }
 
-  const cfg = STATUS_CONFIG[current]
+  function handlePillClick() {
+    setOpen(true)
+    setTimeout(() => selectRef.current?.focus(), 0)
+  }
 
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      {cfg && (
-        <span style={{ fontSize: 11, fontWeight: 500, padding: '2px 7px', borderRadius: 4, background: cfg.bg, color: cfg.color, border: `0.5px solid ${cfg.border}`, whiteSpace: 'nowrap' }}>
-          {cfg.label}
-        </span>
-      )}
+  const effectiveDueDate = dueDate ?? computeDefaultDueDate(eventDate)
+  const due = isPastDue(effectiveDueDate)
+  const displayKey = current === 'received' && due ? 'received_due'
+    : !current && due ? 'not_received_due'
+    : current
+  const cfg = STATUS_CONFIG[displayKey]
+
+  if (open) {
+    return (
       <select
+        ref={selectRef}
         value={current}
+        autoFocus
         onChange={e => handleChange(e.target.value)}
-        style={{ ...inputStyle, width: cfg ? 28 : 100, paddingLeft: cfg ? 2 : 8, paddingRight: 2 }}
-        title="Change status"
+        onBlur={() => setOpen(false)}
+        style={{ ...inputStyle, width: 160 }}
       >
         <option value="">—</option>
         <option value="received">Received</option>
+        <option value="received_due">Received – due</option>
         <option value="queried">Queried</option>
         <option value="paid">Paid</option>
+        <option value="not_received_due">Not received – due</option>
       </select>
-    </div>
+    )
+  }
+
+  if (cfg) {
+    return (
+      <span
+        onClick={handlePillClick}
+        style={{ fontSize: 11, fontWeight: 500, padding: '2px 7px', borderRadius: 4, background: cfg.bg, color: cfg.color, border: `0.5px solid ${cfg.border}`, whiteSpace: 'nowrap', cursor: 'pointer' }}
+        title="Click to change"
+      >
+        {cfg.label}
+      </span>
+    )
+  }
+
+  return (
+    <select
+      value={current}
+      onChange={e => handleChange(e.target.value)}
+      style={{ ...inputStyle, width: 160 }}
+    >
+      <option value="">—</option>
+      <option value="received">Received</option>
+      <option value="received_due">Received – due</option>
+      <option value="queried">Queried</option>
+      <option value="paid">Paid</option>
+      <option value="not_received_due">Not received – due</option>
+    </select>
   )
 }
 
@@ -134,7 +180,16 @@ function InvoiceCell({ slotId, path, filename }: { slotId: string; path: string 
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
+  const [removing, setRemoving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  async function handleRemove() {
+    if (!path || !confirm('Remove this invoice?')) return
+    setRemoving(true)
+    await removeMusicianInvoice(slotId, path)
+    setRemoving(false)
+    router.refresh()
+  }
 
   async function handleUpload(file: File) {
     setUploading(true)
@@ -154,14 +209,20 @@ function InvoiceCell({ slotId, path, filename }: { slotId: string; path: string 
   if (path) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 11, color: '#16a34a', fontWeight: 500 }}>✓ Uploaded</span>
         <a
           href={`/api/admin/musician-invoices/${slotId}/file`}
           target="_blank"
           rel="noopener noreferrer"
-          style={{ fontSize: 12, color: 'var(--accent)', textDecoration: 'none' }}
+          title={filename ?? 'View invoice'}
+          style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}
         >
-          {filename ?? 'View'}
+          <svg width="22" height="26" viewBox="0 0 22 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3 1h11l7 7v17a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z" fill="var(--bg)" stroke="currentColor" strokeWidth="1.2"/>
+            <path d="M14 1v6a1 1 0 0 0 1 1h6" stroke="currentColor" strokeWidth="1.2"/>
+            <line x1="5" y1="13" x2="17" y2="13" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            <line x1="5" y1="17" x2="17" y2="17" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            <line x1="5" y1="21" x2="11" y2="21" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+          </svg>
         </a>
         <button
           onClick={() => fileRef.current?.click()}
@@ -169,6 +230,14 @@ function InvoiceCell({ slotId, path, filename }: { slotId: string; path: string 
           style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: 'var(--text-tertiary)', padding: 0, fontFamily: 'var(--font)' }}
         >
           Replace
+        </button>
+        <button
+          onClick={handleRemove}
+          disabled={removing}
+          title="Remove invoice"
+          style={{ background: 'none', border: 'none', cursor: removing ? 'default' : 'pointer', fontSize: 11, color: 'var(--pill-cancelled-text)', padding: 0, fontFamily: 'var(--font)', opacity: removing ? 0.5 : 1 }}
+        >
+          {removing ? 'Removing…' : 'Remove'}
         </button>
         <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f) }} />
       </div>
@@ -190,14 +259,15 @@ function InvoiceCell({ slotId, path, filename }: { slotId: string; path: string 
       >
         {uploading ? 'Uploading…' : 'Upload invoice'}
       </button>
-      {error && <span style={{ fontSize: 11, color: '#dc2626' }}>{error}</span>}
+      {error && <span style={{ fontSize: 11, color: 'var(--pill-cancelled-text)' }}>{error}</span>}
     </div>
   )
 }
 
+
 type SortKey = 'event_date' | 'musician' | 'instrument' | 'fee' | 'status'
 type SortDir = 'asc' | 'desc'
-type StatusFilter = 'all' | 'received' | 'queried' | 'paid' | 'none'
+type StatusFilter = 'all' | 'received' | 'queried' | 'paid' | 'none' | 'received_due' | 'not_received_due'
 
 export default function MusicianInvoicesClient({ rows }: { rows: MusicianInvoiceRow[] }) {
   const [sortKey, setSortKey] = useState<SortKey>('event_date')
@@ -212,6 +282,8 @@ export default function MusicianInvoicesClient({ rows }: { rows: MusicianInvoice
   const filtered = rows.filter(r => {
     if (statusFilter === 'all') return true
     if (statusFilter === 'none') return !r.musician_invoice_status
+    if (statusFilter === 'received_due') return r.musician_invoice_status === 'received' && isPastDue(r.musician_invoice_due_date ?? computeDefaultDueDate(r.event?.event_date ?? null))
+    if (statusFilter === 'not_received_due') return !r.musician_invoice_status && isPastDue(r.musician_invoice_due_date ?? computeDefaultDueDate(r.event?.event_date ?? null))
     return r.musician_invoice_status === statusFilter
   })
 
@@ -257,20 +329,43 @@ export default function MusicianInvoicesClient({ rows }: { rows: MusicianInvoice
   )
 
   // Stats
-  const received = rows.filter(r => r.musician_invoice_status === 'received').length
-  const queried  = rows.filter(r => r.musician_invoice_status === 'queried').length
-  const paid     = rows.filter(r => r.musician_invoice_status === 'paid').length
-  const none     = rows.filter(r => !r.musician_invoice_status).length
+  const received        = rows.filter(r => r.musician_invoice_status === 'received').length
+  const queried         = rows.filter(r => r.musician_invoice_status === 'queried').length
+  const paid            = rows.filter(r => r.musician_invoice_status === 'paid').length
+  const none            = rows.filter(r => !r.musician_invoice_status).length
+  const effectiveDue = (r: MusicianInvoiceRow) => isPastDue(r.musician_invoice_due_date ?? computeDefaultDueDate(r.event?.event_date ?? null))
+  const receivedDue     = rows.filter(r => r.musician_invoice_status === 'received' && effectiveDue(r)).length
+  const notReceivedDue  = rows.filter(r => !r.musician_invoice_status && effectiveDue(r)).length
+
+  const unpaid = rows.filter(r => r.musician_invoice_status !== 'paid')
+  const totalUnpaidDue    = unpaid.filter(r => effectiveDue(r)).reduce((s, r) => s + r.fee, 0)
+  const totalUnpaidNotDue = unpaid.filter(r => !effectiveDue(r)).reduce((s, r) => s + r.fee, 0)
 
   return (
     <div style={{ fontFamily: 'var(--font)' }}>
+      {/* Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 24 }}>
+        <div style={{ padding: '20px 20px 16px', borderRadius: 'var(--radius-lg)', background: 'var(--bg)', border: '0.5px solid var(--pill-cancelled-bg)' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--pill-cancelled-text)', marginBottom: 10 }}>Unpaid — overdue</div>
+          <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1, color: 'var(--text)' }}>{fmt(totalUnpaidDue)}</div>
+          <div style={{ fontSize: 12, marginTop: 8, color: 'var(--text-tertiary)' }}>{unpaid.filter(r => effectiveDue(r)).length} invoices past due date</div>
+        </div>
+        <div style={{ padding: '20px 20px 16px', borderRadius: 'var(--radius-lg)', background: 'var(--bg)', border: '0.5px solid var(--border)' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: 10 }}>Unpaid — not yet due</div>
+          <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1, color: 'var(--text)' }}>{fmt(totalUnpaidNotDue)}</div>
+          <div style={{ fontSize: 12, marginTop: 8, color: 'var(--text-tertiary)' }}>{unpaid.filter(r => !effectiveDue(r)).length} invoices pending</div>
+        </div>
+      </div>
+
       {/* Summary */}
       <div style={{ display: 'flex', gap: 20, marginBottom: 20, fontSize: 13, color: 'var(--text-secondary)' }}>
         <span>{rows.length} slots total</span>
-        <span style={{ color: '#1d4ed8' }}>{received} received</span>
-        <span style={{ color: '#92400e' }}>{queried} queried</span>
-        <span style={{ color: '#16a34a' }}>{paid} paid</span>
+        <span style={{ color: 'var(--pill-enquiry-text)' }}>{received} received</span>
+        <span style={{ color: 'var(--pill-outstanding-text)' }}>{queried} queried</span>
+        <span style={{ color: 'var(--pill-paid-bg)' }}>{paid} paid</span>
         {none > 0 && <span style={{ color: 'var(--text-tertiary)' }}>{none} awaiting</span>}
+        {receivedDue > 0 && <span style={{ color: 'var(--pill-cancelled-text)' }}>{receivedDue} received overdue</span>}
+        {notReceivedDue > 0 && <span style={{ color: 'var(--pill-cancelled-text)' }}>{notReceivedDue} not received overdue</span>}
       </div>
 
       {/* Filters */}
@@ -280,6 +375,8 @@ export default function MusicianInvoicesClient({ rows }: { rows: MusicianInvoice
         {filterBtn('received', 'Received')}
         {filterBtn('queried', 'Queried')}
         {filterBtn('paid', 'Paid')}
+        {filterBtn('received_due', `Received – overdue${receivedDue > 0 ? ` (${receivedDue})` : ''}`)}
+        {filterBtn('not_received_due', `Not received – overdue${notReceivedDue > 0 ? ` (${notReceivedDue})` : ''}`)}
       </div>
 
       {sorted.length === 0 ? (
@@ -325,7 +422,7 @@ export default function MusicianInvoicesClient({ rows }: { rows: MusicianInvoice
                       {fmt(row.fee)}
                     </td>
                     <td style={{ padding: '10px 12px' }}>
-                      <StatusCell slotId={row.id} status={row.musician_invoice_status} />
+                      <StatusCell slotId={row.id} status={row.musician_invoice_status} dueDate={row.musician_invoice_due_date} eventDate={row.event?.event_date ?? null} />
                     </td>
                     <td style={{ padding: '10px 12px' }}>
                       <InvoiceCell slotId={row.id} path={row.musician_invoice_path} filename={row.musician_invoice_filename} />
