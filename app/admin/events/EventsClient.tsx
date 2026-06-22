@@ -83,7 +83,7 @@ function EventRow({ ev }: { ev: EventRecord }) {
         <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 500 }}>{name}</div>
         {agent && <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>{agent}</div>}
       </div>
-      <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{requestSummary}</div>
+      <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 400 }}>{ev.venue_name || '—'}</div>
       <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{times}</div>
       <div><StatusBadge status={ev.status} /></div>
       <div><BandStatusBadge eventMusicians={ev.event_musicians} /></div>
@@ -252,7 +252,7 @@ export default function EventsClient({ events }: { events: EventRecord[] }) {
               Date {sortDir === 'asc' ? '↑' : '↓'}
             </div>
             <div>Agency / Agent</div>
-            <div>Request</div>
+            <div>Venue</div>
             <div>Times</div>
             <div>Status</div>
             <div>Band</div>
