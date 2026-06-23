@@ -98,11 +98,12 @@ const BellIcon = () => <Ico>
 
 // ── Nav links config ──────────────────────────────────────────────────────────
 
-const navLinks = [
-  { href: '/admin',                   label: 'Dashboard',         icon: <HomeIcon /> },
-  { href: '/admin/events',            label: 'Events',            icon: <CalendarIcon /> },
-  { href: '/admin/triage',            label: 'Triage',            icon: <TriageIcon /> },
-  { href: '/admin/issues',            label: 'Issues',            icon: <IssuesIcon /> },
+const navLinks: { href: string; label: string; icon: React.ReactNode; indent?: boolean }[] = [
+  { href: '/admin',                        label: 'Dashboard',     icon: <HomeIcon /> },
+  { href: '/admin/events',                 label: 'Events',        icon: <CalendarIcon /> },
+  { href: '/admin/triage',                 label: 'Triage',        icon: <TriageIcon /> },
+  { href: '/admin/triage/not-an-issue',    label: 'Not an issue',  icon: null, indent: true },
+  { href: '/admin/issues',                 label: 'Issues',        icon: <IssuesIcon /> },
   { href: '/admin/musicians',         label: 'Musicians',         icon: <UserIcon /> },
   { href: '/admin/musician-invoices', label: 'Musician invoices', icon: <ReceiptIcon /> },
   { href: '/admin/quotes',            label: 'Quotes',            icon: <QuoteIcon /> },
@@ -147,11 +148,12 @@ function NavLinks({
               justifyContent: 'flex-start',
               gap: expanded ? 9 : 0,
               padding: '6px 10px',
+              paddingLeft: link.indent && expanded ? 32 : 10,
               borderRadius: 'var(--radius-sm)',
               textDecoration: 'none',
-              fontSize: 13.5,
+              fontSize: link.indent ? 12.5 : 13.5,
               background: isActive ? 'var(--bg-secondary)' : 'transparent',
-              color: isActive ? 'var(--text)' : 'var(--text-secondary)',
+              color: isActive ? 'var(--text)' : link.indent ? 'var(--text-tertiary)' : 'var(--text-secondary)',
               fontWeight: isActive ? 500 : 400,
               transition: 'background 0.12s, color 0.12s',
               overflow: 'hidden',

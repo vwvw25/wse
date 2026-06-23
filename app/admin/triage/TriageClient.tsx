@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import type { Issue } from '../issues/IssuesClient'
 import { StatusCircle, STATUSES, STATUS_LABELS, LABELS, LABEL_DISPLAY } from '../issues/IssuesClient'
 import { updateIssue, createIssue } from '../issues/actions'
+import { acceptTriageIssue, moveToNotAnIssue } from './actions'
 
 function issueId(issue: Issue) {
   return issue.number ? `WSE-${issue.number}` : `WSE-${issue.id.slice(0, 4).toUpperCase()}`
@@ -170,7 +171,7 @@ function NewIssueModal({ onClose, pmEvents }: { onClose: () => void; pmEvents: {
 function IssueDetail({ issue, pmEvents, onAction }: {
   issue: Issue & { pm_events?: { id: string; name: string } | null }
   pmEvents: { id: string; name: string }[]
-  onAction: (id: string, status: string) => void
+  onAction: (id: string, action: 'accept' | 'not_an_issue' | 'decline') => void
 }) {
   const [title, setTitle] = useState(issue.title)
   const [description, setDescription] = useState(issue.description ?? '')
@@ -192,17 +193,14 @@ function IssueDetail({ issue, pmEvents, onAction }: {
         <span style={{ fontSize: 12, color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>{issueId(issue)}</span>
         <span style={{ fontSize: 13, color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0 }}>{issue.title}</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto', flexShrink: 0 }}>
-          <ActionBtn label="Accept" variant="accept" onClick={() => onAction(issue.id, 'todo')}
+          <ActionBtn label="Accept" variant="accept" onClick={() => onAction(issue.id, 'accept')}
             icon={<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>}
           />
-          <ActionBtn label="Decline" variant="decline" onClick={() => onAction(issue.id, 'cancelled')}
+          <ActionBtn label="Not an issue" onClick={() => onAction(issue.id, 'not_an_issue')}
+            icon={<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v5M6 8.5v.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>}
+          />
+          <ActionBtn label="Decline" variant="decline" onClick={() => onAction(issue.id, 'decline')}
             icon={<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>}
-          />
-          <ActionBtn label="Mark as duplicate" onClick={() => {}}
-            icon={<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1" y="3" width="7" height="8" rx="1" stroke="currentColor" strokeWidth="1.2"/><path d="M4 3V2a1 1 0 011-1h5a1 1 0 011 1v7a1 1 0 01-1 1h-1" stroke="currentColor" strokeWidth="1.2"/></svg>}
-          />
-          <ActionBtn label="Snooze" onClick={() => {}}
-            icon={<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="7" r="4" stroke="currentColor" strokeWidth="1.2"/><path d="M6 5v2l1.5 1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><path d="M3.5 1.5l-1 1M8.5 1.5l1 1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>}
           />
         </div>
       </div>
@@ -306,9 +304,14 @@ export default function TriageClient({ issues, pmEvents }: { issues: Issue[]; pm
 
   const selected = issues.find(i => i.id === selectedId) ?? null
 
-  async function handleAction(id: string, status: string) {
-    await updateIssue(id, { status })
-    // select next issue or clear
+  async function handleAction(id: string, action: 'accept' | 'not_an_issue' | 'decline') {
+    if (action === 'accept') {
+      await acceptTriageIssue(id)
+    } else if (action === 'not_an_issue') {
+      await moveToNotAnIssue(id)
+    } else {
+      await updateIssue(id, { status: 'cancelled' })
+    }
     const idx = issues.findIndex(i => i.id === id)
     const next = issues[idx + 1] ?? issues[idx - 1] ?? null
     setSelectedId(next?.id ?? null)

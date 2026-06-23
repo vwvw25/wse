@@ -109,24 +109,38 @@ export async function POST(req: NextRequest) {
       // Build issue title: use classified title, fall back to subject
       const title = classification.title || email.subject || 'New email'
 
-      // Create triage issue
-      const { data: issue } = await supabase
-        .from('issues')
-        .insert({
-          title,
-          description: `**From:** ${email.from_address}\n**Subject:** ${email.subject}\n\n${classification.summary}\n\n---\n${email.body?.slice(0, 2000) ?? ''}`,
-          status: 'triage',
-          label: classification.label === 'other' ? null : classification.label,
-          priority: classification.priority,
-          source: 'email',
-        })
-        .select('id')
-        .single()
+      const isIssue = classification.label !== 'other'
+      const agentDecision = isIssue ? 'triage' : 'not_an_issue'
+      const finalLabel = isIssue ? classification.label : null
 
-      // Mark email as done
+      let issueId: string | null = null
+
+      if (isIssue) {
+        // Create triage issue, storing agent snapshot alongside
+        const { data: issue } = await supabase
+          .from('issues')
+          .insert({
+            title,
+            description: `**From:** ${email.from_address}\n**Subject:** ${email.subject}\n\n${classification.summary}\n\n---\n${email.body?.slice(0, 2000) ?? ''}`,
+            status: 'triage',
+            label: finalLabel,
+            priority: classification.priority,
+            source: 'email',
+            gmail_inbox_id: email.id,
+            agent_label: classification.label,
+            agent_priority: classification.priority,
+            agent_title: title,
+            agent_is_issue: true,
+          })
+          .select('id')
+          .single()
+        issueId = issue?.id ?? null
+      }
+
+      // Mark email with agent decision
       await supabase
         .from('gmail_inbox')
-        .update({ status: 'done', issue_id: issue?.id ?? null })
+        .update({ status: 'done', agent_decision: agentDecision, issue_id: issueId })
         .eq('id', email.id)
 
       processed++
