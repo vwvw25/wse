@@ -238,8 +238,8 @@ function IssueDetail({ issue, pmEvents, onAction }: {
         <textarea value={description} onChange={e => setDescription(e.target.value)}
           onBlur={() => { if (description !== (issue.description ?? '')) save({ description }) }}
           placeholder="Add description..."
-          rows={4}
-          style={{ width: '100%', fontSize: 14, lineHeight: 1.6, border: 'none', background: 'transparent', color: description ? 'var(--text)' : 'var(--text-tertiary)', outline: 'none', resize: 'none', fontFamily: 'var(--font)', marginBottom: 16, boxSizing: 'border-box' }}
+          rows={20}
+          style={{ width: '100%', fontSize: 14, lineHeight: 1.6, border: '0.5px solid var(--border)', borderRadius: 6, padding: '12px 14px', background: 'transparent', color: description ? 'var(--text)' : 'var(--text-tertiary)', outline: 'none', resize: 'none', fontFamily: 'var(--font)', marginBottom: 16, boxSizing: 'border-box' }}
         />
         {/* Toolbar icons */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>

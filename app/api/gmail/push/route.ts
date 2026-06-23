@@ -45,6 +45,11 @@ export async function POST(req: NextRequest) {
     let newEmailCount = 0
     for (const { message } of messages) {
       const full = await fetchEmailById(message.id, accessToken)
+
+      // Skip sent mail
+      const labelIds: string[] = full.labelIds ?? []
+      if (labelIds.includes('SENT')) continue
+
       const { subject, from, body: emailBody } = extractEmailText(full)
 
       const { error } = await supabase.from('gmail_inbox').insert({
