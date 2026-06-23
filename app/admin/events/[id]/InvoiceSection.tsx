@@ -162,8 +162,12 @@ function InvoiceCard({
   }
 
   const statusCfg = invoice.status === 'paid'
-    ? { label: 'Paid', color: 'var(--pill-paid-text)', bg: 'var(--pill-paid-bg)', border: 'none' }
-    : { label: 'Outstanding', color: 'var(--pill-outstanding-text)', bg: 'var(--pill-outstanding-bg)', border: 'none' }
+    ? { label: 'Paid', color: 'var(--pill-paid-text)', bg: 'var(--pill-paid-bg)' }
+    : invoice.status === 'chased'
+    ? { label: 'Chased', color: 'var(--pill-outstanding-text)', bg: 'var(--pill-outstanding-bg)' }
+    : invoice.status === 'sent'
+    ? { label: 'Sent', color: 'var(--pill-stc-text)', bg: 'var(--pill-stc-bg)' }
+    : { label: 'Unsent', color: 'var(--text-tertiary)', bg: 'var(--bg-secondary)' }
 
   return (
     <div style={{ border: '0.5px solid var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden', marginBottom: 12 }}>
@@ -206,7 +210,9 @@ function InvoiceCard({
                 onChange={e => startTransition(async () => updateInvoice(invoice.id, eventId, { status: e.target.value }))}
                 style={{ ...inputStyle, width: 120 }}
               >
-                <option value="outstanding">Outstanding</option>
+                <option value="unsent">Unsent</option>
+                <option value="sent">Sent</option>
+                <option value="chased">Chased</option>
                 <option value="paid">Paid</option>
               </select>
             </div>

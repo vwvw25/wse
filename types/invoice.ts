@@ -41,7 +41,7 @@ export interface InvoiceLineItem {
   sort_order: number
 }
 
-export type InvoiceStatus = 'outstanding' | 'paid'
+export type InvoiceStatus = 'unsent' | 'sent' | 'chased' | 'paid'
 
 export interface Invoice {
   id: string

@@ -43,7 +43,7 @@ export async function createInvoice(
       number,
       year,
       sequence,
-      status: 'outstanding',
+      status: 'unsent',
       issue_date: new Date().toISOString().split('T')[0],
     })
     .select()

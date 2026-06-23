@@ -79,8 +79,8 @@ export async function GET(
   const billToEmail = client?.email ?? null
   const billToAddress = client?.address ?? null
 
-  const statusColor = invoice.status === 'paid' ? '#16a34a' : '#d97706'
-  const statusBg = invoice.status === 'paid' ? '#f0fdf4' : '#fffbeb'
+  const statusColor = invoice.status === 'paid' ? '#16a34a' : invoice.status === 'unsent' ? '#6b7280' : '#d97706'
+  const statusBg = invoice.status === 'paid' ? '#f0fdf4' : invoice.status === 'unsent' ? '#f3f4f6' : '#fffbeb'
 
   const pdfDoc = (
     <Document>
@@ -105,7 +105,7 @@ export async function GET(
         {/* Status badge */}
         <View style={[styles.badge, { backgroundColor: statusBg }]}>
           <Text style={{ color: statusColor, fontFamily: 'Helvetica-Bold', fontSize: 9 }}>
-            {invoice.status === 'paid' ? '✓ Paid' : 'Outstanding'}
+            {invoice.status === 'paid' ? '✓ Paid' : invoice.status === 'chased' ? 'Chased' : invoice.status === 'sent' ? 'Sent' : 'Unsent'}
           </Text>
         </View>
 

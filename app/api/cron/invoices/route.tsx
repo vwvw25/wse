@@ -65,6 +65,7 @@ async function buildPdf(invoice: Record<string, unknown>, settings: Record<strin
 
   const statusColor = invoice.status === 'paid' ? '#16a34a' : '#d97706'
   const statusBg = invoice.status === 'paid' ? '#f0fdf4' : '#fffbeb'
+  // Auto-sent invoices are always 'sent' status at time of sending
 
   const pdfDoc = (
     <Document>
@@ -84,7 +85,7 @@ async function buildPdf(invoice: Record<string, unknown>, settings: Record<strin
 
         <View style={[styles.badge, { backgroundColor: statusBg }]}>
           <Text style={{ color: statusColor, fontFamily: 'Helvetica-Bold', fontSize: 9 }}>
-            {invoice.status === 'paid' ? '✓ Paid' : 'Outstanding'}
+            {'Sent'}
           </Text>
         </View>
 
@@ -259,7 +260,7 @@ export async function GET(req: NextRequest) {
         `,
       })
 
-      await supabase.from('invoices').update({ sent_at: now.toISOString() }).eq('id', inv.id)
+      await supabase.from('invoices').update({ sent_at: now.toISOString(), status: 'sent' }).eq('id', inv.id).eq('status', 'unsent')
       sent++
     } catch (err) {
       console.error(`Failed to auto-send invoice ${inv.number}:`, err)

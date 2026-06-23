@@ -73,8 +73,8 @@ async function buildPdfBuffer(
   const billToEmail = (client?.email as string | null) ?? null
   const billToAddress = (client?.address as string | null) ?? null
 
-  const statusColor = invoice.status === 'paid' ? '#16a34a' : '#d97706'
-  const statusBg = invoice.status === 'paid' ? '#f0fdf4' : '#fffbeb'
+  const statusColor = invoice.status === 'paid' ? '#16a34a' : invoice.status === 'unsent' ? '#6b7280' : '#d97706'
+  const statusBg = invoice.status === 'paid' ? '#f0fdf4' : invoice.status === 'unsent' ? '#f3f4f6' : '#fffbeb'
 
   const pdfDoc = (
     <Document>
@@ -93,7 +93,7 @@ async function buildPdfBuffer(
         </View>
         <View style={[styles.badge, { backgroundColor: statusBg }]}>
           <Text style={{ color: statusColor, fontFamily: 'Helvetica-Bold', fontSize: 9 }}>
-            {invoice.status === 'paid' ? '✓ Paid' : 'Outstanding'}
+            {invoice.status === 'paid' ? '✓ Paid' : invoice.status === 'chased' ? 'Chased' : invoice.status === 'sent' ? 'Sent' : 'Unsent'}
           </Text>
         </View>
         <View style={styles.twoCol}>
@@ -253,7 +253,9 @@ export async function POST(
 
     const resendId = (result.data as { id?: string } | null)?.id ?? null
     await supabase.from('email_logs').update({ status: 'sent', resend_id: resendId, updated_at: new Date().toISOString() }).eq('id', emailLogId)
-    await supabase.from('invoices').update({ sent_at: new Date().toISOString() }).eq('id', id)
+    const now = new Date().toISOString()
+    await supabase.from('invoices').update({ sent_at: now }).eq('id', id)
+    await supabase.from('invoices').update({ status: 'sent' }).eq('id', id).eq('status', 'unsent')
 
     return NextResponse.json({ ok: true })
   } catch (err) {

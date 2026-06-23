@@ -50,13 +50,14 @@ function InvoiceBadge({ invoices, status }: { invoices?: { id: string; status: s
     )
   }
   const allPaid = list.every(i => i.status === 'paid')
+  const anyChased = list.some(i => i.status === 'chased')
+  const anySent = list.some(i => i.status === 'sent')
+  const label = allPaid ? 'Paid' : anyChased ? 'Chased' : anySent ? 'Sent' : 'Unsent'
+  const bg = allPaid ? 'var(--pill-paid-bg)' : anyChased ? 'var(--pill-outstanding-bg)' : anySent ? 'var(--pill-stc-bg)' : 'var(--bg-secondary)'
+  const color = allPaid ? 'var(--pill-paid-text)' : anyChased ? 'var(--pill-outstanding-text)' : anySent ? 'var(--pill-stc-text)' : 'var(--text-tertiary)'
   return (
-    <span style={{
-      fontSize: 12, fontWeight: 500, padding: '4px 12px', borderRadius: 6,
-      background: allPaid ? 'var(--pill-paid-bg)' : 'var(--pill-outstanding-bg)',
-      color: allPaid ? 'var(--pill-paid-text)' : 'var(--pill-outstanding-text)',
-    }}>
-      {allPaid ? 'Paid' : 'Outstanding'}
+    <span style={{ fontSize: 12, fontWeight: 500, padding: '4px 12px', borderRadius: 6, background: bg, color }}>
+      {label}
     </span>
   )
 }

@@ -14,7 +14,7 @@ function formatDate(d: string | null) {
 
 type SortKey = 'number' | 'event_date' | 'issue_date' | 'total' | 'status' | 'sent_at'
 type SortDir = 'asc' | 'desc'
-type StatusFilter = 'all' | 'outstanding' | 'paid' | 'not_invoiced'
+type StatusFilter = 'all' | 'unsent' | 'sent' | 'chased' | 'paid' | 'not_invoiced'
 
 export type InvoiceRow = {
   id: string
@@ -77,9 +77,9 @@ export default function InvoicesClient({
     }
   }
 
-  const outstanding = invoices.filter(i => i.status === 'outstanding')
+  const unpaid = invoices.filter(i => i.status !== 'paid')
   const paid = invoices.filter(i => i.status === 'paid')
-  const totalOutstanding = outstanding.reduce((sum, i) => sum + invoiceTotal(i.line_items), 0)
+  const totalOutstanding = unpaid.reduce((sum, i) => sum + invoiceTotal(i.line_items), 0)
   const totalPaid = paid.reduce((sum, i) => sum + invoiceTotal(i.line_items), 0)
   const totalUninvoiced = uninvoicedEvents.reduce((sum, e) => sum + (e.booked_fee ?? 0), 0)
 
@@ -153,22 +153,22 @@ export default function InvoicesClient({
 
         {/* Card 1: Unpaid invoices — clickable */}
         <div
-          onClick={() => setStatusFilter(f => f === 'outstanding' ? 'all' : 'outstanding')}
+          onClick={() => setStatusFilter(f => f === 'sent' ? 'all' : 'sent')}
           style={{
             padding: '20px 20px 16px', borderRadius: 'var(--radius-lg)', cursor: 'pointer',
-            border: `0.5px solid ${statusFilter === 'outstanding' ? 'var(--text)' : 'var(--border)'}`,
-            background: statusFilter === 'outstanding' ? 'var(--text)' : 'var(--bg)',
+            border: `0.5px solid ${statusFilter === 'sent' ? 'var(--text)' : 'var(--border)'}`,
+            background: statusFilter === 'sent' ? 'var(--text)' : 'var(--bg)',
             transition: 'all 0.15s',
           }}
         >
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 10, color: statusFilter === 'outstanding' ? 'rgba(255,255,255,0.55)' : 'var(--text-secondary)' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 10, color: statusFilter === 'sent' ? 'rgba(255,255,255,0.55)' : 'var(--text-secondary)' }}>
             Unpaid invoices
           </div>
-          <div style={{ fontSize: 28, fontWeight: 700, color: statusFilter === 'outstanding' ? '#fff' : 'var(--text)', lineHeight: 1 }}>
+          <div style={{ fontSize: 28, fontWeight: 700, color: statusFilter === 'sent' ? '#fff' : 'var(--text)', lineHeight: 1 }}>
             {fmt(totalOutstanding)}
           </div>
-          <div style={{ fontSize: 12, marginTop: 8, color: statusFilter === 'outstanding' ? 'rgba(255,255,255,0.45)' : 'var(--text-tertiary)' }}>
-            {outstanding.length} invoice{outstanding.length !== 1 ? 's' : ''}
+          <div style={{ fontSize: 12, marginTop: 8, color: statusFilter === 'sent' ? 'rgba(255,255,255,0.45)' : 'var(--text-tertiary)' }}>
+            {unpaid.length} invoice{unpaid.length !== 1 ? 's' : ''}
           </div>
         </div>
 
@@ -205,15 +205,19 @@ export default function InvoicesClient({
             {fmt(totalOutstanding + totalUninvoiced)}
           </div>
           <div style={{ fontSize: 12, marginTop: 8, color: 'var(--text-tertiary)' }}>
-            {outstanding.length + uninvoicedEvents.length} unpaid or uninvoiced
+            {unpaid.length + uninvoicedEvents.length} unpaid or uninvoiced
           </div>
         </div>
 
       </div>
 
       {/* Filter row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end', marginBottom: 16 }}>
         {filterBtn('all', 'All', invoices.length)}
+        {filterBtn('unsent', 'Unsent', invoices.filter(i => i.status === 'unsent').length)}
+        {filterBtn('sent', 'Sent', invoices.filter(i => i.status === 'sent').length)}
+        {filterBtn('chased', 'Chased', invoices.filter(i => i.status === 'chased').length)}
+        {filterBtn('paid', 'Paid', paid.length)}
       </div>
 
       {/* Not invoiced table */}
@@ -298,7 +302,11 @@ export default function InvoicesClient({
                 const label = event?.agency_name
                   ? (event.agent_name ? `${event.agent_name} / ${event.agency_name}` : event.agency_name)
                   : (event?.agent_name ?? '—')
-                const isPaid = inv.status === 'paid'
+                const pillCfg =
+                  inv.status === 'paid'    ? { bg: 'var(--pill-paid-bg)',         color: 'var(--pill-paid-text)',         label: 'Paid' } :
+                  inv.status === 'chased'  ? { bg: 'var(--pill-outstanding-bg)',   color: 'var(--pill-outstanding-text)',  label: 'Chased' } :
+                  inv.status === 'sent'    ? { bg: 'var(--pill-stc-bg)',           color: 'var(--pill-stc-text)',          label: 'Sent' } :
+                                             { bg: 'var(--bg-secondary)',           color: 'var(--text-tertiary)',          label: 'Unsent' }
 
                 return (
                   <tr key={inv.id} style={{ borderBottom: '0.5px solid var(--border)' }}>
@@ -317,16 +325,12 @@ export default function InvoicesClient({
                     <td style={{ padding: '10px 12px', fontSize: 13, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{formatDate(inv.issue_date)}</td>
                     <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 500, textAlign: 'right', whiteSpace: 'nowrap' }}>{fmt(total)}</td>
                     <td style={{ padding: '10px 12px' }}>
-                      <span style={{
-                        fontSize: 11, fontWeight: 500, padding: '2px 7px', borderRadius: 4,
-                        background: isPaid ? 'var(--pill-paid-bg)' : 'var(--pill-outstanding-bg)',
-                        color: isPaid ? 'var(--pill-paid-text)' : 'var(--pill-outstanding-text)',
-                      }}>
-                        {isPaid ? 'Paid' : 'Outstanding'}
+                      <span style={{ fontSize: 11, fontWeight: 500, padding: '2px 7px', borderRadius: 4, background: pillCfg.bg, color: pillCfg.color }}>
+                        {pillCfg.label}
                       </span>
                     </td>
                     <td style={{ padding: '10px 12px', fontSize: 12, color: inv.sent_at ? 'var(--pill-stc-text)' : 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
-                      {inv.sent_at ? `✓ ${formatDate(inv.sent_at)}` : 'Not sent'}
+                      {inv.sent_at ? `✓ ${formatDate(inv.sent_at)}` : '—'}
                     </td>
                   </tr>
                 )
