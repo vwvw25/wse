@@ -65,7 +65,8 @@ export default function InvoicesClient({
 }) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [sortKey, setSortKey] = useState<SortKey>('event_date')
-  const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
+  const [uninvoicedSortDir, setUninvoicedSortDir] = useState<SortDir>('asc')
 
   function handleSort(key: SortKey) {
     if (sortKey === key) {
@@ -228,14 +229,22 @@ export default function InvoicesClient({
                 <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
                   <th style={thStyle}>Event</th>
                   <th style={thStyle}>Client</th>
-                  <th style={thStyle}>Event date</th>
+                  <th
+                    style={{ ...thStyle, cursor: 'pointer' }}
+                    onClick={() => setUninvoicedSortDir(d => d === 'asc' ? 'desc' : 'asc')}
+                  >
+                    Event date <SortIcon active dir={uninvoicedSortDir} />
+                  </th>
                   <th style={thStyle}>Status</th>
                   <th style={thStyle}></th>
                 </tr>
               </thead>
               <tbody>
-                {uninvoicedEvents
-                  .sort((a, b) => (a.event_date ?? '').localeCompare(b.event_date ?? ''))
+                {[...uninvoicedEvents]
+                  .sort((a, b) => {
+                    const cmp = (a.event_date ?? '').localeCompare(b.event_date ?? '')
+                    return uninvoicedSortDir === 'asc' ? cmp : -cmp
+                  })
                   .map(ev => {
                     const label = ev.agency_name
                       ? (ev.agent_name ? `${ev.agent_name} / ${ev.agency_name}` : ev.agency_name)

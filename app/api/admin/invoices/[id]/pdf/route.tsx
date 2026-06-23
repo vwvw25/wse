@@ -92,6 +92,9 @@ export async function GET(
               ? <Image src={settings.logo_url} style={styles.logo} />
               : <Text style={styles.companyName}>Ward Smith Entertainment</Text>
             }
+            {settings?.business_address && settings.business_address.split('\n').map((line, i) => (
+              <Text key={i} style={{ fontSize: 9, color: '#6b7280', lineHeight: 1.5 }}>{line}</Text>
+            ))}
           </View>
           <View style={{ alignItems: 'flex-end' }}>
             <Text style={styles.invoiceTitle}>Invoice</Text>
@@ -112,7 +115,9 @@ export async function GET(
             <Text style={[styles.metaLabel, { marginBottom: 6 }]}>Bill to</Text>
             <Text style={[styles.addressBlock, { fontFamily: 'Helvetica-Bold' }]}>{billToName}</Text>
             {billToEmail && <Text style={styles.addressBlock}>{billToEmail}</Text>}
-            {billToAddress && <Text style={styles.addressBlock}>{billToAddress}</Text>}
+            {billToAddress && billToAddress.split('\n').map((line, i) => (
+              <Text key={i} style={styles.addressBlock}>{line}</Text>
+            ))}
           </View>
           <View style={{ width: 180 }}>
             {([

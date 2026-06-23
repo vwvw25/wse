@@ -757,6 +757,10 @@ export default function SettingsPage() {
                 <span style={labelStyle}>Logo URL <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>(public image link)</span></span>
                 <input type="text" style={{ ...inputStyle, width: 260 }} value={invSettings.logo_url ?? ''} onChange={e => handleInvChange('logo_url', e.target.value || null)} placeholder="https://…/logo.png" />
               </div>
+              <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
+                <span style={{ ...labelStyle, paddingTop: 6 }}>Your address <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>(shown on invoice)</span></span>
+                <textarea style={{ ...inputStyle, width: 260, height: 80, resize: 'vertical', padding: '6px 10px', lineHeight: 1.5 }} value={invSettings.business_address ?? ''} onChange={e => handleInvChange('business_address', e.target.value || null)} placeholder={'123 High Street\nLondon\nW1A 1AA'} />
+              </div>
               <div style={{ ...rowStyle, alignItems: 'flex-start', borderBottom: 'none' }}>
                 <span style={{ ...labelStyle, paddingTop: 6 }}>Default notes</span>
                 <textarea style={{ ...inputStyle, width: 260, height: 72, resize: 'vertical', padding: '6px 10px', lineHeight: 1.5 }} value={invSettings.default_notes ?? ''} onChange={e => handleInvChange('default_notes', e.target.value || null)} placeholder="e.g. Payment terms, thank you note…" />
