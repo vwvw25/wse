@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useRef } from 'react'
 import { createEvent } from '../actions'
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
@@ -57,6 +57,39 @@ export default function NewEventPage() {
   const [loadOutTime, setLoadOutTime] = useState('')
   const [guests, setGuests] = useState('')
 
+  const contractFileRef = useRef<HTMLInputElement>(null)
+  const [parsing, setParsing] = useState(false)
+  const [parseError, setParseError] = useState<string | null>(null)
+
+  async function handleContractUpload(file: File) {
+    setParsing(true)
+    setParseError(null)
+    try {
+      const fd = new FormData()
+      fd.append('pdf', file)
+      const res = await fetch('/api/admin/parse-contract', { method: 'POST', body: fd })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'Parse failed')
+      const p = json.parsed
+      if (p.agency_name) { setAgencyName(p.agency_name); setIsAgency(true) }
+      if (p.agent_name) setAgentName(p.agent_name)
+      if (p.client_email) setClientEmail(p.client_email)
+      if (p.event_date) setEventDate(p.event_date)
+      if (p.venue_name) setVenueName(p.venue_name)
+      if (p.venue_postcode) setVenuePostcode(p.venue_postcode)
+      if (p.location) setLocation(p.location)
+      if (p.arrival_time) setArrivalTime(p.arrival_time)
+      if (p.start_time) setStartTime(p.start_time)
+      if (p.finish_time) setFinishTime(p.finish_time)
+      if (p.load_out_time) setLoadOutTime(p.load_out_time)
+      if (p.guests != null) setGuests(String(p.guests))
+    } catch (e: unknown) {
+      setParseError(e instanceof Error ? e.message : 'Failed to parse contract')
+    } finally {
+      setParsing(false)
+    }
+  }
+
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
@@ -86,10 +119,41 @@ export default function NewEventPage() {
     <div style={{ padding: '32px 32px', fontFamily: 'var(--font)', maxWidth: 800 }}>
       <a href="/admin/events" style={{ fontSize: 12, color: 'var(--text-secondary)', textDecoration: 'none' }}>← Events</a>
 
-      <div style={{ margin: '16px 0 28px' }}>
-        <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0 0 4px', color: 'var(--text)' }}>New event</h1>
-        <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>Create a new event manually</p>
+      <div style={{ margin: '16px 0 28px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0 0 4px', color: 'var(--text)' }}>New event</h1>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>Create a new event manually</p>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+          <button
+            type="button"
+            onClick={() => contractFileRef.current?.click()}
+            disabled={parsing}
+            style={{
+              padding: '8px 14px', fontSize: 13, fontWeight: 500,
+              background: 'var(--bg-secondary)', border: '0.5px solid var(--border)',
+              color: 'var(--text)', borderRadius: 'var(--radius-sm)',
+              cursor: parsing ? 'wait' : 'pointer', fontFamily: 'var(--font)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {parsing ? 'Parsing contract…' : 'Fill from contract'}
+          </button>
+          {parseError && <span style={{ fontSize: 12, color: '#b91c1c' }}>{parseError}</span>}
+        </div>
       </div>
+
+      <input
+        ref={contractFileRef}
+        type="file"
+        accept="application/pdf"
+        style={{ display: 'none' }}
+        onChange={e => {
+          const f = e.target.files?.[0]
+          if (f) handleContractUpload(f)
+          e.target.value = ''
+        }}
+      />
 
       <form onSubmit={handleSubmit}>
         {/* Client type toggle */}
