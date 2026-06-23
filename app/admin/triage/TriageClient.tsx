@@ -382,7 +382,7 @@ export default function TriageClient({ issues, pmEvents }: { issues: Issue[]; pm
       {/* Right panel — detail or empty state */}
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {selected ? (
-          <IssueDetail issue={selected as any} pmEvents={pmEvents} onAction={handleAction} />
+          <IssueDetail key={selected.id} issue={selected as any} pmEvents={pmEvents} onAction={handleAction} />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 16 }}>
             {/* Illustration */}

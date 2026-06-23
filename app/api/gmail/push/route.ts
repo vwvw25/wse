@@ -46,9 +46,9 @@ export async function POST(req: NextRequest) {
     for (const { message } of messages) {
       const full = await fetchEmailById(message.id, accessToken)
 
-      // Skip sent mail
+      // Skip sent mail and drafts
       const labelIds: string[] = full.labelIds ?? []
-      if (labelIds.includes('SENT')) continue
+      if (labelIds.includes('SENT') || labelIds.includes('DRAFT')) continue
 
       const { subject, from, body: emailBody } = extractEmailText(full)
 
