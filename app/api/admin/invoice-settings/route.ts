@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
     'account_owner_email',
     'booking_sources',
     'business_address',
+    'business_name',
   ]
   const update: Record<string, unknown> = {}
   for (const key of allowed) {

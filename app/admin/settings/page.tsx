@@ -754,7 +754,11 @@ export default function SettingsPage() {
 
               <div style={sectionHeaderStyle}>PDF appearance</div>
               <div style={rowStyle}>
-                <span style={labelStyle}>Logo URL <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>(public image link)</span></span>
+                <span style={labelStyle}>Business name <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>(shown on invoice)</span></span>
+                <input type="text" style={{ ...inputStyle, width: 260 }} value={invSettings.business_name ?? ''} onChange={e => handleInvChange('business_name', e.target.value || null)} placeholder="Ward Smith Entertainment" />
+              </div>
+              <div style={rowStyle}>
+                <span style={labelStyle}>Logo URL <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>(replaces name if set)</span></span>
                 <input type="text" style={{ ...inputStyle, width: 260 }} value={invSettings.logo_url ?? ''} onChange={e => handleInvChange('logo_url', e.target.value || null)} placeholder="https://…/logo.png" />
               </div>
               <div style={{ ...rowStyle, alignItems: 'flex-start' }}>
