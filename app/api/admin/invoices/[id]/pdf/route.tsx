@@ -92,7 +92,7 @@ export async function GET(
               ? <Image src={settings.logo_url} style={styles.logo} />
               : <Text style={styles.companyName}>Ward Smith Entertainment</Text>
             }
-            {settings?.business_address && settings.business_address.split('\n').map((line, i) => (
+            {settings?.business_address && settings.business_address.split('\n').map((line: string, i: number) => (
               <Text key={i} style={{ fontSize: 9, color: '#6b7280', lineHeight: 1.5 }}>{line}</Text>
             ))}
           </View>
