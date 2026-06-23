@@ -128,7 +128,9 @@ export async function deleteLineItem(itemId: string, eventId: string) {
 
 export async function markInvoiceSent(invoiceId: string, eventId: string) {
   const supabase = createServiceClient()
-  await supabase.from('invoices').update({ sent_at: new Date().toISOString() }).eq('id', invoiceId)
+  const now = new Date().toISOString()
+  await supabase.from('invoices').update({ sent_at: now, status: 'sent' }).eq('id', invoiceId).eq('status', 'unsent')
+  await supabase.from('invoices').update({ sent_at: now }).eq('id', invoiceId).neq('status', 'unsent')
   revalidate(eventId)
 }
 
