@@ -115,7 +115,7 @@ export async function GET(
             <Text style={[styles.metaLabel, { marginBottom: 6 }]}>Bill to</Text>
             <Text style={[styles.addressBlock, { fontFamily: 'Helvetica-Bold' }]}>{billToName}</Text>
             {billToEmail && <Text style={styles.addressBlock}>{billToEmail}</Text>}
-            {billToAddress && billToAddress.split('\n').map((line, i) => (
+            {billToAddress && billToAddress.split('\n').map((line: string, i: number) => (
               <Text key={i} style={styles.addressBlock}>{line}</Text>
             ))}
           </View>
