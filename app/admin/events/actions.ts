@@ -319,37 +319,56 @@ export async function updateEvent(eventId: string, formData: FormData) {
 export async function createEvent(formData: FormData) {
   const supabase = createServiceClient()
 
+  const str = (key: string) => (formData.get(key) as string)?.trim() || null
+  const time = (key: string) => (formData.get(key) as string) || null
+
   const isAgency = formData.get('is_agency') === 'true'
-  const agencyName = (formData.get('agency_name') as string)?.trim() || null
-  const agentName = (formData.get('agent_name') as string)?.trim() || null
-  const clientEmail = (formData.get('client_email') as string)?.trim() || null
-  const eventDate = (formData.get('event_date') as string) || null
-  const venueName = (formData.get('venue_name') as string)?.trim() || null
-  const venuePostcode = (formData.get('venue_postcode') as string)?.trim() || null
-  const location = (formData.get('location') as string)?.trim() || null
-  const startTime = (formData.get('start_time') as string) || null
-  const finishTime = (formData.get('finish_time') as string) || null
-  const arrivalTime = (formData.get('arrival_time') as string) || null
-  const loadOutTime = (formData.get('load_out_time') as string) || null
   const guestsRaw = formData.get('guests') as string
-  const guests = guestsRaw ? parseInt(guestsRaw) : null
+  const bookedFeeRaw = formData.get('booked_fee') as string
+
+  const bandSizeRequested = str('band_size_requested')
+  const setsRequested = str('sets_requested')
+  const specialRequirements = str('special_requirements')
+
+  const requestDetails = (bandSizeRequested || setsRequested || specialRequirements)
+    ? {
+        band_size_requested: bandSizeRequested,
+        sets_requested: setsRequested,
+        special_requirements: specialRequirements,
+        sound_requirements: null,
+        notes: null,
+        roaming_requested: null,
+      }
+    : null
 
   const { data, error } = await supabase
     .from('events')
     .insert({
       is_agency: isAgency,
-      agency_name: agencyName,
-      agent_name: agentName,
-      client_email: clientEmail,
-      event_date: eventDate,
-      venue_name: venueName,
-      venue_postcode: venuePostcode,
-      location,
-      start_time: startTime,
-      finish_time: finishTime,
-      arrival_time: arrivalTime,
-      load_out_time: loadOutTime,
-      guests,
+      agency_name: str('agency_name'),
+      agent_name: str('agent_name'),
+      client_email: str('client_email'),
+      client_phone: str('client_phone'),
+      event_date: time('event_date'),
+      event_type: str('event_type'),
+      venue_name: str('venue_name'),
+      venue_postcode: str('venue_postcode'),
+      venue_address: str('venue_address'),
+      location: str('location'),
+      arrival_time: time('arrival_time'),
+      start_time: time('start_time'),
+      finish_time: time('finish_time'),
+      load_out_time: time('load_out_time'),
+      guests: guestsRaw ? parseInt(guestsRaw) : null,
+      booked_band_size: str('booked_band_size'),
+      booked_sets: str('booked_sets'),
+      booked_fee: bookedFeeRaw ? parseFloat(bookedFeeRaw) : null,
+      dress_code: str('dress_code'),
+      food: str('food') as 'yes' | 'no' | 'tbc' | null,
+      food_notes: str('food_notes'),
+      source: str('source'),
+      source_job_url: str('source_job_url'),
+      request_details: requestDetails,
       status: 'enquiry',
     })
     .select('id')
