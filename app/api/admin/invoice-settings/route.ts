@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
     'logo_url', 'default_notes', 'invoice_email_subject', 'invoice_email_body',
     'account_owner_email',
     'booking_sources',
+    'business_address',
   ]
   const update: Record<string, unknown> = {}
   for (const key of allowed) {
