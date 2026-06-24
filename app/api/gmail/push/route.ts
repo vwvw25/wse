@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { getGmailAccessToken, fetchEmailById, extractEmailText } from '@/lib/gmail'
+import { buildAgentPrompt } from '@/lib/agent-prompt'
 import Anthropic from '@anthropic-ai/sdk'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -15,13 +16,12 @@ const LABEL_OPTIONS = [
   'other',
 ]
 
-async function classifyEmail(from: string, subject: string, body: string) {
-  const prompt = `You are an assistant for a music entertainment agency called Ward Music Entertainment (WSE). Classify this incoming email.
+const DEFAULT_PROMPT = `You are an assistant for a music entertainment agency called Ward Music Entertainment (WSE). Classify this incoming email.
 
-From: ${from}
-Subject: ${subject}
+From: {from}
+Subject: {subject}
 Body (first 1500 chars):
-${body.slice(0, 1500)}
+{body}
 
 Respond with a JSON object only, no markdown:
 {
@@ -46,18 +46,37 @@ Priority guide:
 - medium: needs action this week (confirmation, general enquiry)
 - low: informational, no immediate action needed`
 
+// Haiku pricing (per million tokens)
+const HAIKU_IN_PER_M = 0.80
+const HAIKU_OUT_PER_M = 4.00
+
+async function classifyEmail(from: string, subject: string, body: string, systemPrompt: string) {
+  const prompt = systemPrompt
+    .replace('{from}', from)
+    .replace('{subject}', subject)
+    .replace('{body}', body.slice(0, 1500))
+
+  const start = Date.now()
   const message = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 256,
     messages: [{ role: 'user', content: prompt }],
   })
+  const duration = Date.now() - start
+
+  const tokensIn = message.usage.input_tokens
+  const tokensOut = message.usage.output_tokens
+  const costUsd = (tokensIn / 1_000_000) * HAIKU_IN_PER_M + (tokensOut / 1_000_000) * HAIKU_OUT_PER_M
 
   const text = message.content[0].type === 'text' ? message.content[0].text : '{}'
+  let result: { label: string; priority: string; title: string; summary: string }
   try {
-    return JSON.parse(text) as { label: string; priority: string; title: string; summary: string }
+    result = JSON.parse(text)
   } catch {
-    return { label: 'other', priority: 'medium', title: subject || 'New email', summary: '' }
+    result = { label: 'other', priority: 'medium', title: subject || 'New email', summary: '' }
   }
+
+  return { result, tokensIn, tokensOut, costUsd, duration }
 }
 
 export async function POST(req: NextRequest) {
@@ -73,6 +92,17 @@ export async function POST(req: NextRequest) {
   try {
     const accessToken = await getGmailAccessToken()
     const supabase = createServiceClient()
+
+    // Load CEO agent and build full prompt (instruction files + skills)
+    const { data: ceoAgent } = await supabase
+      .from('agents')
+      .select('id, monthly_budget_usd, budget_alert_pct')
+      .eq('slug', 'ceo')
+      .single()
+
+    const systemPrompt = ceoAgent
+      ? await buildAgentPrompt(ceoAgent.id, DEFAULT_PROMPT)
+      : DEFAULT_PROMPT
 
     const { data: state } = await supabase
       .from('gmail_tokens')
@@ -104,8 +134,10 @@ export async function POST(req: NextRequest) {
 
       const { subject, from, body: emailBody } = extractEmailText(full)
 
-      // Classify immediately inline
-      const classification = await classifyEmail(from, subject, emailBody)
+      // Classify using CEO agent prompt
+      const { result: classification, tokensIn, tokensOut, costUsd, duration: durationMs } = await classifyEmail(
+        from, subject, emailBody, systemPrompt
+      )
       const isIssue = classification.label !== 'other'
       const title = classification.title || subject || 'New email'
 
@@ -119,8 +151,10 @@ export async function POST(req: NextRequest) {
         agent_decision: isIssue ? 'triage' : 'not_an_issue',
       }).select('id').single()
 
+      let issueId: string | null = null
+
       if (isIssue && inboxRow) {
-        await supabase.from('issues').insert({
+        const { data: issue } = await supabase.from('issues').insert({
           title,
           description: `**From:** ${from}\n**Subject:** ${subject}\n\n${classification.summary}\n\n---\n${emailBody.slice(0, 2000)}`,
           status: 'triage',
@@ -132,13 +166,55 @@ export async function POST(req: NextRequest) {
           agent_priority: classification.priority,
           agent_title: title,
           agent_is_issue: true,
+        }).select('id').single()
+        issueId = issue?.id ?? null
+      }
+
+      // Log the run and check budget
+      if (ceoAgent) {
+        await supabase.from('agent_runs').insert({
+          agent_id: ceoAgent.id,
+          trigger: 'email',
+          input_summary: `From: ${from} | Subject: ${subject}`,
+          output_summary: `${classification.label} · ${classification.priority} · ${isIssue ? 'Created issue' : 'Not an issue'}`,
+          tokens_in: tokensIn,
+          tokens_out: tokensOut,
+          cost_usd: costUsd,
+          duration_ms: durationMs,
+          model: 'claude-haiku-4-5-20251001',
+          status: 'succeeded',
+          transcript: `Label: ${classification.label}\nPriority: ${classification.priority}\nTitle: ${classification.title}\nSummary: ${classification.summary}`,
+          issues_touched: issueId ? [issueId] : [],
         })
+
+        // Budget alert check
+        const monthStart = new Date()
+        monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0)
+        const { data: monthRuns } = await supabase
+          .from('agent_runs')
+          .select('cost_usd')
+          .eq('agent_id', ceoAgent.id)
+          .gte('created_at', monthStart.toISOString())
+
+        const monthSpend = (monthRuns ?? []).reduce((s, r) => s + (r.cost_usd ?? 0), 0)
+        const budget = ceoAgent.monthly_budget_usd ?? 15
+        const alertPct = ceoAgent.budget_alert_pct ?? 80
+        const pct = (monthSpend / budget) * 100
+
+        if (pct >= alertPct && (pct - (costUsd / budget) * 100) < alertPct) {
+          // Just crossed the threshold — fire a notification
+          await supabase.from('notifications').insert({
+            type: 'agent_budget_alert',
+            title: `CEO agent at ${Math.round(pct)}% of monthly budget`,
+            body: `$${monthSpend.toFixed(2)} of $${budget.toFixed(2)} used this month.`,
+            read: false,
+          })
+        }
       }
     }
   } catch (err) {
     console.error('Gmail push error:', err)
   }
 
-  // Always return 200 to acknowledge the Pub/Sub message
   return NextResponse.json({ ok: true })
 }

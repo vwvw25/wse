@@ -98,7 +98,11 @@ const BellIcon = () => <Ico>
 
 // ── Nav links config ──────────────────────────────────────────────────────────
 
-const navLinks: { href: string; label: string; icon: React.ReactNode; indent?: boolean }[] = [
+type NavItem =
+  | { type?: undefined; href: string; label: string; icon: React.ReactNode; indent?: boolean }
+  | { type: 'section'; label: string }
+
+const navLinks: NavItem[] = [
   { href: '/admin',                        label: 'Dashboard',     icon: <HomeIcon /> },
   { href: '/admin/events',                 label: 'Events',        icon: <CalendarIcon /> },
   { href: '/admin/triage',                 label: 'Triage',        icon: <TriageIcon /> },
@@ -111,7 +115,11 @@ const navLinks: { href: string; label: string; icon: React.ReactNode; indent?: b
   { href: '/admin/templates',         label: 'Templates',         icon: <TemplateIcon /> },
   { href: '/admin/clients',           label: 'Clients',           icon: <BriefcaseIcon /> },
   { href: '/admin/invoices',          label: 'Invoices',          icon: <InvoiceIcon /> },
-  // Settings lives in user menu; Email logs, Parse evals under Settings → Tools; Notifications in header bell
+  { type: 'section', label: 'Agents' },
+  { href: '/admin/agents',                          label: 'All agents',              icon: <FlaskIcon /> },
+  { href: '/admin/agents/ceo',                      label: 'CEO',                     icon: null, indent: true },
+  { href: '/admin/agents/accounts',                 label: 'Accounts',                icon: null, indent: true },
+  { href: '/admin/agents/entertainment-assistant',  label: 'Entertainment Assistant', icon: null, indent: true },
 ]
 
 // ── NavLinks ──────────────────────────────────────────────────────────────────
@@ -129,7 +137,18 @@ function NavLinks({
 
   return (
     <nav style={{ display: 'flex', flexDirection: 'column', gap: 1, padding: '0 6px' }}>
-      {navLinks.map(link => {
+      {navLinks.map((link, i) => {
+        if (link.type === 'section') {
+          if (!expanded) return null
+          return (
+            <div key={`section-${i}`} style={{
+              padding: '12px 10px 4px',
+              fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)',
+              textTransform: 'uppercase', letterSpacing: '0.08em',
+            }}>{link.label}</div>
+          )
+        }
+
         const isActive = link.href === '/admin'
           ? pathname === '/admin'
           : pathname.startsWith(link.href)
