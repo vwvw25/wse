@@ -1,12 +1,12 @@
 'use server'
 
 import { createServiceClient } from '@/lib/supabase'
+import { getGmailAccessToken } from '@/lib/gmail'
 
-// Accept a triage issue — moves to todo, logs eval
+// Accept a triage issue — moves to todo, logs eval, marks email as read
 export async function acceptTriageIssue(issueId: string) {
   const supabase = createServiceClient()
 
-  // Fetch current issue state (final decisions)
   const { data: issue } = await supabase
     .from('issues')
     .select('*')
@@ -30,10 +30,32 @@ export async function acceptTriageIssue(issueId: string) {
   })
 
   // Move issue out of triage
-  await supabase
-    .from('issues')
-    .update({ status: 'todo' })
-    .eq('id', issueId)
+  await supabase.from('issues').update({ status: 'todo' }).eq('id', issueId)
+
+  // Mark email as read in Gmail
+  if (issue.gmail_inbox_id) {
+    const { data: inbox } = await supabase
+      .from('gmail_inbox')
+      .select('gmail_message_id')
+      .eq('id', issue.gmail_inbox_id)
+      .single()
+
+    if (inbox?.gmail_message_id) {
+      try {
+        const accessToken = await getGmailAccessToken()
+        await fetch(
+          `https://gmail.googleapis.com/gmail/v1/users/me/messages/${inbox.gmail_message_id}/modify`,
+          {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ removeLabelIds: ['UNREAD'] }),
+          }
+        )
+      } catch {
+        // Non-critical — don't fail the accept if Gmail call fails
+      }
+    }
+  }
 }
 
 // Move a triage issue to not-an-issue

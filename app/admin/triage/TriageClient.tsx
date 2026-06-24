@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import type { Issue } from '../issues/IssuesClient'
 import { StatusCircle, STATUSES, STATUS_LABELS, LABELS, LABEL_DISPLAY } from '../issues/IssuesClient'
 import { updateIssue, createIssue } from '../issues/actions'
-import { acceptTriageIssue, moveToNotAnIssue, undoAcceptIssue, undoDeclineIssue, undoNotAnIssue } from './actions'
+import { acceptTriageIssue, moveToNotAnIssue, undoAcceptIssue, undoNotAnIssue } from './actions'
 import { useUndo } from '../UndoContext'
 
 function issueId(issue: Issue) {
@@ -172,7 +172,7 @@ function NewIssueModal({ onClose, pmEvents }: { onClose: () => void; pmEvents: {
 function IssueDetail({ issue, pmEvents, onAction }: {
   issue: Issue & { pm_events?: { id: string; name: string } | null }
   pmEvents: { id: string; name: string }[]
-  onAction: (id: string, action: 'accept' | 'not_an_issue' | 'decline') => void
+  onAction: (id: string, action: 'accept' | 'not_an_issue') => void
 }) {
   const [title, setTitle] = useState(issue.title)
   const [description, setDescription] = useState(issue.description ?? '')
@@ -205,9 +205,6 @@ function IssueDetail({ issue, pmEvents, onAction }: {
           <ActionBtn label="Not an issue" onClick={() => onAction(issue.id, 'not_an_issue')}
             icon={<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v5M6 8.5v.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>}
           />
-          <ActionBtn label="Decline" variant="decline" onClick={() => onAction(issue.id, 'decline')}
-            icon={<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>}
-          />
         </div>
       </div>
 
@@ -218,10 +215,10 @@ function IssueDetail({ issue, pmEvents, onAction }: {
         flexShrink: 0, overflowX: 'auto',
       }}>
         <PropPill label="Triage" icon={<StatusCircle status="triage" size={12} />} />
-        <PropPill label="Priority" icon={
+        <PropPill label={issue.priority ? issue.priority.charAt(0).toUpperCase() + issue.priority.slice(1) : 'Priority'} icon={
           <svg width="11" height="11" viewBox="0 0 11 11"><rect x="1" y="6" width="2" height="4" rx="0.5" fill="currentColor" opacity="0.4"/><rect x="4.5" y="3.5" width="2" height="6.5" rx="0.5" fill="currentColor" opacity="0.4"/><rect x="8" y="1" width="2" height="9" rx="0.5" fill="currentColor" opacity="0.4"/></svg>
         } />
-        <PropPill label="Assignee" icon={
+        <PropPill label="Vic" icon={
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="4.5" r="2.5" stroke="currentColor" strokeWidth="1.2"/><path d="M1 11c0-2.5 2.24-4 5-4s5 1.5 5 4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
         } />
         <PropPill label="Event" icon={
@@ -366,16 +363,13 @@ export default function TriageClient({ issues, pmEvents }: { issues: Issue[]; pm
 
   const selected = issues.find(i => i.id === selectedId) ?? null
 
-  async function handleAction(id: string, action: 'accept' | 'not_an_issue' | 'decline') {
+  async function handleAction(id: string, action: 'accept' | 'not_an_issue') {
     if (action === 'accept') {
       await acceptTriageIssue(id)
       register({ label: 'accept', perform: async () => { await undoAcceptIssue(id); router.refresh() } })
-    } else if (action === 'not_an_issue') {
+    } else {
       setNotAnIssueId(id)
       return
-    } else {
-      await updateIssue(id, { status: 'cancelled' })
-      register({ label: 'decline', perform: async () => { await undoDeclineIssue(id); router.refresh() } })
     }
     const idx = issues.findIndex(i => i.id === id)
     const next = issues[idx + 1] ?? issues[idx - 1] ?? null
