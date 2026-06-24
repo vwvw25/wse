@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import type { Issue } from '../issues/IssuesClient'
 import { StatusCircle, STATUSES, STATUS_LABELS, LABELS, LABEL_DISPLAY } from '../issues/IssuesClient'
 import { updateIssue, createIssue } from '../issues/actions'
-import { acceptTriageIssue, moveToNotAnIssue } from './actions'
+import { acceptTriageIssue, moveToNotAnIssue, undoAcceptIssue, undoDeclineIssue, undoNotAnIssue } from './actions'
+import { useUndo } from '../UndoContext'
 
 function issueId(issue: Issue) {
   return issue.number ? `WSE-${issue.number}` : `WSE-${issue.id.slice(0, 4).toUpperCase()}`
@@ -358,6 +359,7 @@ function NotAnIssueModal({ onConfirm, onClose }: {
 
 export default function TriageClient({ issues, pmEvents }: { issues: Issue[]; pmEvents: { id: string; name: string }[] }) {
   const router = useRouter()
+  const { register } = useUndo()
   const [selectedId, setSelectedId] = useState<string | null>(issues[0]?.id ?? null)
   const [showNew, setShowNew] = useState(false)
   const [notAnIssueId, setNotAnIssueId] = useState<string | null>(null)
@@ -367,11 +369,13 @@ export default function TriageClient({ issues, pmEvents }: { issues: Issue[]; pm
   async function handleAction(id: string, action: 'accept' | 'not_an_issue' | 'decline') {
     if (action === 'accept') {
       await acceptTriageIssue(id)
+      register({ label: 'accept', perform: async () => { await undoAcceptIssue(id); router.refresh() } })
     } else if (action === 'not_an_issue') {
       setNotAnIssueId(id)
       return
     } else {
       await updateIssue(id, { status: 'cancelled' })
+      register({ label: 'decline', perform: async () => { await undoDeclineIssue(id); router.refresh() } })
     }
     const idx = issues.findIndex(i => i.id === id)
     const next = issues[idx + 1] ?? issues[idx - 1] ?? null
@@ -381,8 +385,18 @@ export default function TriageClient({ issues, pmEvents }: { issues: Issue[]; pm
 
   async function handleNotAnIssueConfirm(reason: string) {
     const id = notAnIssueId!
+    const issueSnapshot = issues.find(i => i.id === id)
     setNotAnIssueId(null)
     await moveToNotAnIssue(id, reason)
+    if (issueSnapshot) {
+      register({
+        label: 'not an issue',
+        perform: async () => {
+          await undoNotAnIssue({ ...issueSnapshot, status: 'triage' } as Record<string, unknown>, (issueSnapshot as any).gmail_inbox_id ?? null)
+          router.refresh()
+        },
+      })
+    }
     const idx = issues.findIndex(i => i.id === id)
     const next = issues[idx + 1] ?? issues[idx - 1] ?? null
     setSelectedId(next?.id ?? null)

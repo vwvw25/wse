@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { promoteToTriage } from '../actions'
+import { promoteToTriage, undoPromoteToTriage } from '../actions'
+import { useUndo } from '../../UndoContext'
 
 type InboxItem = {
   id: string
@@ -26,12 +27,16 @@ function timeAgo(date: string) {
 
 export default function NotAnIssueClient({ items }: { items: InboxItem[] }) {
   const router = useRouter()
+  const { register } = useUndo()
   const [selected, setSelected] = useState<InboxItem | null>(items[0] ?? null)
   const [promoting, setPromoting] = useState(false)
 
   async function handlePromote(id: string) {
     setPromoting(true)
-    await promoteToTriage(id)
+    const { issueId } = await promoteToTriage(id) as { issueId: string | null }
+    if (issueId) {
+      register({ label: 'move to triage', perform: async () => { await undoPromoteToTriage(issueId, id); router.refresh() } })
+    }
     const idx = items.findIndex(i => i.id === id)
     const next = items[idx + 1] ?? items[idx - 1] ?? null
     setSelected(next)

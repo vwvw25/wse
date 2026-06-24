@@ -5,6 +5,7 @@ import AdminSidebar from './AdminSidebar'
 import { AdminMobileNav } from './AdminNav'
 import UserMenu from './UserMenu'
 import NotificationBell from './NotificationBell'
+import { UndoProvider, UndoButton } from './UndoContext'
 
 const SIDEBAR_WIDTH = 52 // collapsed width (px)
 
@@ -89,10 +90,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         }
       `}</style>
 
+    <UndoProvider>
       {/* Full-width header */}
       <div className="admin-header">
         <img src="/logo.png" alt="WSE" style={{ width: 26, height: 26, objectFit: 'contain' }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <UndoButton />
           <NotificationBell />
           <UserMenu email={userEmail} />
         </div>
@@ -116,6 +119,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           </div>
         </div>
       </div>
+    </UndoProvider>
     </>
   )
 }

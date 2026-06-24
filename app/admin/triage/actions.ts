@@ -122,4 +122,40 @@ export async function promoteToTriage(gmailInboxId: string) {
     .from('gmail_inbox')
     .update({ agent_decision: 'triage_human', issue_id: issue?.id ?? null })
     .eq('id', gmailInboxId)
+
+  return { issueId: issue?.id ?? null }
+}
+
+// Undo accept — move issue back to triage
+export async function undoAcceptIssue(issueId: string) {
+  const supabase = createServiceClient()
+  await supabase.from('issues').update({ status: 'triage' }).eq('id', issueId)
+  await supabase.from('triage_evals').delete().eq('issue_id', issueId)
+}
+
+// Undo decline — move issue back to triage
+export async function undoDeclineIssue(issueId: string) {
+  const supabase = createServiceClient()
+  await supabase.from('issues').update({ status: 'triage' }).eq('id', issueId)
+}
+
+// Undo not-an-issue — recreate issue and restore gmail_inbox
+export async function undoNotAnIssue(issueData: Record<string, unknown>, gmailInboxId: string | null) {
+  const supabase = createServiceClient()
+  const { data: issue } = await supabase.from('issues').insert(issueData).select('id').single()
+  if (gmailInboxId) {
+    await supabase
+      .from('gmail_inbox')
+      .update({ agent_decision: 'triage', issue_id: issue?.id ?? null })
+      .eq('id', gmailInboxId)
+  }
+  await supabase.from('triage_evals').delete().eq('issue_id', issueData.id as string)
+}
+
+// Undo promote-to-triage (from not-an-issue) — delete issue, restore gmail_inbox
+export async function undoPromoteToTriage(issueId: string, gmailInboxId: string) {
+  const supabase = createServiceClient()
+  await supabase.from('issues').delete().eq('id', issueId)
+  await supabase.from('gmail_inbox').update({ agent_decision: 'not_an_issue_human', issue_id: null }).eq('id', gmailInboxId)
+  await supabase.from('triage_evals').delete().eq('issue_id', issueId)
 }
