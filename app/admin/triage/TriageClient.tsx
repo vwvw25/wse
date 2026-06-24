@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useTransition } from 'react'
+import React, { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Issue } from '../issues/IssuesClient'
 import { StatusCircle, STATUSES, STATUS_LABELS, LABELS, LABEL_DISPLAY } from '../issues/IssuesClient'
@@ -176,6 +176,11 @@ function IssueDetail({ issue, pmEvents, onAction }: {
   const [title, setTitle] = useState(issue.title)
   const [description, setDescription] = useState(issue.description ?? '')
   const [, startTransition] = useTransition()
+
+  useEffect(() => {
+    setTitle(issue.title)
+    setDescription(issue.description ?? '')
+  }, [issue.id])
   const router = useRouter()
 
   function save(fields: Record<string, unknown>) {
@@ -238,8 +243,7 @@ function IssueDetail({ issue, pmEvents, onAction }: {
         <textarea value={description} onChange={e => setDescription(e.target.value)}
           onBlur={() => { if (description !== (issue.description ?? '')) save({ description }) }}
           placeholder="Add description..."
-          rows={20}
-          style={{ width: '100%', fontSize: 14, lineHeight: 1.6, border: '0.5px solid var(--border)', borderRadius: 6, padding: '12px 14px', background: 'transparent', color: description ? 'var(--text)' : 'var(--text-tertiary)', outline: 'none', resize: 'none', fontFamily: 'var(--font)', marginBottom: 16, boxSizing: 'border-box' }}
+          style={{ width: '100%', minHeight: 360, fontSize: 14, lineHeight: 1.6, border: '0.5px solid var(--border)', borderRadius: 6, padding: '12px 14px', background: 'transparent', color: description ? 'var(--text)' : 'var(--text-tertiary)', outline: 'none', resize: 'vertical', fontFamily: 'var(--font)', marginBottom: 16, boxSizing: 'border-box' }}
         />
         {/* Toolbar icons */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
