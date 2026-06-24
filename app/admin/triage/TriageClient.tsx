@@ -301,10 +301,66 @@ function IssueDetail({ issue, pmEvents, onAction }: {
   )
 }
 
+const NOT_AN_ISSUE_REASONS = ['Spam', 'Sent email', 'Draft email', 'Other'] as const
+
+function NotAnIssueModal({ onConfirm, onClose }: {
+  onConfirm: (reason: string) => void
+  onClose: () => void
+}) {
+  const [checked, setChecked] = useState<Set<string>>(new Set())
+  const [other, setOther] = useState('')
+
+  function toggle(r: string) {
+    setChecked(prev => {
+      const next = new Set(prev)
+      next.has(r) ? next.delete(r) : next.add(r)
+      return next
+    })
+  }
+
+  function handleConfirm() {
+    const parts = [...checked].filter(r => r !== 'Other')
+    if (checked.has('Other') && other.trim()) parts.push(other.trim())
+    onConfirm(parts.join(', ') || 'No reason given')
+  }
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg)', border: '0.5px solid var(--border)', borderRadius: 10, padding: '24px 28px', width: 340, fontFamily: 'var(--font)' }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 16 }}>Why is this not an issue?</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+          {NOT_AN_ISSUE_REASONS.map(r => (
+            <label key={r} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13, color: 'var(--text)' }}>
+              <input type="checkbox" checked={checked.has(r)} onChange={() => toggle(r)}
+                style={{ width: 15, height: 15, accentColor: 'var(--accent)', cursor: 'pointer', flexShrink: 0 }} />
+              {r}
+            </label>
+          ))}
+        </div>
+        {checked.has('Other') && (
+          <input
+            type="text"
+            value={other}
+            onChange={e => setOther(e.target.value)}
+            placeholder="Describe..."
+            autoFocus
+            style={{ width: '100%', fontSize: 13, padding: '6px 10px', borderRadius: 6, border: '0.5px solid var(--border)', background: 'transparent', color: 'var(--text)', outline: 'none', fontFamily: 'var(--font)', marginBottom: 16, boxSizing: 'border-box' }}
+          />
+        )}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <button onClick={onClose} style={{ padding: '5px 14px', borderRadius: 6, fontSize: 13, border: '0.5px solid var(--border)', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'var(--font)' }}>Cancel</button>
+          <button onClick={handleConfirm} disabled={checked.size === 0} style={{ padding: '5px 14px', borderRadius: 6, fontSize: 13, background: checked.size > 0 ? 'var(--text)' : 'var(--bg-secondary)', color: checked.size > 0 ? 'var(--bg)' : 'var(--text-tertiary)', border: 'none', cursor: checked.size > 0 ? 'pointer' : 'default', fontFamily: 'var(--font)', fontWeight: 500 }}>Confirm</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function TriageClient({ issues, pmEvents }: { issues: Issue[]; pmEvents: { id: string; name: string }[] }) {
   const router = useRouter()
   const [selectedId, setSelectedId] = useState<string | null>(issues[0]?.id ?? null)
   const [showNew, setShowNew] = useState(false)
+  const [notAnIssueId, setNotAnIssueId] = useState<string | null>(null)
 
   const selected = issues.find(i => i.id === selectedId) ?? null
 
@@ -312,7 +368,8 @@ export default function TriageClient({ issues, pmEvents }: { issues: Issue[]; pm
     if (action === 'accept') {
       await acceptTriageIssue(id)
     } else if (action === 'not_an_issue') {
-      await moveToNotAnIssue(id)
+      setNotAnIssueId(id)
+      return
     } else {
       await updateIssue(id, { status: 'cancelled' })
     }
@@ -322,9 +379,20 @@ export default function TriageClient({ issues, pmEvents }: { issues: Issue[]; pm
     router.refresh()
   }
 
+  async function handleNotAnIssueConfirm(reason: string) {
+    const id = notAnIssueId!
+    setNotAnIssueId(null)
+    await moveToNotAnIssue(id, reason)
+    const idx = issues.findIndex(i => i.id === id)
+    const next = issues[idx + 1] ?? issues[idx - 1] ?? null
+    setSelectedId(next?.id ?? null)
+    router.refresh()
+  }
+
   return (
     <div style={{ display: 'flex', height: 'calc(100vh - 52px)', fontFamily: 'var(--font)', overflow: 'hidden' }}>
       {showNew && <NewIssueModal onClose={() => setShowNew(false)} pmEvents={pmEvents} />}
+      {notAnIssueId && <NotAnIssueModal onConfirm={handleNotAnIssueConfirm} onClose={() => setNotAnIssueId(null)} />}
 
       {/* Left panel — issue list */}
       <div style={{ width: 400, flexShrink: 0, borderRight: '0.5px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>

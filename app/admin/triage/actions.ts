@@ -37,7 +37,7 @@ export async function acceptTriageIssue(issueId: string) {
 }
 
 // Move a triage issue to not-an-issue
-export async function moveToNotAnIssue(issueId: string) {
+export async function moveToNotAnIssue(issueId: string, reason?: string) {
   const supabase = createServiceClient()
 
   const { data: issue } = await supabase
@@ -60,6 +60,7 @@ export async function moveToNotAnIssue(issueId: string) {
     final_label: issue.label ?? null,
     final_priority: issue.priority ?? null,
     final_title: issue.title,
+    reason: reason ?? null,
   })
 
   // Update gmail_inbox agent_decision to reflect human override
