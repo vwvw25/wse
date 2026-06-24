@@ -162,12 +162,12 @@ function InvoiceCard({
   }
 
   const statusCfg = invoice.status === 'paid'
-    ? { label: 'Paid', color: 'var(--pill-paid-text)', bg: 'var(--pill-paid-bg)' }
+    ? { label: 'Paid', color: 'var(--pill-paid-text)', bg: 'var(--pill-paid-bg)', border: 'var(--pill-paid-text)' }
     : invoice.status === 'chased'
-    ? { label: 'Chased', color: 'var(--pill-outstanding-text)', bg: 'var(--pill-outstanding-bg)' }
+    ? { label: 'Chased', color: 'var(--pill-outstanding-text)', bg: 'var(--pill-outstanding-bg)', border: 'var(--pill-outstanding-text)' }
     : invoice.status === 'sent'
-    ? { label: 'Sent', color: 'var(--pill-stc-text)', bg: 'var(--pill-stc-bg)' }
-    : { label: 'Unsent', color: 'var(--text-tertiary)', bg: 'var(--bg-secondary)' }
+    ? { label: 'Sent', color: 'var(--pill-stc-text)', bg: 'var(--pill-stc-bg)', border: 'var(--pill-stc-text)' }
+    : { label: 'Unsent', color: 'var(--text-tertiary)', bg: 'var(--bg-secondary)', border: 'var(--border)' }
 
   return (
     <div style={{ border: '0.5px solid var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden', marginBottom: 12 }}>
