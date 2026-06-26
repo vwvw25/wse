@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from 'react'
 import type { Settings } from '@/types/quote'
 import type { InvoiceSettings } from '@/types/invoice'
+import { createDressCodeTemplate, updateDressCodeTemplate, deleteDressCodeTemplate } from '../dress-codes/actions'
+import type { DressCodeTemplate } from '../dress-codes/actions'
 
 type SettingsState = Settings & Record<string, number>
 
@@ -83,17 +85,18 @@ function FieldRow({
   )
 }
 
-type Section = 'pricing' | 'invoicing' | 'email' | 'pages' | 'general' | 'tools' | 'style'
+type Section = 'pricing' | 'invoicing' | 'email' | 'pages' | 'general' | 'dress-codes' | 'tools' | 'style'
 
 const NAV_GROUPS: { heading: string; items: { key: Section; label: string }[] }[] = [
   {
     heading: 'Configuration',
     items: [
-      { key: 'pricing',   label: 'Pricing' },
-      { key: 'invoicing', label: 'Invoicing' },
-      { key: 'email',     label: 'Email' },
-      { key: 'pages',     label: 'Pages' },
-      { key: 'general',   label: 'General' },
+      { key: 'pricing',      label: 'Pricing' },
+      { key: 'invoicing',    label: 'Invoicing' },
+      { key: 'email',        label: 'Email' },
+      { key: 'pages',        label: 'Pages' },
+      { key: 'general',      label: 'General' },
+      { key: 'dress-codes',  label: 'Dress codes' },
     ],
   },
   {
@@ -270,6 +273,12 @@ export default function SettingsPage() {
   const [gifDeleting, setGifDeleting] = useState<string | null>(null)
   const [gifError, setGifError] = useState<string | null>(null)
 
+  // Dress codes state
+  const [dressCodeTemplates, setDressCodeTemplates] = useState<DressCodeTemplate[]>([])
+  const [dressCodesLoading, setDressCodesLoading] = useState(false)
+  const [dressCodeEditing, setDressCodeEditing] = useState<string | null>(null)
+  const [dressCodeCreating, setDressCodeCreating] = useState(false)
+
   // Booking sources state
   const [bookingSources, setBookingSources] = useState<string[]>([])
   const [newSource, setNewSource] = useState('')
@@ -319,6 +328,15 @@ export default function SettingsPage() {
       .catch(() => { setMonLoading(false) })
     loadGifs()
   }, [])
+
+  function loadDressCodes() {
+    setDressCodesLoading(true)
+    fetch('/api/admin/dress-code-templates')
+      .then(r => r.json())
+      .then(data => setDressCodeTemplates(Array.isArray(data) ? data : []))
+      .catch(() => {})
+      .finally(() => setDressCodesLoading(false))
+  }
 
   function loadGifs() {
     setGifsLoading(true)
@@ -633,7 +651,7 @@ export default function SettingsPage() {
                 {group.items.map(({ key, label }) => (
                   <button
                     key={key}
-                    onClick={() => { setSection(key); if (key === 'general') loadUsers() }}
+                    onClick={() => { setSection(key); if (key === 'general') loadUsers(); if (key === 'dress-codes') loadDressCodes() }}
                     style={navItemStyle(section === key)}
                   >
                     {label}
@@ -1035,6 +1053,82 @@ export default function SettingsPage() {
               ))}
             </>
           )}
+
+          {/* ── Dress codes ── */}
+          {section === 'dress-codes' && (() => {
+            const dcInput: React.CSSProperties = { ...inputStyle, width: '100%', boxSizing: 'border-box' }
+
+            function DcForm({ initial, onSubmit, onCancel, submitLabel }: { initial?: DressCodeTemplate; onSubmit: (fd: FormData) => void; onCancel?: () => void; submitLabel: string }) {
+              return (
+                <form action={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Template name</div>
+                    <input name="name" defaultValue={initial?.name ?? ''} required placeholder="e.g. Black tie" style={dcInput} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Dress code</div>
+                    <textarea name="description" defaultValue={initial?.description ?? ''} rows={3} style={{ ...dcInput, resize: 'vertical', lineHeight: 1.5 }} />
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button type="submit" style={{ padding: '7px 16px', fontSize: 13, fontWeight: 500, background: 'var(--text)', color: 'var(--bg)', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'var(--font)' }}>{submitLabel}</button>
+                    {onCancel && <button type="button" onClick={onCancel} style={{ padding: '7px 16px', fontSize: 13, fontWeight: 500, background: 'transparent', color: 'var(--text-secondary)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'var(--font)' }}>Cancel</button>}
+                  </div>
+                </form>
+              )
+            }
+
+            return (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <div style={sectionHeaderStyle}>Dress code templates</div>
+                  {!dressCodeCreating && (
+                    <button onClick={() => setDressCodeCreating(true)} style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, background: 'var(--text)', color: 'var(--bg)', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'var(--font)' }}>New template</button>
+                  )}
+                </div>
+                {dressCodeCreating && (
+                  <div style={{ background: 'var(--bg)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius-md)', padding: 16, marginBottom: 12 }}>
+                    <DcForm
+                      onSubmit={async fd => { await createDressCodeTemplate(fd); setDressCodeCreating(false); loadDressCodes() }}
+                      onCancel={() => setDressCodeCreating(false)}
+                      submitLabel="Create template"
+                    />
+                  </div>
+                )}
+                {dressCodesLoading ? (
+                  <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Loading…</p>
+                ) : dressCodeTemplates.length === 0 && !dressCodeCreating ? (
+                  <p style={{ fontSize: 13, color: 'var(--text-tertiary)', fontStyle: 'italic' }}>No templates yet.</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {dressCodeTemplates.map(t => (
+                      <div key={t.id} style={{ border: '0.5px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '12px 14px', background: 'var(--bg)' }}>
+                        {dressCodeEditing === t.id ? (
+                          <DcForm
+                            initial={t}
+                            onSubmit={async fd => { await updateDressCodeTemplate(t.id, fd); setDressCodeEditing(null); loadDressCodes() }}
+                            onCancel={() => setDressCodeEditing(null)}
+                            submitLabel="Save"
+                          />
+
+                        ) : (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: t.description ? 4 : 0 }}>{t.name}</div>
+                              {t.description && <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{t.description}</div>}
+                            </div>
+                            <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                              <button onClick={() => setDressCodeEditing(t.id)} style={{ fontSize: 12, color: 'var(--text-secondary)', background: 'none', border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '3px 10px', cursor: 'pointer', fontFamily: 'var(--font)' }}>Edit</button>
+                              <button onClick={async () => { if (confirm(`Delete "${t.name}"?`)) { await deleteDressCodeTemplate(t.id); loadDressCodes() } }} style={{ fontSize: 12, color: 'var(--text-danger)', background: 'none', border: '0.5px solid var(--border-danger)', borderRadius: 'var(--radius-sm)', padding: '3px 10px', cursor: 'pointer', fontFamily: 'var(--font)' }}>Delete</button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )
+          })()}
 
           {/* ── Tools ── */}
           {section === 'tools' && (

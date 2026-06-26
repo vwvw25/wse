@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import type { EventRecord } from '@/types/quote'
 import type { BandTemplate, BandTemplateSlot } from '@/types/musicians'
+import type { DressCodeTemplate } from '../../../dress-codes/actions'
 import { updateEvent, deleteEvent } from '../../actions'
 
 const SETS_OPTIONS = ['2 × 45 min', '2 × 60 min', '3 × 45 min', '4 × 45 min']
@@ -47,7 +48,7 @@ function SectionCard({ label, children }: { label: string; children: React.React
   )
 }
 
-export default function EditEventForm({ event, templates, sources }: { event: EventRecord; templates: (BandTemplate & { slots: BandTemplateSlot[] })[]; sources: string[] }) {
+export default function EditEventForm({ event, templates, dressCodeTemplates, sources }: { event: EventRecord; templates: (BandTemplate & { slots: BandTemplateSlot[] })[]; dressCodeTemplates: DressCodeTemplate[]; sources: string[] }) {
   const [isPending, startTransition] = useTransition()
   const rd = event.request_details
 
@@ -74,6 +75,7 @@ export default function EditEventForm({ event, templates, sources }: { event: Ev
   const [food, setFood] = useState<'yes' | 'no' | 'tbc' | null>(event.food ?? null)
   const [foodNotes, setFoodNotes] = useState(event.food_notes ?? '')
   const [dressCode, setDressCode] = useState((event as unknown as { dress_code?: string | null }).dress_code ?? '')
+  const [dressCodeTemplateId, setDressCodeTemplateId] = useState((event as unknown as { dress_code_template_id?: string | null }).dress_code_template_id ?? '')
   const [idRequired, setIdRequired] = useState<boolean | null>((event as unknown as { id_required?: boolean | null }).id_required ?? null)
 
   const [bookedTemplateId, setBookedTemplateId] = useState(event.booked_band_template_id ?? '')
@@ -117,6 +119,7 @@ export default function EditEventForm({ event, templates, sources }: { event: Ev
     fd.set('is_agency', String(isAgency))
     fd.set('food', food ?? '')
     fd.set('id_required', idRequired === true ? 'yes' : idRequired === false ? 'no' : '')
+    fd.set('dress_code_template_id', dressCodeTemplateId)
     fd.set('booked_band_template_id', bookedTemplateId)
     fd.set('booked_lineup', bookedLineup)
     fd.set('booked_sets', bookedSets === 'custom' ? bookedSetsCustom : bookedSets)
@@ -250,8 +253,20 @@ export default function EditEventForm({ event, templates, sources }: { event: Ev
                 placeholder="e.g. Crew meal at 17:00, dietary info to catering…" style={textareaBase} />
             </Field>
           </div>
+          <Field label="Dress code">
+            <select
+              value={dressCodeTemplateId}
+              onChange={e => setDressCodeTemplateId(e.target.value)}
+              style={{ ...inputBase, appearance: 'auto' }}
+            >
+              <option value="">—</option>
+              {dressCodeTemplates.map(t => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+          </Field>
           <div style={{ gridColumn: '1 / -1' }}>
-            <Field label="Dress code" hint="optional">
+            <Field label="Dress code (from client)" hint="optional">
               <textarea name="dress_code" value={dressCode} onChange={e => setDressCode(e.target.value)}
                 placeholder="e.g. Black tie, smart casual…" style={textareaBase} />
             </Field>

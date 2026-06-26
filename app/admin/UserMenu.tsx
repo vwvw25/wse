@@ -12,6 +12,15 @@ function GearIcon() {
   )
 }
 
+function MailIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ display: 'block' }}>
+      <rect x="1.5" y="3.5" width="13" height="9" rx="1" stroke="currentColor" strokeWidth="1.3"/>
+      <path d="M1.5 5l6.5 4.5L14.5 5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+    </svg>
+  )
+}
+
 function LogOutIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ display: 'block' }}>
@@ -98,6 +107,7 @@ export default function UserMenu({ email }: { email: string | null }) {
 
           {/* Settings */}
           <MenuItem href="/admin/settings" icon={<GearIcon />} label="Settings" onClick={() => setOpen(false)} />
+          <MenuItem href="/admin/email-templates" icon={<MailIcon />} label="Email templates" onClick={() => setOpen(false)} />
 
           <div style={{ borderTop: '0.5px solid var(--border)' }} />
 

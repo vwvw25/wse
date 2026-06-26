@@ -2,17 +2,19 @@ import { createServiceClient } from '@/lib/supabase'
 import { notFound } from 'next/navigation'
 import type { EventRecord } from '@/types/quote'
 import type { BandTemplate, BandTemplateSlot } from '@/types/musicians'
+import type { DressCodeTemplate } from '../../../dress-codes/actions'
 import EditEventForm from './EditEventForm'
 
 export default async function EditEventPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = createServiceClient()
 
-  const [{ data }, { data: templatesData }, { data: templateSlotsData }, { data: invData }] = await Promise.all([
+  const [{ data }, { data: templatesData }, { data: templateSlotsData }, { data: invData }, { data: dressCodeTemplatesData }] = await Promise.all([
     supabase.from('events').select('*').eq('id', id).single(),
     supabase.from('band_templates').select('*').order('name'),
     supabase.from('band_template_slots').select('*').order('sort_order'),
     supabase.from('invoice_settings').select('booking_sources').single(),
+    supabase.from('dress_code_templates').select('*').order('name'),
   ])
 
   if (!data) notFound()
@@ -32,10 +34,11 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
       </div>
 
       <EditEventForm
-    event={event}
-    templates={templates}
-    sources={(invData as { booking_sources?: string[] | null } | null)?.booking_sources ?? ['Encore', 'Poptop', 'Last Minute Musicians', 'Website']}
-  />
+        event={event}
+        templates={templates}
+        dressCodeTemplates={(dressCodeTemplatesData ?? []) as DressCodeTemplate[]}
+        sources={(invData as { booking_sources?: string[] | null } | null)?.booking_sources ?? ['Encore', 'Poptop', 'Last Minute Musicians', 'Website']}
+      />
     </div>
   )
 }
