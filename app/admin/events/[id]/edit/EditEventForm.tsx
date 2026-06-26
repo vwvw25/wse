@@ -74,6 +74,7 @@ export default function EditEventForm({ event, templates, sources }: { event: Ev
   const [food, setFood] = useState<'yes' | 'no' | 'tbc' | null>(event.food ?? null)
   const [foodNotes, setFoodNotes] = useState(event.food_notes ?? '')
   const [dressCode, setDressCode] = useState((event as unknown as { dress_code?: string | null }).dress_code ?? '')
+  const [idRequired, setIdRequired] = useState<boolean | null>((event as unknown as { id_required?: boolean | null }).id_required ?? null)
 
   const [bookedTemplateId, setBookedTemplateId] = useState(event.booked_band_template_id ?? '')
   const [bookedLineup, setBookedLineup] = useState(event.booked_lineup ?? '')
@@ -115,6 +116,7 @@ export default function EditEventForm({ event, templates, sources }: { event: Ev
     const fd = new FormData(e.currentTarget)
     fd.set('is_agency', String(isAgency))
     fd.set('food', food ?? '')
+    fd.set('id_required', idRequired === true ? 'yes' : idRequired === false ? 'no' : '')
     fd.set('booked_band_template_id', bookedTemplateId)
     fd.set('booked_lineup', bookedLineup)
     fd.set('booked_sets', bookedSets === 'custom' ? bookedSetsCustom : bookedSets)
@@ -368,6 +370,25 @@ export default function EditEventForm({ event, templates, sources }: { event: Ev
               onChange={e => setRoamingRequested(e.target.checked)} style={{ width: 16, height: 16, cursor: 'pointer' }} />
             <label htmlFor="roaming_requested" style={{ fontSize: 13, color: 'var(--text)', cursor: 'pointer' }}>Roaming requested</label>
           </div>
+        </div>
+      </SectionCard>
+
+      <SectionCard label="Parking &amp; security">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <Field label="ID required">
+            <select
+              value={idRequired === true ? 'yes' : idRequired === false ? 'no' : ''}
+              onChange={e => {
+                const v = e.target.value
+                setIdRequired(v === 'yes' ? true : v === 'no' ? false : null)
+              }}
+              style={{ ...inputBase, appearance: 'auto' }}
+            >
+              <option value="">—</option>
+              <option value="yes">Yes</option>
+              <option value="no">No</option>
+            </select>
+          </Field>
         </div>
       </SectionCard>
 

@@ -260,6 +260,9 @@ export async function updateEvent(eventId: string, formData: FormData) {
   const foodRaw = (formData.get('food') as string)?.trim() || null
   const food = foodRaw === 'yes' || foodRaw === 'no' || foodRaw === 'tbc' ? foodRaw : null
 
+  const idRequiredRaw = (formData.get('id_required') as string)?.trim() || null
+  const idRequired = idRequiredRaw === 'yes' ? true : idRequiredRaw === 'no' ? false : null
+
   const bookedBandTemplateId = (formData.get('booked_band_template_id') as string)?.trim() || null
   const bookedLineup = (formData.get('booked_lineup') as string)?.trim() || null
   const bookedSets = (formData.get('booked_sets') as string)?.trim() || null
@@ -302,6 +305,7 @@ export async function updateEvent(eventId: string, formData: FormData) {
       food,
       food_notes: foodNotes,
       dress_code: dressCode,
+      id_required: idRequired,
       booked_band_template_id: bookedBandTemplateId,
       booked_lineup: bookedLineup,
       booked_sets: bookedSets,
@@ -366,6 +370,7 @@ export async function createEvent(formData: FormData) {
       dress_code: str('dress_code'),
       food: str('food') as 'yes' | 'no' | 'tbc' | null,
       food_notes: str('food_notes'),
+      id_required: (() => { const v = str('id_required'); return v === 'yes' ? true : v === 'no' ? false : null })(),
       source: str('source'),
       source_job_url: str('source_job_url'),
       request_details: requestDetails,

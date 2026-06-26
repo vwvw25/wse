@@ -76,6 +76,7 @@ export default function NewEventPage() {
   const [bookedSets, setBookedSets] = useState('')
   const [bookedFee, setBookedFee] = useState('')
   const [dressCode, setDressCode] = useState('')
+  const [idRequired, setIdRequired] = useState('')
   const [specialRequirements, setSpecialRequirements] = useState('')
 
   // Food
@@ -327,6 +328,20 @@ export default function NewEventPage() {
                 placeholder="e.g. Acoustic set required during dinner"
                 rows={3}
                 style={{ ...inputBase, resize: 'vertical' }} />
+            </Field>
+          </div>
+        </div>
+
+        {/* Parking & security */}
+        <div style={sectionStyle}>
+          <div style={sectionLabel}>Parking &amp; security</div>
+          <div style={grid}>
+            <Field label="ID required" hint="optional">
+              <Select name="id_required" value={idRequired} onChange={setIdRequired}>
+                <option value="">Select…</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </Select>
             </Field>
           </div>
         </div>
