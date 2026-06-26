@@ -19,7 +19,7 @@ export type Issue = {
   pm_events: { id: string; name: string } | null
   parent_issue_id: string | null
   source: string | null
-  sub_issues?: { id: string; status: string }[]
+  tasks?: { id: string; status: string }[]
 }
 
 export const STATUSES = ['triage', 'backlog', 'todo', 'next_up', 'in_progress', 'waiting', 'done', 'cancelled']
@@ -265,9 +265,9 @@ function IssueRow({ issue, displayProps }: { issue: Issue; displayProps?: Displa
       </span>
 
       {/* Sub-issue count pill */}
-      {issue.sub_issues && issue.sub_issues.length > 0 && (() => {
-        const total = issue.sub_issues.length
-        const done = issue.sub_issues.filter(s => s.status === 'done').length
+      {issue.tasks && issue.tasks.length > 0 && (() => {
+        const total = issue.tasks.length
+        const done = issue.tasks.filter(s => s.status === 'done').length
         return (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, padding: '2px 7px', borderRadius: 20, border: '0.5px solid var(--border)', color: 'var(--text-tertiary)', whiteSpace: 'nowrap', marginLeft: 8 }}>
             <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><circle cx="5.5" cy="5.5" r="4.5" stroke="currentColor" strokeWidth="1.2"/></svg>
@@ -372,10 +372,10 @@ type DisplayState = {
   viewMode: 'list' | 'board'
   groupBy: 'status' | 'priority' | 'none'
   orderBy: 'created' | 'updated' | 'priority'
-  showSubIssues: boolean
+  showTasks: boolean
   showTriageIssues: boolean
   showEmptyGroups: boolean
-  nestedSubIssues: boolean
+  nestedTasks: boolean
   props: DisplayProps
 }
 
@@ -539,8 +539,8 @@ function DisplayPanel({ display, onChange, onClose }: {
       <Row label="Completed issues">
         <MiniSelect value="all" onChange={() => {}} options={[{ value: 'all', label: 'All' }, { value: 'none', label: 'None' }, { value: 'last7', label: 'Last 7 days' }]} />
       </Row>
-      <Row label="Show sub-issues">
-        <Toggle on={display.showSubIssues} onToggle={() => onChange({ ...display, showSubIssues: !display.showSubIssues })} />
+      <Row label="Show tasks">
+        <Toggle on={display.showTasks} onToggle={() => onChange({ ...display, showTasks: !display.showTasks })} />
       </Row>
       <Row label="Show triage issues">
         <Toggle on={display.showTriageIssues} onToggle={() => onChange({ ...display, showTriageIssues: !display.showTriageIssues })} />
@@ -549,8 +549,8 @@ function DisplayPanel({ display, onChange, onClose }: {
       <Sep />
       <SectionLabel label="List options" />
 
-      <Row label="Nested sub-issues">
-        <Toggle on={display.nestedSubIssues} onToggle={() => onChange({ ...display, nestedSubIssues: !display.nestedSubIssues })} />
+      <Row label="Nested tasks">
+        <Toggle on={display.nestedTasks} onToggle={() => onChange({ ...display, nestedTasks: !display.nestedTasks })} />
       </Row>
       <Row label="Show empty groups">
         <Toggle on={display.showEmptyGroups} onToggle={() => onChange({ ...display, showEmptyGroups: !display.showEmptyGroups })} />
@@ -659,9 +659,9 @@ function KanbanBoard({ issues, groupBy, displayProps }: {
                         {LABEL_DISPLAY[issue.label]}
                       </span>
                     )}
-                    {issue.sub_issues && issue.sub_issues.length > 0 && (
+                    {issue.tasks && issue.tasks.length > 0 && (
                       <span style={{ fontSize: 10, color: 'var(--text-tertiary)', marginLeft: 'auto' }}>
-                        {issue.sub_issues.filter(s => s.status === 'done').length}/{issue.sub_issues.length}
+                        {issue.tasks.filter(s => s.status === 'done').length}/{issue.tasks.length}
                       </span>
                     )}
                     {displayProps.assignee && (
@@ -699,7 +699,7 @@ function KanbanBoard({ issues, groupBy, displayProps }: {
 
 const DEFAULT_DISPLAY: DisplayState = {
   viewMode: 'list', groupBy: 'status', orderBy: 'priority',
-  showSubIssues: true, showTriageIssues: true, showEmptyGroups: false, nestedSubIssues: true,
+  showTasks: true, showTriageIssues: true, showEmptyGroups: false, nestedTasks: true,
   props: { id: true, status: true, assignee: true, priority: true, dueDate: false, labels: true, created: true, updated: false },
 }
 

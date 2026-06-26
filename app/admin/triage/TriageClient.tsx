@@ -259,13 +259,13 @@ function IssueDetail({ issue, pmEvents, onAction }: {
           </button>
         </div>
 
-        {/* Add sub-issues */}
+        {/* Add tasks */}
         <button style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0', marginBottom: 28 }}
           onMouseEnter={e => e.currentTarget.style.color = 'var(--text-secondary)'}
           onMouseLeave={e => e.currentTarget.style.color = 'var(--text-tertiary)'}
         >
           <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v11M1 6.5h11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
-          Add sub-issues
+          Add task
         </button>
 
         {/* Activity */}

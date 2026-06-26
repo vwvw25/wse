@@ -102,8 +102,8 @@ export default function IssueDetailClient({
   const [priority, setPriority] = useState(issue.priority ?? '')
   const [label, setLabel] = useState(issue.label ?? '')
   const [pmEventId, setPmEventId] = useState(issue.pm_event_id ?? '')
-  const [addingSubIssue, setAddingSubIssue] = useState(false)
-  const [subIssueTitle, setSubIssueTitle] = useState('')
+  const [addingTask, setAddingTask] = useState(false)
+  const [taskTitle, setTaskTitle] = useState('')
 
   function save(fields: Record<string, unknown>) {
     startTransition(async () => {
@@ -112,11 +112,11 @@ export default function IssueDetailClient({
     })
   }
 
-  async function handleAddSubIssue() {
-    if (!subIssueTitle.trim()) return
-    await createIssue({ title: subIssueTitle.trim(), status: 'todo', parent_issue_id: issue.id, source: 'manual' })
-    setSubIssueTitle('')
-    setAddingSubIssue(false)
+  async function handleAddTask() {
+    if (!taskTitle.trim()) return
+    await createIssue({ title: taskTitle.trim(), status: 'todo', parent_issue_id: issue.id, source: 'manual' })
+    setTaskTitle('')
+    setAddingTask(false)
     router.refresh()
   }
 
@@ -166,7 +166,7 @@ export default function IssueDetailClient({
           <a href="/admin/issues" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>Issues</a>
           <span>›</span>
           <span>{issueId(issue)}</span>
-          {issue.parent_issue_id && <span> (sub-issue)</span>}
+          {issue.parent_issue_id && <span> (task)</span>}
         </div>
 
         {/* Title */}
@@ -202,10 +202,10 @@ export default function IssueDetailClient({
           }}
         />
 
-        {/* Sub-issues */}
+        {/* Tasks */}
         <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: 20, marginBottom: 24 }}>
           <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 10 }}>
-            Sub-issues {subIssues.length > 0 && <span style={{ color: 'var(--text-tertiary)' }}>({subIssues.length})</span>}
+            Tasks {subIssues.length > 0 && <span style={{ color: 'var(--text-tertiary)' }}>({subIssues.length})</span>}
           </div>
 
           {subIssues.map(sub => (
@@ -222,30 +222,30 @@ export default function IssueDetailClient({
             </a>
           ))}
 
-          {addingSubIssue ? (
+          {addingTask ? (
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
               <input
                 autoFocus
-                value={subIssueTitle}
-                onChange={e => setSubIssueTitle(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') handleAddSubIssue(); if (e.key === 'Escape') { setAddingSubIssue(false); setSubIssueTitle('') } }}
-                placeholder="Sub-issue title"
+                value={taskTitle}
+                onChange={e => setTaskTitle(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleAddTask(); if (e.key === 'Escape') { setAddingTask(false); setTaskTitle('') } }}
+                placeholder="Task title"
                 style={{
                   flex: 1, padding: '6px 10px', fontSize: 13, borderRadius: 6,
                   border: '0.5px solid var(--border)', background: 'var(--bg)',
                   color: 'var(--text)', outline: 'none', fontFamily: 'var(--font)',
                 }}
               />
-              <button onClick={handleAddSubIssue} style={{ padding: '6px 12px', borderRadius: 6, fontSize: 13, background: '#2563eb', color: '#fff', border: 'none', cursor: 'pointer' }}>Add</button>
-              <button onClick={() => { setAddingSubIssue(false); setSubIssueTitle('') }} style={{ padding: '6px 12px', borderRadius: 6, fontSize: 13, background: 'none', border: '0.5px solid var(--border)', color: 'var(--text)', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={handleAddTask} style={{ padding: '6px 12px', borderRadius: 6, fontSize: 13, background: '#2563eb', color: '#fff', border: 'none', cursor: 'pointer' }}>Add</button>
+              <button onClick={() => { setAddingTask(false); setTaskTitle('') }} style={{ padding: '6px 12px', borderRadius: 6, fontSize: 13, background: 'none', border: '0.5px solid var(--border)', color: 'var(--text)', cursor: 'pointer' }}>Cancel</button>
             </div>
           ) : (
-            <button onClick={() => setAddingSubIssue(true)} style={{
+            <button onClick={() => setAddingTask(true)} style={{
               marginTop: 8, fontSize: 13, background: 'none', border: 'none',
               color: 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, padding: '4px 0',
             }}>
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
-              Add sub-issues
+              Add task
             </button>
           )}
         </div>
