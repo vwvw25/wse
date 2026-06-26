@@ -284,23 +284,32 @@ function DetailsFormInner({ eventPrefill }: Props) {
 
   // Postcode distance calculation
   useEffect(() => {
-    const pc = venuePostcode.trim().replace(/\s/g, '')
-    if (pc.length < 5) { setMilesOutput('Enter postcode'); set('travel_hours_from_london', 0); return }
-    setMilesOutput('Calculating...')
+    const pc = venuePostcode.trim().toUpperCase().replace(/\s+/g, '')
+    if (pc.length < 2) { setMilesOutput('Enter postcode'); set('travel_hours_from_london', 0); return }
+    setMilesOutput('Calculating…')
     const timer = setTimeout(async () => {
       try {
+        // Detect whether we have a full postcode (e.g. SW1A1AA) or just an outward code (e.g. N3, WC1)
+        // Full UK postcodes are 5–7 chars with an inward part (digit + 2 letters at end)
+        const isFullPostcode = /^[A-Z]{1,2}\d[A-Z\d]?\d[A-Z]{2}$/.test(pc)
+        const originUrl = 'https://api.postcodes.io/outcodes/WC2N'
+        const destUrl = isFullPostcode
+          ? `https://api.postcodes.io/postcodes/${encodeURIComponent(pc)}`
+          : `https://api.postcodes.io/outcodes/${encodeURIComponent(pc)}`
+
         const [r1, r2] = await Promise.all([
-          fetch('https://api.postcodes.io/postcodes/WC2N5DU').then(r => r.json()),
-          fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(pc)}`).then(r => r.json()),
+          fetch(originUrl).then(r => r.json()),
+          fetch(destUrl).then(r => r.json()),
         ])
         if (r1.status !== 200 || r2.status !== 200) { setMilesOutput('Postcode not found'); set('travel_hours_from_london', 0); return }
         const { latitude: lat1, longitude: lon1 } = r1.result
-        const { latitude: lat2, longitude: lon2 } = r2.result
-        const R = 3958.8, dLat = (lat2 - lat1) * Math.PI / 180, dLon = (lon2 - lon1) * Math.PI / 180
+        const { latitude: lat2, longitude: lon2 } = isFullPostcode ? r2.result : r2.result
+        const R = 3958.8
+        const dLat = (lat2 - lat1) * Math.PI / 180
+        const dLon = (lon2 - lon1) * Math.PI / 180
         const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2
         const miles = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-        setMilesOutput(`${Math.round(miles)} miles`)
-        // Estimate driving hours: straight-line miles ÷ 40 (accounts for roads being longer than crow-flies)
+        setMilesOutput(`~${Math.round(miles)} miles`)
         set('travel_hours_from_london', Math.round((miles / 40) * 10) / 10)
       } catch { setMilesOutput('Could not calculate') }
     }, 600)
@@ -646,7 +655,7 @@ function DetailsFormInner({ eventPrefill }: Props) {
         {/* Travel */}
         <Card label="Travel">
           <Grid cols={2} style={{ alignItems: 'start' }}>
-            <Field label="Venue postcode" hint="Distance calculated from central London (WC2N 5DU)">
+            <Field label="Venue postcode" hint="Full or partial (e.g. N3, WC1) — distance from central London">
               <Input value={venuePostcode} onChange={setVenuePostcode} placeholder="e.g. SW1A 1AA" />
             </Field>
             <Field label="Approximate distance">

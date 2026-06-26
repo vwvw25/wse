@@ -94,6 +94,9 @@ export default function TemplatesPage() {
   const editorRef = useRef<HTMLDivElement | null>(null)
   const [editorKey, setEditorKey] = useState(0)
   const initBodyRef = useRef('')
+  const autoSavedIdRef = useRef<string | null>(null)
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const doAutoSaveRef = useRef<() => Promise<void>>(async () => {})
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const supabase = useMemo(() => createBrowserClient(), [])
 
@@ -104,13 +107,59 @@ export default function TemplatesPage() {
 
   useEffect(() => { load() }, [load])
 
+  // Keep auto-save callback current so the timer always uses latest state
+  useEffect(() => {
+    doAutoSaveRef.current = async () => {
+      const body = editorRef.current?.innerHTML ?? ''
+      const hasText = body.replace(/<[^>]*>/g, '').trim() || draft.name.trim() || draft.subject?.trim()
+      if (!hasText) return
+      const nameToSave = draft.name.trim() || `Draft – ${new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`
+      if (isNew && !autoSavedIdRef.current) {
+        const { data } = await supabase
+          .from('email_templates')
+          .insert({ name: nameToSave, subject: draft.subject || null, body })
+          .select('*').single()
+        if (data) {
+          autoSavedIdRef.current = (data as EmailTemplate).id
+          setSelected(data as EmailTemplate)
+          setIsNew(false)
+        }
+        await load()
+      } else {
+        const id = autoSavedIdRef.current ?? selected?.id
+        if (!id) return
+        await supabase
+          .from('email_templates')
+          .update({ name: nameToSave, subject: draft.subject || null, body, updated_at: new Date().toISOString() })
+          .eq('id', id)
+        await load()
+      }
+    }
+  }, [draft, isNew, selected, supabase, load])
 
+  function scheduleAutoSave() {
+    clearTimeout(autoSaveTimerRef.current)
+    autoSaveTimerRef.current = setTimeout(() => { doAutoSaveRef.current() }, 1000)
+  }
+
+  // Attach input listener to the body editor (it never re-renders so we do this via the ref)
+  useEffect(() => {
+    if (!editing || !editorRef.current) return
+    const el = editorRef.current
+    const handler = () => scheduleAutoSave()
+    el.addEventListener('input', handler)
+    return () => el.removeEventListener('input', handler)
+  // editorKey changes when a new editor mounts
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing, editorKey])
 
   const filtered = templates.filter(t =>
     t.name.toLowerCase().includes(search.toLowerCase())
   )
 
   function startNew() {
+    autoSavedIdRef.current = null
+    clearTimeout(autoSaveTimerRef.current)
     initBodyRef.current = ''
     setSelected(null)
     setDraft(BLANK)
@@ -121,6 +170,8 @@ export default function TemplatesPage() {
   }
 
   function startEdit(t: EmailTemplate) {
+    autoSavedIdRef.current = null
+    clearTimeout(autoSaveTimerRef.current)
     initBodyRef.current = toEditorHtml(t.body)  // store before any state update
     setSelected(t)
     setDraft({ name: t.name, subject: t.subject ?? '', body: t.body })
@@ -146,23 +197,26 @@ export default function TemplatesPage() {
   }, [])
 
   async function handleSave() {
+    clearTimeout(autoSaveTimerRef.current)
     const body = editorRef.current?.innerHTML ?? draft.body
     if (!draft.name.trim() || !body.trim()) return
     setSaving(true)
     try {
-      if (isNew) {
+      const existingId = autoSavedIdRef.current ?? (isNew ? null : selected?.id)
+      if (!existingId) {
         const { data } = await supabase
           .from('email_templates')
           .insert({ name: draft.name.trim(), subject: draft.subject || null, body })
           .select('*').single()
         if (data) setSelected(data as EmailTemplate)
-      } else if (selected) {
+      } else {
         await supabase
           .from('email_templates')
           .update({ name: draft.name.trim(), subject: draft.subject || null, body, updated_at: new Date().toISOString() })
-          .eq('id', selected.id)
-        setSelected({ ...selected, name: draft.name.trim(), subject: draft.subject || null, body })
+          .eq('id', existingId)
+        setSelected(prev => prev ? { ...prev, name: draft.name.trim(), subject: draft.subject || null, body } : prev)
       }
+      autoSavedIdRef.current = null
       await load()
       setEditing(false)
       setIsNew(false)
@@ -179,9 +233,11 @@ export default function TemplatesPage() {
   }
 
   function handleCancel() {
+    clearTimeout(autoSaveTimerRef.current)
+    autoSavedIdRef.current = null
     setEditing(false)
     setIsNew(false)
-    if (isNew) setSelected(null)
+    if (isNew && !autoSavedIdRef.current) setSelected(null)
   }
 
   function buildFilledHtml(): string {
@@ -284,7 +340,7 @@ export default function TemplatesPage() {
               <Label>Template name</Label>
               <input
                 value={draft.name}
-                onChange={e => setDraft(d => ({ ...d, name: e.target.value }))}
+                onChange={e => { setDraft(d => ({ ...d, name: e.target.value })); scheduleAutoSave() }}
                 placeholder="e.g. Agency WS"
                 style={inputStyle}
                 autoFocus
@@ -294,7 +350,7 @@ export default function TemplatesPage() {
               <Label>Subject line <span style={{ color: 'var(--text-tertiary)', fontWeight: 400 }}>(optional)</span></Label>
               <input
                 value={draft.subject ?? ''}
-                onChange={e => setDraft(d => ({ ...d, subject: e.target.value }))}
+                onChange={e => { setDraft(d => ({ ...d, subject: e.target.value })); scheduleAutoSave() }}
                 placeholder="e.g. Ward Smith Entertainment — {{event_date}}"
                 style={inputStyle}
               />

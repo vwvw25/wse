@@ -88,6 +88,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
   return (
     <div style={{ padding: '2.5rem 1rem', minHeight: '100vh', background: 'var(--bg-secondary)' }}>
       <div style={{ maxWidth: 720, margin: '0 auto' }}>
+        <a href="/admin/quotes" style={{ fontSize: 12, color: 'var(--text-secondary)', textDecoration: 'none', display: 'inline-block', marginBottom: 16 }}>← Quotes</a>
 
         {/* Header */}
         <div style={{ marginBottom: '2rem' }}>
