@@ -11,6 +11,21 @@ const KNOWN_AUTO_FIELDS = new Set([
   'quote', 'booking_details',
 ])
 
+const FIELD_PICKER_OPTIONS: { field: string; label: string; auto: boolean }[] = [
+  { field: 'agent_first_name', label: 'Agent first name', auto: true },
+  { field: 'agent_name', label: 'Agent full name', auto: true },
+  { field: 'agency_name', label: 'Agency / client name', auto: true },
+  { field: 'event_date', label: 'Event date', auto: true },
+  { field: 'venue_name', label: 'Venue name', auto: true },
+  { field: 'location', label: 'Location', auto: true },
+  { field: 'start_time', label: 'Start time', auto: true },
+  { field: 'finish_time', label: 'Finish time', auto: true },
+  { field: 'guests', label: 'Guest count', auto: true },
+  { field: 'event_type', label: 'Event type', auto: true },
+  { field: 'booking_details', label: 'Booking details block', auto: true },
+  { field: 'quote', label: 'Quote block', auto: true },
+]
+
 function highlightFieldsHtml(html: string) {
   // Replace {{field}} in HTML string with highlighted spans
   return html.replace(/\{\{([^}]+)\}\}/g, (match, field) => {
@@ -67,7 +82,7 @@ const BodyEditor = memo(function BodyEditor({
         suppressContentEditableWarning
         dangerouslySetInnerHTML={{ __html: initialBody }}
         style={{
-          width:'100%',minHeight:320,padding:'12px 14px',
+          width:'100%',minHeight:180,padding:'12px 14px',
           fontSize:13,fontFamily:'var(--font)',lineHeight:1.7,
           background:'var(--bg-secondary)',color:'var(--text)',
           border:'0.5px solid var(--border)',
@@ -97,6 +112,8 @@ export default function TemplatesPage() {
   const autoSavedIdRef = useRef<string | null>(null)
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const doAutoSaveRef = useRef<() => Promise<void>>(async () => {})
+  const savedRangeRef = useRef<Range | null>(null)
+  const [fieldSearch, setFieldSearch] = useState('')
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const supabase = useMemo(() => createBrowserClient(), [])
 
@@ -142,16 +159,38 @@ export default function TemplatesPage() {
     autoSaveTimerRef.current = setTimeout(() => { doAutoSaveRef.current() }, 1000)
   }
 
-  // Attach input listener to the body editor (it never re-renders so we do this via the ref)
+  // Attach input + blur listeners to the body editor
   useEffect(() => {
     if (!editing || !editorRef.current) return
     const el = editorRef.current
-    const handler = () => scheduleAutoSave()
-    el.addEventListener('input', handler)
-    return () => el.removeEventListener('input', handler)
+    const inputHandler = () => scheduleAutoSave()
+    const blurHandler = () => {
+      const sel = window.getSelection()
+      if (sel && sel.rangeCount > 0) savedRangeRef.current = sel.getRangeAt(0).cloneRange()
+    }
+    el.addEventListener('input', inputHandler)
+    el.addEventListener('blur', blurHandler)
+    return () => {
+      el.removeEventListener('input', inputHandler)
+      el.removeEventListener('blur', blurHandler)
+    }
   // editorKey changes when a new editor mounts
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editing, editorKey])
+
+  function insertField(field: string) {
+    const editor = editorRef.current
+    if (!editor) return
+    editor.focus()
+    if (savedRangeRef.current) {
+      const sel = window.getSelection()
+      sel?.removeAllRanges()
+      sel?.addRange(savedRangeRef.current)
+    }
+    document.execCommand('insertText', false, `{{${field}}}`)
+    savedRangeRef.current = null
+    scheduleAutoSave()
+  }
 
   const filtered = templates.filter(t =>
     t.name.toLowerCase().includes(search.toLowerCase())
@@ -357,16 +396,65 @@ export default function TemplatesPage() {
             </div>
             <div style={{ marginBottom: 12 }}>
               <Label>Body</Label>
-              <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 6 }}>
-                Auto-filled: <code style={{ fontSize: 11 }}>{'{{agent_first_name}}'}</code> <code style={{ fontSize: 11 }}>{'{{event_date}}'}</code> <code style={{ fontSize: 11 }}>{'{{venue_name}}'}</code> <code style={{ fontSize: 11 }}>{'{{agency_name}}'}</code> <code style={{ fontSize: 11 }}>{'{{start_time}}'}</code> <code style={{ fontSize: 11 }}>{'{{finish_time}}'}</code> <code style={{ fontSize: 11 }}>{'{{guests}}'}</code> <code style={{ fontSize: 11 }}>{'{{booking_details}}'}</code> <code style={{ fontSize: 11 }}>{'{{quote}}'}</code> — anything else will be prompted.
-              </div>
-
               <BodyEditor
                 key={editorKey}
                 initialBody={initBodyRef.current}
                 editorRef={editorRef}
                 onFormat={formatText}
               />
+
+              {/* Field picker */}
+              <div style={{
+                marginTop: 8, border: '0.5px solid var(--border)',
+                borderRadius: 'var(--radius-md)', overflow: 'hidden',
+              }}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '8px 10px', borderBottom: '0.5px solid var(--border)',
+                  background: 'var(--bg-secondary)',
+                }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+                    Insert field
+                  </span>
+                  <input
+                    value={fieldSearch}
+                    onChange={e => setFieldSearch(e.target.value)}
+                    placeholder="Search…"
+                    style={{
+                      flex: 1, height: 26, padding: '0 8px', fontSize: 12,
+                      background: 'var(--bg)', color: 'var(--text)',
+                      border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)',
+                      outline: 'none', fontFamily: 'var(--font)',
+                    }}
+                  />
+                </div>
+                <div style={{ padding: '8px 10px', display: 'flex', flexWrap: 'wrap', gap: 6, background: 'var(--bg)' }}>
+                  {FIELD_PICKER_OPTIONS
+                    .filter(f => !fieldSearch || f.label.toLowerCase().includes(fieldSearch.toLowerCase()) || f.field.includes(fieldSearch.toLowerCase()))
+                    .map(f => (
+                      <button
+                        key={f.field}
+                        onMouseDown={e => { e.preventDefault(); insertField(f.field) }}
+                        title={`{{${f.field}}}`}
+                        style={{
+                          padding: '4px 9px', fontSize: 11, fontWeight: 500,
+                          border: '0.5px solid var(--border)', borderRadius: 12,
+                          cursor: 'pointer', fontFamily: 'var(--font)',
+                          background: f.auto ? 'color-mix(in srgb, #3b82f6 10%, transparent)' : 'var(--bg-secondary)',
+                          color: f.auto ? '#3b82f6' : 'var(--text)',
+                        }}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  {FIELD_PICKER_OPTIONS.filter(f => !fieldSearch || f.label.toLowerCase().includes(fieldSearch.toLowerCase()) || f.field.includes(fieldSearch.toLowerCase())).length === 0 && (
+                    <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>No fields match</span>
+                  )}
+                </div>
+                <div style={{ padding: '4px 10px 8px', fontSize: 11, color: 'var(--text-tertiary)' }}>
+                  Blue = auto-filled from event. Custom field names can be typed directly as <code style={{ fontSize: 10 }}>{'{{field}}'}</code> in the body — you'll be prompted to fill them when using the template.
+                </div>
+              </div>
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button onClick={handleCancel} style={secondaryBtn}>Cancel</button>
