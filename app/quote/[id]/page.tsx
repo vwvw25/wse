@@ -69,7 +69,12 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
   const isInternational = inputs.travel_type === 'international'
 
   const eventDate = inputs.event_date
-    ? new Date(inputs.event_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+    ? (() => {
+        const dt = new Date(inputs.event_date + 'T12:00:00')
+        const day = dt.toLocaleDateString('en-GB', { weekday: 'long' })
+        const date = dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+        return `${day}, ${date}`
+      })()
     : null
 
   const options = calculated.price_options ?? []

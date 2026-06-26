@@ -8,8 +8,12 @@ export const dynamic = 'force-dynamic'
 
 const fmt = (n: number) => '£' + Math.round(n).toLocaleString('en-GB')
 const fmtD = (n: number) => n.toFixed(4).replace(/\.?0+$/, '')
-const fmtDate = (iso: string) =>
-  new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+const fmtDate = (iso: string) => {
+  const dt = new Date(iso + 'T12:00:00')
+  const day = dt.toLocaleDateString('en-GB', { weekday: 'long' })
+  const date = dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+  return `${day}, ${date}`
+}
 
 const BAND_SIZE_LABELS: Record<string, string> = {
   duo: 'Duo', trio: 'Trio', quartet: 'Quartet', five_piece: 'Five-piece',

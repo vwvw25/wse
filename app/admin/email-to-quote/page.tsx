@@ -185,7 +185,22 @@ export default function EmailToQuotePage() {
                 </div>
               </Field>
               <Field label="Event date">
-                <TextInput value={autoFill.event_date ?? ''} onChange={v => setAF('event_date', v || null)} placeholder="YYYY-MM-DD" />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <TextInput value={autoFill.event_date ?? ''} onChange={v => setAF('event_date', v || null)} placeholder="YYYY-MM-DD" />
+                  {autoFill.event_date && (() => {
+                    const dt = new Date(autoFill.event_date + 'T12:00:00')
+                    if (isNaN(dt.getTime())) return null
+                    return (
+                      <span style={{
+                        flexShrink: 0, fontSize: 11, fontWeight: 500,
+                        color: 'var(--accent)', background: 'color-mix(in srgb, var(--accent) 12%, transparent)',
+                        padding: '3px 8px', borderRadius: 'var(--radius-sm)',
+                      }}>
+                        {dt.toLocaleDateString('en-GB', { weekday: 'long' })}
+                      </span>
+                    )
+                  })()}
+                </div>
               </Field>
 
               {autoFill.is_agency ? (

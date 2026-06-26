@@ -23,9 +23,11 @@ export interface EventCardData {
 
 function formatDate(d: string | null | undefined) {
   if (!d) return null
-  const dt = new Date(d)
+  const dt = new Date(d + 'T12:00:00')
   if (isNaN(dt.getTime())) return d
-  return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+  const day = dt.toLocaleDateString('en-GB', { weekday: 'long' })
+  const date = dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+  return `${day}, ${date}`
 }
 
 function Cell({ label, value }: { label: string; value: string | null | undefined }) {
