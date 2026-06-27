@@ -30,6 +30,7 @@ export interface InvoiceSettings {
   booking_sources: string[] | null
   business_address: string | null
   business_name: string | null
+  home_postcode: string | null
 }
 
 export interface InvoiceLineItem {

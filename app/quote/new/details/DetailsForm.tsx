@@ -133,7 +133,9 @@ function DetailsFormInner({ eventPrefill }: Props) {
   }
 
   const [venuePostcode, setVenuePostcode] = useState(eventPrefill?.formFields.venue_postcode ?? '')
+  const [homePostcode, setHomePostcode] = useState<string | null>(null)
   const [milesOutput, setMilesOutput] = useState('Enter postcode')
+  const [driveTime, setDriveTime] = useState<string | null>(null)
   const [activeBookingTypes, setActiveBookingTypes] = useState<Set<BookingType>>(new Set(bookingTypes))
   const [eventCardData, setEventCardData] = useState<EventCardData | null>(eventPrefill?.eventCardData ?? null)
 
@@ -148,6 +150,14 @@ function DetailsFormInner({ eventPrefill }: Props) {
       setAddOns(data ?? [])
     }
     fetchAddOns()
+  }, [])
+
+  // Fetch home postcode from settings
+  useEffect(() => {
+    fetch('/api/admin/invoice-settings')
+      .then(r => r.json())
+      .then(data => { if (data?.home_postcode) setHomePostcode(data.home_postcode) })
+      .catch(() => {})
   }, [])
 
   // Load from quote_request (email-to-quote flow via request param)
@@ -282,39 +292,52 @@ function DetailsFormInner({ eventPrefill }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadId])
 
-  // Postcode distance calculation
+  // Driving distance + time via OSRM (free, no API key)
   useEffect(() => {
     const pc = venuePostcode.trim().toUpperCase().replace(/\s+/g, '')
-    if (pc.length < 2) { setMilesOutput('Enter postcode'); set('travel_hours_from_london', 0); return }
+    if (pc.length < 2) { setMilesOutput('Enter postcode'); setDriveTime(null); set('travel_hours_from_london', 0); return }
     setMilesOutput('Calculating…')
+    setDriveTime(null)
     const timer = setTimeout(async () => {
       try {
-        // Detect whether we have a full postcode (e.g. SW1A1AA) or just an outward code (e.g. N3, WC1)
-        // Full UK postcodes are 5–7 chars with an inward part (digit + 2 letters at end)
-        const isFullPostcode = /^[A-Z]{1,2}\d[A-Z\d]?\d[A-Z]{2}$/.test(pc)
-        const originUrl = 'https://api.postcodes.io/outcodes/WC2N'
-        const destUrl = isFullPostcode
-          ? `https://api.postcodes.io/postcodes/${encodeURIComponent(pc)}`
-          : `https://api.postcodes.io/outcodes/${encodeURIComponent(pc)}`
+        const origin = homePostcode?.trim().toUpperCase().replace(/\s+/g, '') || 'WC2N'
+        const isFullPostcode = (p: string) => /^[A-Z]{1,2}\d[A-Z\d]?\d[A-Z]{2}$/.test(p)
+        const coordUrl = (p: string) => isFullPostcode(p)
+          ? `https://api.postcodes.io/postcodes/${encodeURIComponent(p)}`
+          : `https://api.postcodes.io/outcodes/${encodeURIComponent(p)}`
 
         const [r1, r2] = await Promise.all([
-          fetch(originUrl).then(r => r.json()),
-          fetch(destUrl).then(r => r.json()),
+          fetch(coordUrl(origin)).then(r => r.json()),
+          fetch(coordUrl(pc)).then(r => r.json()),
         ])
-        if (r1.status !== 200 || r2.status !== 200) { setMilesOutput('Postcode not found'); set('travel_hours_from_london', 0); return }
+        if (r1.status !== 200 || r2.status !== 200) { setMilesOutput('Postcode not found'); setDriveTime(null); set('travel_hours_from_london', 0); return }
         const { latitude: lat1, longitude: lon1 } = r1.result
-        const { latitude: lat2, longitude: lon2 } = isFullPostcode ? r2.result : r2.result
-        const R = 3958.8
-        const dLat = (lat2 - lat1) * Math.PI / 180
-        const dLon = (lon2 - lon1) * Math.PI / 180
-        const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2
-        const miles = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-        setMilesOutput(`~${Math.round(miles)} miles`)
-        set('travel_hours_from_london', Math.round((miles / 40) * 10) / 10)
-      } catch { setMilesOutput('Could not calculate') }
+        const { latitude: lat2, longitude: lon2 } = r2.result
+
+        // OSRM driving route
+        const osrm = await fetch(
+          `https://router.project-osrm.org/route/v1/driving/${lon1},${lat1};${lon2},${lat2}?overview=false`
+        ).then(r => r.json())
+
+        if (osrm.code !== 'Ok' || !osrm.routes?.[0]) {
+          setMilesOutput('Route not found'); setDriveTime(null); set('travel_hours_from_london', 0); return
+        }
+
+        const metres = osrm.routes[0].distance
+        const seconds = osrm.routes[0].duration
+        const miles = metres / 1609.344
+        const hours = seconds / 3600
+        const h = Math.floor(hours)
+        const m = Math.round((hours - h) * 60)
+        const timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`
+
+        setMilesOutput(`${Math.round(miles)} miles`)
+        setDriveTime(timeStr)
+        set('travel_hours_from_london', Math.round(hours * 10) / 10)
+      } catch { setMilesOutput('Could not calculate'); setDriveTime(null) }
     }, 600)
     return () => clearTimeout(timer)
-  }, [venuePostcode])
+  }, [venuePostcode, homePostcode])
 
   function toggleAddOn(addon: AddOn) {
     setSelectedAddOns(prev => {
@@ -655,20 +678,39 @@ function DetailsFormInner({ eventPrefill }: Props) {
         {/* Travel */}
         <Card label="Travel">
           <Grid cols={2} style={{ alignItems: 'start' }}>
-            <Field label="Venue postcode" hint="Full or partial (e.g. N3, WC1) — distance from central London">
+            <Field label="Venue postcode" hint={`Full or partial (e.g. N3, WC1)${homePostcode ? ` — from ${homePostcode}` : ''}`}>
               <Input value={venuePostcode} onChange={setVenuePostcode} placeholder="e.g. SW1A 1AA" />
             </Field>
-            <Field label="Approximate distance">
+            <Field label="Driving distance">
               <div style={{
-                height: 36, display: 'flex', alignItems: 'center',
+                height: 36, display: 'flex', alignItems: 'center', gap: 10,
                 padding: '0 10px', fontSize: 13, color: 'var(--text-secondary)',
                 border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)',
                 background: 'var(--bg-secondary)',
               }}>
-                {milesOutput}
+                <span>{milesOutput}</span>
+                {driveTime && <span style={{ color: 'var(--text-tertiary)' }}>· {driveTime}</span>}
               </div>
             </Field>
           </Grid>
+          {venuePostcode.trim().length >= 2 && milesOutput !== 'Calculating…' && milesOutput !== 'Enter postcode' && milesOutput !== 'Postcode not found' && milesOutput !== 'Could not calculate' && milesOutput !== 'Route not found' && (
+            <div style={{ marginTop: 10 }}>
+              <a
+                href={`https://www.google.com/maps/dir/${encodeURIComponent(homePostcode ?? 'WC2N 5DU')}/${encodeURIComponent(venuePostcode.trim())}`}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  fontSize: 12, color: 'var(--accent)', textDecoration: 'none',
+                  padding: '5px 10px', border: '0.5px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)', background: 'var(--bg)',
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1C4.07 1 2.5 2.57 2.5 4.5c0 2.75 3.5 6.5 3.5 6.5s3.5-3.75 3.5-6.5C9.5 2.57 7.93 1 6 1zm0 4.75a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5z" fill="currentColor"/></svg>
+                Open in Google Maps
+              </a>
+            </div>
+          )}
         </Card>
 
         {/* Venue constraints */}
