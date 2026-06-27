@@ -27,7 +27,7 @@ Respond with a JSON object only, no markdown:
 {
   "label": one of ${LABEL_OPTIONS.join(' | ')},
   "priority": one of urgent | high | medium | low,
-  "title": "short 5-10 word issue title summarising what action is needed",
+  "title": "action-oriented issue title: what needs to happen, who it involves, and the event/occasion if identifiable — do NOT use the email subject line, write something descriptive like 'Send musician list to Tiger at AOK for Rose Court ID set' or 'Chase contract signature from Marriott for June wedding'",
   "summary": "one sentence describing what this email is about and what needs to happen"
 }
 

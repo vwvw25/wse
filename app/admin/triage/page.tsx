@@ -5,7 +5,7 @@ export default async function TriagePage() {
   const supabase = createServiceClient()
   const { data: issues } = await supabase
     .from('issues')
-    .select('*, pm_events(id, name)')
+    .select('*, pm_events(id, name, date)')
     .eq('status', 'triage')
     .order('created_at', { ascending: false })
 

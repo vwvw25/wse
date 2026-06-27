@@ -7,7 +7,6 @@ export async function updateIssue(id: string, fields: Record<string, unknown>) {
   const supabase = createServiceClient()
   await supabase.from('issues').update({ ...fields, updated_at: new Date().toISOString() }).eq('id', id)
   revalidatePath('/admin/issues')
-  revalidatePath(`/admin/issues/${id}`)
 }
 
 export async function createIssue(fields: Record<string, unknown>) {

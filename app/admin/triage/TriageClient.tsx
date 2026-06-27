@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Issue } from '../issues/IssuesClient'
-import { StatusCircle, STATUSES, STATUS_LABELS, LABELS, LABEL_DISPLAY } from '../issues/IssuesClient'
+import { StatusCircle, STATUSES, STATUS_LABELS, LABELS, LABEL_DISPLAY, LABEL_COLORS } from '../issues/IssuesClient'
 import { updateIssue, createIssue } from '../issues/actions'
 import { acceptTriageIssue, moveToNotAnIssue, undoAcceptIssue, undoNotAnIssue } from './actions'
 import { useUndo } from '../UndoContext'
@@ -354,14 +354,110 @@ function NotAnIssueModal({ onConfirm, onClose }: {
   )
 }
 
+type SortOrder = 'newest' | 'oldest' | 'priority'
+
+function TriageFilterPanel({ priorities, labels, onChangePriorities, onChangeLabels, onClose }: {
+  priorities: string[]
+  labels: string[]
+  onChangePriorities: (v: string[]) => void
+  onChangeLabels: (v: string[]) => void
+  onClose: () => void
+}) {
+  function toggle(arr: string[], val: string) {
+    return arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val]
+  }
+  const CheckRow = ({ label, checked, onToggle, icon }: { label: string; checked: boolean; onToggle: () => void; icon?: React.ReactNode }) => (
+    <button onClick={onToggle} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '5px 12px', border: 'none', background: 'transparent', color: 'var(--text)', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 13, textAlign: 'left' }}
+      onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-secondary)')}
+      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+    >
+      <div style={{ width: 14, height: 14, borderRadius: 3, border: `1.5px solid ${checked ? '#2563eb' : 'var(--border-hover)'}`, background: checked ? '#2563eb' : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {checked && <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1.5 4.5l2 2 4-4" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+      </div>
+      {icon && <span style={{ display: 'flex' }}>{icon}</span>}
+      {label}
+    </button>
+  )
+  const hasAny = priorities.length > 0 || labels.length > 0
+  return (
+    <>
+      <div style={{ position: 'fixed', inset: 0, zIndex: 199 }} onClick={onClose} />
+      <div style={{ position: 'absolute', top: '100%', right: 0, zIndex: 200, background: 'var(--bg)', border: '0.5px solid var(--border)', borderRadius: 8, minWidth: 210, boxShadow: '0 8px 30px rgba(0,0,0,0.3)', paddingBottom: 6, marginTop: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px 6px', borderBottom: '0.5px solid var(--border)' }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Filter</span>
+          {hasAny && <button onClick={() => { onChangePriorities([]); onChangeLabels([]) }} style={{ fontSize: 11, color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Clear all</button>}
+        </div>
+        <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', padding: '8px 12px 3px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Priority</div>
+        {['urgent', 'high', 'medium', 'low'].map(p => (
+          <CheckRow key={p} label={p.charAt(0).toUpperCase() + p.slice(1)} checked={priorities.includes(p)} onToggle={() => onChangePriorities(toggle(priorities, p))} />
+        ))}
+        <div style={{ height: '0.5px', background: 'var(--border)', margin: '4px 0' }} />
+        <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', padding: '8px 12px 3px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Label</div>
+        {LABELS.map(l => (
+          <CheckRow key={l} label={LABEL_DISPLAY[l]} checked={labels.includes(l)} onToggle={() => onChangeLabels(toggle(labels, l))} />
+        ))}
+      </div>
+    </>
+  )
+}
+
+function TriageDisplayPanel({ sort, onSort, onClose }: { sort: SortOrder; onSort: (s: SortOrder) => void; onClose: () => void }) {
+  const options: { value: SortOrder; label: string }[] = [
+    { value: 'newest', label: 'Newest first' },
+    { value: 'oldest', label: 'Oldest first' },
+    { value: 'priority', label: 'By priority' },
+  ]
+  return (
+    <>
+      <div style={{ position: 'fixed', inset: 0, zIndex: 199 }} onClick={onClose} />
+      <div style={{ position: 'absolute', top: '100%', right: 0, zIndex: 200, background: 'var(--bg)', border: '0.5px solid var(--border)', borderRadius: 8, minWidth: 180, boxShadow: '0 8px 30px rgba(0,0,0,0.3)', paddingBottom: 6, marginTop: 4 }}>
+        <div style={{ padding: '10px 12px 6px', borderBottom: '0.5px solid var(--border)', fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Sort</div>
+        {options.map(o => (
+          <button key={o.value} onClick={() => { onSort(o.value); onClose() }} style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%',
+            padding: '6px 12px', border: 'none', background: 'transparent', color: 'var(--text)',
+            cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 13, textAlign: 'left',
+          }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-secondary)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+          >
+            {o.label}
+            {sort === o.value && <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#2563eb" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+          </button>
+        ))}
+      </div>
+    </>
+  )
+}
+
+const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 }
+
 export default function TriageClient({ issues, pmEvents }: { issues: Issue[]; pmEvents: { id: string; name: string }[] }) {
   const router = useRouter()
   const { register } = useUndo()
   const [selectedId, setSelectedId] = useState<string | null>(issues[0]?.id ?? null)
   const [showNew, setShowNew] = useState(false)
   const [notAnIssueId, setNotAnIssueId] = useState<string | null>(null)
+  const [showFilter, setShowFilter] = useState(false)
+  const [showDisplay, setShowDisplay] = useState(false)
+  const [filterPriorities, setFilterPriorities] = useState<string[]>([])
+  const [filterLabels, setFilterLabels] = useState<string[]>([])
+  const [sortOrder, setSortOrder] = useState<SortOrder>('newest')
 
-  const selected = issues.find(i => i.id === selectedId) ?? null
+  // Apply filters + sort
+  let displayIssues = issues.filter(i => {
+    if (filterPriorities.length > 0 && !filterPriorities.includes(i.priority ?? '')) return false
+    if (filterLabels.length > 0 && !filterLabels.includes(i.label ?? '')) return false
+    return true
+  })
+  displayIssues = [...displayIssues].sort((a, b) => {
+    if (sortOrder === 'priority') return (PRIORITY_ORDER[a.priority ?? ''] ?? 4) - (PRIORITY_ORDER[b.priority ?? ''] ?? 4)
+    if (sortOrder === 'oldest') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  })
+
+  const hasFilter = filterPriorities.length > 0 || filterLabels.length > 0
+  const selected = displayIssues.find(i => i.id === selectedId) ?? displayIssues[0] ?? null
 
   async function handleAction(id: string, action: 'accept' | 'not_an_issue') {
     if (action === 'accept') {
@@ -371,8 +467,8 @@ export default function TriageClient({ issues, pmEvents }: { issues: Issue[]; pm
       setNotAnIssueId(id)
       return
     }
-    const idx = issues.findIndex(i => i.id === id)
-    const next = issues[idx + 1] ?? issues[idx - 1] ?? null
+    const idx = displayIssues.findIndex(i => i.id === id)
+    const next = displayIssues[idx + 1] ?? displayIssues[idx - 1] ?? null
     setSelectedId(next?.id ?? null)
     router.refresh()
   }
@@ -391,8 +487,8 @@ export default function TriageClient({ issues, pmEvents }: { issues: Issue[]; pm
         },
       })
     }
-    const idx = issues.findIndex(i => i.id === id)
-    const next = issues[idx + 1] ?? issues[idx - 1] ?? null
+    const idx = displayIssues.findIndex(i => i.id === id)
+    const next = displayIssues[idx + 1] ?? displayIssues[idx - 1] ?? null
     setSelectedId(next?.id ?? null)
     router.refresh()
   }
@@ -406,34 +502,43 @@ export default function TriageClient({ issues, pmEvents }: { issues: Issue[]; pm
       <div style={{ width: 400, flexShrink: 0, borderRight: '0.5px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', height: 46, padding: '0 16px', borderBottom: '0.5px solid var(--border)', flexShrink: 0, gap: 8 }}>
-          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', flex: 1 }}>Triage</span>
+          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', flex: 1 }}>
+            Triage {displayIssues.length !== issues.length && <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>({displayIssues.length}/{issues.length})</span>}
+          </span>
           {/* Filter icon */}
-          <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', display: 'flex', padding: 5, borderRadius: 5 }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'none'}
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 3.5h11M3.5 7h7M5.5 10.5h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
-          </button>
-          {/* Display icon */}
-          <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', display: 'flex', padding: 5, borderRadius: 5 }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'none'}
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="4" cy="7" r="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M1.5 7h1M5.5 7h7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><circle cx="10" cy="4" r="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M1.5 4h7M11.5 4h1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><circle cx="6" cy="10" r="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M1.5 10h3M7.5 10h5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
-          </button>
+          <div style={{ position: 'relative' }}>
+            <button onClick={() => { setShowFilter(o => !o); setShowDisplay(false) }} style={{ background: hasFilter ? 'rgba(37,99,235,0.1)' : 'none', border: 'none', cursor: 'pointer', color: hasFilter ? '#2563eb' : 'var(--text-tertiary)', display: 'flex', padding: 5, borderRadius: 5, position: 'relative' }}
+              onMouseEnter={e => { if (!hasFilter) e.currentTarget.style.background = 'var(--bg-secondary)' }}
+              onMouseLeave={e => { if (!hasFilter) e.currentTarget.style.background = 'none' }}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 3.5h11M3.5 7h7M5.5 10.5h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+              {hasFilter && <span style={{ position: 'absolute', top: 2, right: 2, width: 5, height: 5, borderRadius: '50%', background: '#2563eb' }} />}
+            </button>
+            {showFilter && <TriageFilterPanel priorities={filterPriorities} labels={filterLabels} onChangePriorities={setFilterPriorities} onChangeLabels={setFilterLabels} onClose={() => setShowFilter(false)} />}
+          </div>
+          {/* Display/sort icon */}
+          <div style={{ position: 'relative' }}>
+            <button onClick={() => { setShowDisplay(o => !o); setShowFilter(false) }} style={{ background: sortOrder !== 'newest' ? 'rgba(37,99,235,0.1)' : 'none', border: 'none', cursor: 'pointer', color: sortOrder !== 'newest' ? '#2563eb' : 'var(--text-tertiary)', display: 'flex', padding: 5, borderRadius: 5 }}
+              onMouseEnter={e => { if (sortOrder === 'newest') e.currentTarget.style.background = 'var(--bg-secondary)' }}
+              onMouseLeave={e => { if (sortOrder === 'newest') e.currentTarget.style.background = 'none' }}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="4" cy="7" r="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M1.5 7h1M5.5 7h7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><circle cx="10" cy="4" r="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M1.5 4h7M11.5 4h1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><circle cx="6" cy="10" r="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M1.5 10h3M7.5 10h5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+            </button>
+            {showDisplay && <TriageDisplayPanel sort={sortOrder} onSort={setSortOrder} onClose={() => setShowDisplay(false)} />}
+          </div>
         </div>
 
         {/* List */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          {issues.length === 0 ? (
-            <div style={{ padding: '32px 16px', textAlign: 'center', fontSize: 13, color: 'var(--text-tertiary)' }}>No issues in triage</div>
+          {displayIssues.length === 0 ? (
+            <div style={{ padding: '32px 16px', textAlign: 'center', fontSize: 13, color: 'var(--text-tertiary)' }}>{issues.length === 0 ? 'No issues in triage' : 'No issues match filters'}</div>
           ) : (
-            issues.map(issue => {
+            displayIssues.map(issue => {
               const isActive = issue.id === selectedId
               return (
                 <button key={issue.id} onClick={() => setSelectedId(issue.id)} style={{
                   display: 'block', width: '100%', textAlign: 'left',
-                  padding: '10px 16px', border: 'none', borderBottom: '0.5px solid var(--border)',
+                  padding: '11px 16px', border: 'none', borderBottom: '0.5px solid var(--border)',
                   background: isActive ? 'var(--bg-secondary)' : 'transparent',
                   cursor: 'pointer', fontFamily: 'var(--font)',
                   borderLeft: isActive ? '2px solid #2563eb' : '2px solid transparent',
@@ -441,17 +546,37 @@ export default function TriageClient({ issues, pmEvents }: { issues: Issue[]; pm
                   onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--bg-secondary)' }}
                   onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
+                  {/* Row 1: title + WSE-XXX */}
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
                     <span style={{ fontSize: 13.5, color: 'var(--text)', fontWeight: 400, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{issue.title}</span>
                     <span style={{ fontSize: 11, color: 'var(--text-tertiary)', whiteSpace: 'nowrap', flexShrink: 0 }}>{issueId(issue)}</span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: '#fff' }}>V</div>
-                      <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>Vic</span>
-                    </div>
-                    <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{timeAgo(issue.created_at)}</span>
-                  </div>
+                  {/* Row 2: status dot | label | event | time */}
+                  {(() => {
+                    const lc = LABEL_COLORS[issue.label ?? ''] ?? LABEL_COLORS['other']
+                    const eventName = (issue as any).pm_events?.name
+                    const eventDate = (issue as any).pm_events?.date
+                      ? new Date((issue as any).pm_events.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+                      : null
+                    return (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <StatusCircle status={issue.status} size={11} />
+                        {issue.label && (
+                          <span style={{ fontSize: 11, padding: '1px 7px', borderRadius: 20, background: lc.bg, color: lc.color, border: `0.5px solid ${lc.border}`, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                            {LABEL_DISPLAY[issue.label]}
+                          </span>
+                        )}
+                        {eventName && (
+                          <span style={{ fontSize: 11, color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                            {eventName}{eventDate ? ` · ${eventDate}` : ''}
+                          </span>
+                        )}
+                        <span style={{ fontSize: 11, color: 'var(--text-tertiary)', whiteSpace: 'nowrap', marginLeft: 'auto', flexShrink: 0 }}>
+                          {timeAgo(issue.created_at)}
+                        </span>
+                      </div>
+                    )
+                  })()}
                 </button>
               )
             })

@@ -5,7 +5,7 @@ export default async function IssuesPage() {
   const supabase = createServiceClient()
   const { data: issues } = await supabase
     .from('issues')
-    .select('*, pm_events(id, name), tasks:issues!parent_issue_id(id, status)')
+    .select('*, pm_events(id, name, date), tasks:issues!parent_issue_id(id, status)')
     .is('parent_issue_id', null)
     .order('created_at', { ascending: false })
 

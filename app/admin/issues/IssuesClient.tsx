@@ -1,8 +1,9 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { createIssue } from './actions'
 import { useRouter } from 'next/navigation'
+import IssueDetailClient from './[id]/IssueDetailClient'
 
 export type Issue = {
   id: string
@@ -16,10 +17,20 @@ export type Issue = {
   created_at: string
   updated_at: string | null
   pm_event_id: string | null
-  pm_events: { id: string; name: string } | null
+  pm_events: { id: string; name: string; date?: string | null } | null
   parent_issue_id: string | null
   source: string | null
   tasks?: { id: string; status: string }[]
+}
+
+export const LABEL_COLORS: Record<string, { bg: string; color: string; border: string }> = {
+  quote_request:        { bg: 'rgba(59,130,246,0.1)',  color: '#60a5fa', border: 'rgba(96,165,250,0.3)' },
+  confirmation_email:   { bg: 'rgba(52,211,153,0.1)',  color: '#34d399', border: 'rgba(52,211,153,0.3)' },
+  contract_chaser:      { bg: 'rgba(249,115,22,0.1)',  color: '#fb923c', border: 'rgba(251,146,60,0.3)' },
+  contract:             { bg: 'rgba(167,139,250,0.1)', color: '#a78bfa', border: 'rgba(167,139,250,0.3)' },
+  booked_event_question:{ bg: 'rgba(20,184,166,0.1)',  color: '#2dd4bf', border: 'rgba(45,212,191,0.3)' },
+  musician_invoice:     { bg: 'rgba(234,179,8,0.1)',   color: '#fbbf24', border: 'rgba(251,191,36,0.3)' },
+  other:                { bg: 'var(--bg-secondary)',   color: 'var(--text-tertiary)', border: 'var(--border)' },
 }
 
 export const STATUSES = ['triage', 'backlog', 'todo', 'next_up', 'in_progress', 'waiting', 'done', 'cancelled']
@@ -117,7 +128,6 @@ function NewIssueModal({ onClose, pmEvents }: { onClose: () => void; pmEvents: {
         boxShadow: '0 24px 80px rgba(0,0,0,0.5)',
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
       }}>
-        {/* Modal header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', borderBottom: '0.5px solid var(--border)' }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18, borderRadius: 4, background: '#16a34a', fontSize: 10, fontWeight: 700, color: '#fff' }}>W</span>
           <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>›</span>
@@ -125,7 +135,6 @@ function NewIssueModal({ onClose, pmEvents }: { onClose: () => void; pmEvents: {
           <button onClick={onClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', fontSize: 16, lineHeight: 1, padding: '0 2px' }}>×</button>
         </div>
 
-        {/* Title + description */}
         <div style={{ padding: '16px 20px 8px' }}>
           <input
             autoFocus
@@ -153,21 +162,14 @@ function NewIssueModal({ onClose, pmEvents }: { onClose: () => void; pmEvents: {
           />
         </div>
 
-        {/* Bottom toolbar */}
         <div style={{ display: 'flex', alignItems: 'center', padding: '10px 14px', borderTop: '0.5px solid var(--border)', gap: 6, flexWrap: 'wrap' }}>
-          {/* Attachment */}
           <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', display: 'flex', padding: 4 }}>
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M12 6.5L6.5 12a3.5 3.5 0 01-4.95-4.95l5.5-5.5a2 2 0 012.83 2.83L4.5 9.5a.5.5 0 01-.71-.71L9 3.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
           </button>
-
           <div style={{ width: 1, height: 16, background: 'var(--border)', margin: '0 2px' }} />
-
-          {/* Status pill */}
           <select value={status} onChange={e => setStatus(e.target.value)} style={{ ...pill('', null, true), appearance: 'none' as any }}>
             {STATUSES.map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
           </select>
-
-          {/* Priority pill */}
           <select value={priority} onChange={e => setPriority(e.target.value)} style={{ ...pill('', null, !!priority), appearance: 'none' as any }}>
             <option value="">Priority</option>
             <option value="urgent">Urgent</option>
@@ -175,20 +177,14 @@ function NewIssueModal({ onClose, pmEvents }: { onClose: () => void; pmEvents: {
             <option value="medium">Medium</option>
             <option value="low">Low</option>
           </select>
-
-          {/* Label pill */}
           <select value={label} onChange={e => setLabel(e.target.value)} style={{ ...pill('', null, !!label), appearance: 'none' as any }}>
             <option value="">Labels</option>
             {LABELS.map(l => <option key={l} value={l}>{LABEL_DISPLAY[l]}</option>)}
           </select>
-
-          {/* Event pill */}
           <select value={pmEventId} onChange={e => setPmEventId(e.target.value)} style={{ ...pill('', null, !!pmEventId), appearance: 'none' as any }}>
             <option value="">Event</option>
             {pmEvents.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
           </select>
-
-          {/* Right side */}
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
             <button type="button" onClick={onClose} style={{
               padding: '5px 12px', borderRadius: 6, fontSize: 13,
@@ -208,146 +204,105 @@ function NewIssueModal({ onClose, pmEvents }: { onClose: () => void; pmEvents: {
   )
 }
 
-function IssueRow({ issue, displayProps }: { issue: Issue; displayProps?: DisplayProps }) {
-  const dp = displayProps ?? { id: true, status: true, assignee: true, priority: true, dueDate: false, labels: true, created: true, updated: false }
-  const [hovered, setHovered] = useState(false)
-  const date = new Date(issue.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+function timeAgo(date: string) {
+  const diff = Date.now() - new Date(date).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  return `${days}d ago`
+}
+
+function IssueRow({ issue, selected, onSelect }: {
+  issue: Issue
+  selected: boolean
+  onSelect: (id: string) => void
+}) {
+  const lc = LABEL_COLORS[issue.label ?? ''] ?? LABEL_COLORS['other']
+  const eventName = issue.pm_events?.name
+  const eventDate = issue.pm_events?.date
+    ? new Date(issue.pm_events.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+    : null
 
   return (
-    <a
-      href={`/admin/issues/${issue.id}`}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+    <button
+      onClick={() => onSelect(issue.id)}
       style={{
-        display: 'flex', alignItems: 'center', height: 34,
-        padding: '0 16px', textDecoration: 'none', color: 'var(--text)',
-        background: hovered ? 'var(--bg-secondary)' : 'transparent',
-        borderBottom: '0.5px solid var(--border)',
-        gap: 0,
+        display: 'block', width: '100%', textAlign: 'left',
+        padding: '11px 16px', border: 'none', borderBottom: '0.5px solid var(--border)',
+        background: selected ? 'var(--bg-secondary)' : 'transparent',
+        cursor: 'pointer', fontFamily: 'var(--font)',
+        borderLeft: selected ? '2px solid #2563eb' : '2px solid transparent',
       }}
+      onMouseEnter={e => { if (!selected) e.currentTarget.style.background = 'var(--bg-secondary)' }}
+      onMouseLeave={e => { if (!selected) e.currentTarget.style.background = 'transparent' }}
     >
-      {/* Drag handle — always present, visible on hover */}
-      <div style={{ width: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: hovered ? 1 : 0 }}>
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-          <circle cx="4" cy="3" r="1" fill="var(--text-tertiary)"/>
-          <circle cx="8" cy="3" r="1" fill="var(--text-tertiary)"/>
-          <circle cx="4" cy="6" r="1" fill="var(--text-tertiary)"/>
-          <circle cx="8" cy="6" r="1" fill="var(--text-tertiary)"/>
-          <circle cx="4" cy="9" r="1" fill="var(--text-tertiary)"/>
-          <circle cx="8" cy="9" r="1" fill="var(--text-tertiary)"/>
-        </svg>
+      {/* Row 1: title + WSE-XXX */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+        <span style={{ fontSize: 13.5, color: 'var(--text)', fontWeight: 400, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {issue.title}
+        </span>
+        <span style={{ fontSize: 11, color: 'var(--text-tertiary)', whiteSpace: 'nowrap', flexShrink: 0 }}>{issueId(issue)}</span>
       </div>
-
-      {/* Priority */}
-      {dp.priority && (
-        <div style={{ width: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <PriorityIndicator priority={issue.priority} />
-        </div>
-      )}
-
-      {/* Issue ID */}
-      {dp.id && (
-        <span style={{ fontSize: 12, color: 'var(--text-tertiary)', marginRight: 10, marginLeft: 4, whiteSpace: 'nowrap', flexShrink: 0, minWidth: 48 }}>
-          {issueId(issue)}
-        </span>
-      )}
-
-      {/* Status circle */}
-      {dp.status && (
-        <div style={{ marginRight: 8, flexShrink: 0 }}>
-          <StatusCircle status={issue.status} size={14} />
-        </div>
-      )}
-
-      {/* Title */}
-      <span style={{ flex: 1, fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {issue.title}
-      </span>
-
-      {/* Sub-issue count pill */}
-      {issue.tasks && issue.tasks.length > 0 && (() => {
-        const total = issue.tasks.length
-        const done = issue.tasks.filter(s => s.status === 'done').length
-        return (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, padding: '2px 7px', borderRadius: 20, border: '0.5px solid var(--border)', color: 'var(--text-tertiary)', whiteSpace: 'nowrap', marginLeft: 8 }}>
-            <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><circle cx="5.5" cy="5.5" r="4.5" stroke="currentColor" strokeWidth="1.2"/></svg>
-            {done}/{total}
+      {/* Row 2: status dot | label | event | time */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <StatusCircle status={issue.status} size={11} />
+        {issue.label && (
+          <span style={{ fontSize: 11, padding: '1px 7px', borderRadius: 20, background: lc.bg, color: lc.color, border: `0.5px solid ${lc.border}`, whiteSpace: 'nowrap', flexShrink: 0 }}>
+            {LABEL_DISPLAY[issue.label]}
           </span>
-        )
-      })()}
-
-      {/* Label */}
-      {dp.labels && issue.label && (
-        <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 20, border: '0.5px solid var(--border)', color: 'var(--text-tertiary)', whiteSpace: 'nowrap', marginLeft: 8 }}>
-          {LABEL_DISPLAY[issue.label]}
+        )}
+        {eventName && (
+          <span style={{ fontSize: 11, color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+            {eventName}{eventDate ? ` · ${eventDate}` : ''}
+          </span>
+        )}
+        <span style={{ fontSize: 11, color: 'var(--text-tertiary)', whiteSpace: 'nowrap', marginLeft: 'auto', flexShrink: 0 }}>
+          {timeAgo(issue.created_at)}
         </span>
-      )}
-
-      {/* Event */}
-      {issue.pm_events && (
-        <span style={{ fontSize: 12, color: 'var(--text-tertiary)', whiteSpace: 'nowrap', marginLeft: 12 }}>
-          {issue.pm_events.name}
-        </span>
-      )}
-
-      {/* Assignee avatar — LEFT of date, matching Linear */}
-      {dp.assignee && (
-        <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'var(--border)', marginLeft: 16, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
-            <circle cx="5.5" cy="4" r="2" stroke="var(--text-tertiary)" strokeWidth="1.2"/>
-            <path d="M1.5 10c0-2.21 1.79-3.5 4-3.5s4 1.29 4 3.5" stroke="var(--text-tertiary)" strokeWidth="1.2" strokeLinecap="round"/>
-          </svg>
-        </div>
-      )}
-
-      {/* Date — RIGHT of assignee */}
-      {dp.created && (
-        <span style={{ fontSize: 12, color: 'var(--text-tertiary)', whiteSpace: 'nowrap', marginLeft: 8, minWidth: 36, textAlign: 'right' }}>
-          {date}
-        </span>
-      )}
-    </a>
+      </div>
+    </button>
   )
 }
 
-function StatusGroup({ status, issues, defaultOpen = true, displayProps }: { status: string; issues: Issue[]; defaultOpen?: boolean; displayProps?: DisplayProps }) {
+function StatusGroup({ status, issues, defaultOpen = true, selectedId, onSelect }: {
+  status: string
+  issues: Issue[]
+  defaultOpen?: boolean
+  selectedId: string | null
+  onSelect: (id: string) => void
+}) {
   const [open, setOpen] = useState(defaultOpen)
   if (issues.length === 0) return null
 
   return (
     <div>
-      {/* Group header */}
       <div
         style={{
-          display: 'flex', alignItems: 'center', height: 34,
+          display: 'flex', alignItems: 'center', height: 32,
           padding: '0 16px', borderBottom: '0.5px solid var(--border)',
           cursor: 'pointer', userSelect: 'none',
         }}
         onClick={() => setOpen(o => !o)}
       >
-        {/* Collapse chevron */}
-        <div style={{ width: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <div style={{ width: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s', color: 'var(--text-tertiary)' }}>
             <path d="M3 2l4 3-4 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </div>
-
-        <div style={{ width: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <StatusCircle status={status} size={14} />
+        <div style={{ width: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <StatusCircle status={status} size={13} />
         </div>
-
-        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', marginRight: 6 }}>
+        <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)', marginRight: 6 }}>
           {STATUS_LABELS[status]}
         </span>
-        <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{issues.length}</span>
-
-        <button
-          onClick={e => { e.stopPropagation(); /* add issue with this status */ }}
-          style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', fontSize: 18, lineHeight: 1, padding: '0 4px' }}
-        >+</button>
+        <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{issues.length}</span>
       </div>
-
-      {open && issues.map(issue => <IssueRow key={issue.id} issue={issue} displayProps={displayProps} />)}
+      {open && issues.map(issue => (
+        <IssueRow key={issue.id} issue={issue} selected={selectedId === issue.id} onSelect={onSelect} />
+      ))}
     </div>
   )
 }
@@ -406,16 +361,22 @@ function MiniSelect({ value, options, onChange }: { value: string; options: { va
   )
 }
 
-function FilterPanel({ filters, onChange, onClose }: {
+function IssueFilterPanel({ view, setView, filters, setFilters, onClose }: {
+  view: 'all' | 'active' | 'backlog'
+  setView: (v: 'all' | 'active' | 'backlog') => void
   filters: FilterState
-  onChange: (f: FilterState) => void
+  setFilters: (f: FilterState) => void
   onClose: () => void
 }) {
   function toggle<T>(arr: T[], val: T) {
     return arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val]
   }
 
-  const hasFilters = filters.priorities.length > 0 || filters.labels.length > 0
+  const hasAny = filters.priorities.length > 0 || filters.labels.length > 0 || view !== 'all'
+
+  const SectionHead = ({ label }: { label: string }) => (
+    <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', padding: '8px 12px 3px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
+  )
 
   const CheckRow = ({ label, checked, onToggle, icon }: { label: string; checked: boolean; onToggle: () => void; icon?: React.ReactNode }) => (
     <button onClick={onToggle} style={{
@@ -429,34 +390,42 @@ function FilterPanel({ filters, onChange, onClose }: {
       <div style={{ width: 14, height: 14, borderRadius: 3, border: `1.5px solid ${checked ? '#2563eb' : 'var(--border-hover)'}`, background: checked ? '#2563eb' : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {checked && <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1.5 4.5l2 2 4-4" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>}
       </div>
-      {icon}{label}
+      {icon && <span style={{ marginRight: 2 }}>{icon}</span>}{label}
     </button>
   )
 
   return (
-    <div style={{ position: 'absolute', top: '100%', right: 0, zIndex: 200, background: 'var(--bg)', border: '0.5px solid var(--border)', borderRadius: 8, minWidth: 220, boxShadow: '0 8px 30px rgba(0,0,0,0.3)', paddingBottom: 6 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px 6px', borderBottom: '0.5px solid var(--border)' }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Filter</span>
-        {hasFilters && <button onClick={() => onChange({ priorities: [], labels: [] })} style={{ fontSize: 11, color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Clear all</button>}
+    <>
+      <div style={{ position: 'fixed', inset: 0, zIndex: 199 }} onClick={onClose} />
+      <div style={{ position: 'absolute', top: '100%', right: 0, zIndex: 200, background: 'var(--bg)', border: '0.5px solid var(--border)', borderRadius: 8, minWidth: 220, boxShadow: '0 8px 30px rgba(0,0,0,0.3)', paddingBottom: 6, marginTop: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px 6px', borderBottom: '0.5px solid var(--border)' }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Filter</span>
+          {hasAny && <button onClick={() => { setView('all'); setFilters({ priorities: [], labels: [] }) }} style={{ fontSize: 11, color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Clear all</button>}
+        </div>
+
+        <SectionHead label="View" />
+        {(['all', 'active', 'backlog'] as const).map(v => (
+          <CheckRow key={v} label={v === 'all' ? 'All issues' : v.charAt(0).toUpperCase() + v.slice(1)} checked={view === v} onToggle={() => setView(v)} />
+        ))}
+
+        <div style={{ height: '0.5px', background: 'var(--border)', margin: '4px 0' }} />
+        <SectionHead label="Status" />
+        {STATUSES.map(s => (
+          <CheckRow key={s} label={STATUS_LABELS[s]} checked={filters.priorities.includes(s)}
+            onToggle={() => setFilters({ ...filters, priorities: toggle(filters.priorities, s) })}
+            icon={<StatusCircle status={s} size={12} />}
+          />
+        ))}
+
+        <div style={{ height: '0.5px', background: 'var(--border)', margin: '4px 0' }} />
+        <SectionHead label="Label" />
+        {LABELS.map(l => (
+          <CheckRow key={l} label={LABEL_DISPLAY[l]} checked={filters.labels.includes(l)}
+            onToggle={() => setFilters({ ...filters, labels: toggle(filters.labels, l) })}
+          />
+        ))}
       </div>
-      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', padding: '8px 12px 4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Priority</div>
-      {['urgent','high','medium','low'].map(p => (
-        <CheckRow key={p} label={p.charAt(0).toUpperCase()+p.slice(1)} checked={filters.priorities.includes(p)}
-          onToggle={() => onChange({ ...filters, priorities: toggle(filters.priorities, p) })}
-          icon={<span style={{ marginRight: 2 }}><PriorityIndicator priority={p} /></span>}
-        />
-      ))}
-      <CheckRow label="No priority" checked={filters.priorities.includes('none')}
-        onToggle={() => onChange({ ...filters, priorities: toggle(filters.priorities, 'none') })}
-        icon={<span style={{ marginRight: 2 }}><PriorityIndicator priority={null} /></span>}
-      />
-      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', padding: '8px 12px 4px', textTransform: 'uppercase', letterSpacing: '0.06em', borderTop: '0.5px solid var(--border)', marginTop: 4 }}>Label</div>
-      {LABELS.map(l => (
-        <CheckRow key={l} label={LABEL_DISPLAY[l]} checked={filters.labels.includes(l)}
-          onToggle={() => onChange({ ...filters, labels: toggle(filters.labels, l) })}
-        />
-      ))}
-    </div>
+    </>
   )
 }
 
@@ -495,28 +464,27 @@ function DisplayPanel({ display, onChange, onClose }: {
       borderRadius: 8, width: 296, boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
       overflowY: 'auto', maxHeight: 'calc(100vh - 80px)',
     }}>
-      {/* List / Board toggle */}
       <div style={{ display: 'flex', gap: 6, padding: '10px 12px', borderBottom: '0.5px solid var(--border)' }}>
         {(['List', 'Board'] as const).map(v => {
-        const mode = v === 'List' ? 'list' : 'board'
-        const active = display.viewMode === mode
-        return (
-          <button key={v} onClick={() => onChange({ ...display, viewMode: mode })} style={{
-            flex: 1, padding: '6px 0', borderRadius: 6, fontSize: 13, cursor: 'pointer',
-            border: '0.5px solid var(--border)', fontFamily: 'var(--font)',
-            background: active ? 'var(--bg-secondary)' : 'transparent',
-            color: active ? 'var(--text)' : 'var(--text-tertiary)',
-            fontWeight: active ? 500 : 400,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-          }}>
-            {v === 'List'
-              ? <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1.5 3.5h10M1.5 6.5h10M1.5 9.5h10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
-              : <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="1" width="4.5" height="11" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="7.5" y="1" width="4.5" height="11" rx="1" stroke="currentColor" strokeWidth="1.2"/></svg>
-            }
-            {v}
-          </button>
-        )
-      })}
+          const mode = v === 'List' ? 'list' : 'board'
+          const active = display.viewMode === mode
+          return (
+            <button key={v} onClick={() => onChange({ ...display, viewMode: mode })} style={{
+              flex: 1, padding: '6px 0', borderRadius: 6, fontSize: 13, cursor: 'pointer',
+              border: '0.5px solid var(--border)', fontFamily: 'var(--font)',
+              background: active ? 'var(--bg-secondary)' : 'transparent',
+              color: active ? 'var(--text)' : 'var(--text-tertiary)',
+              fontWeight: active ? 500 : 400,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            }}>
+              {v === 'List'
+                ? <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1.5 3.5h10M1.5 6.5h10M1.5 9.5h10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+                : <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="1" width="4.5" height="11" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="7.5" y="1" width="4.5" height="11" rx="1" stroke="currentColor" strokeWidth="1.2"/></svg>
+              }
+              {v}
+            </button>
+          )
+        })}
       </div>
 
       <Row label="Grouping">
@@ -533,9 +501,7 @@ function DisplayPanel({ display, onChange, onClose }: {
       <Row label="Order completed by recency">
         <Toggle on={true} onToggle={() => {}} />
       </Row>
-
       <Sep />
-
       <Row label="Completed issues">
         <MiniSelect value="all" onChange={() => {}} options={[{ value: 'all', label: 'All' }, { value: 'none', label: 'None' }, { value: 'last7', label: 'Last 7 days' }]} />
       </Row>
@@ -545,20 +511,16 @@ function DisplayPanel({ display, onChange, onClose }: {
       <Row label="Show triage issues">
         <Toggle on={display.showTriageIssues} onToggle={() => onChange({ ...display, showTriageIssues: !display.showTriageIssues })} />
       </Row>
-
       <Sep />
       <SectionLabel label="List options" />
-
       <Row label="Nested tasks">
         <Toggle on={display.nestedTasks} onToggle={() => onChange({ ...display, nestedTasks: !display.nestedTasks })} />
       </Row>
       <Row label="Show empty groups">
         <Toggle on={display.showEmptyGroups} onToggle={() => onChange({ ...display, showEmptyGroups: !display.showEmptyGroups })} />
       </Row>
-
       <Sep />
       <SectionLabel label="Display properties" />
-
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '6px 16px 12px' }}>
         {allProps.map(({ key, label }) => (
           <button key={key}
@@ -573,7 +535,6 @@ function DisplayPanel({ display, onChange, onClose }: {
           >{label}</button>
         ))}
       </div>
-
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderTop: '0.5px solid var(--border)' }}>
         <button onClick={() => onChange(DEFAULT_DISPLAY)}
           style={{ fontSize: 13, color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--font)' }}>
@@ -589,10 +550,12 @@ function DisplayPanel({ display, onChange, onClose }: {
 
 const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3, '': 4 }
 
-function KanbanBoard({ issues, groupBy, displayProps }: {
+function KanbanBoard({ issues, groupBy, displayProps, selectedId, onSelect }: {
   issues: Issue[]
   groupBy: 'status' | 'priority' | 'none'
   displayProps: DisplayProps
+  selectedId: string | null
+  onSelect: (id: string) => void
 }) {
   const columns = groupBy === 'priority'
     ? [
@@ -613,7 +576,6 @@ function KanbanBoard({ issues, groupBy, displayProps }: {
 
         return (
           <div key={col.key} style={{ width: 240, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {/* Column header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 2px' }}>
               {groupBy === 'status'
                 ? <StatusCircle status={col.key} size={13} />
@@ -624,24 +586,24 @@ function KanbanBoard({ issues, groupBy, displayProps }: {
               <button style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', fontSize: 16, lineHeight: 1, padding: '0 4px' }}>+</button>
             </div>
 
-            {/* Cards */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {colIssues.map(issue => (
-                <a key={issue.id} href={`/admin/issues/${issue.id}`} style={{
-                  display: 'block', padding: '10px 12px', borderRadius: 8,
-                  border: '0.5px solid var(--border)', background: 'var(--bg)',
-                  textDecoration: 'none', color: 'var(--text)',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
-                }}
-                  onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--border-hover)')}
-                  onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
+                <a key={issue.id} href={`/admin/issues?id=${issue.id}`}
+                  onClick={e => { e.preventDefault(); onSelect(issue.id) }}
+                  style={{
+                    display: 'block', padding: '10px 12px', borderRadius: 8,
+                    border: `0.5px solid ${selectedId === issue.id ? '#2563eb' : 'var(--border)'}`,
+                    background: selectedId === issue.id ? 'var(--bg-secondary)' : 'var(--bg)',
+                    textDecoration: 'none', color: 'var(--text)',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={e => { if (selectedId !== issue.id) e.currentTarget.style.borderColor = 'var(--border-hover)' }}
+                  onMouseLeave={e => { if (selectedId !== issue.id) e.currentTarget.style.borderColor = 'var(--border)' }}
                 >
-                  {/* Title */}
                   <div style={{ fontSize: 13, lineHeight: 1.4, marginBottom: 8, color: 'var(--text)' }}>
                     {issue.title}
                   </div>
-
-                  {/* Bottom row */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     {displayProps.id && (
                       <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
@@ -676,7 +638,6 @@ function KanbanBoard({ issues, groupBy, displayProps }: {
                 </a>
               ))}
 
-              {/* Add card button */}
               <button style={{
                 display: 'flex', alignItems: 'center', gap: 6, width: '100%',
                 padding: '8px 10px', borderRadius: 8, border: '0.5px dashed var(--border)',
@@ -704,17 +665,55 @@ const DEFAULT_DISPLAY: DisplayState = {
 }
 
 export default function IssuesClient({ issues, pmEvents }: { issues: Issue[]; pmEvents: { id: string; name: string }[] }) {
+  const router = useRouter()
   const [view, setView] = useState<'all' | 'active' | 'backlog'>('all')
   const [showNew, setShowNew] = useState(false)
   const [showFilter, setShowFilter] = useState(false)
-  const [showDisplay, setShowDisplay] = useState(false)
   const [filters, setFilters] = useState<FilterState>({ priorities: [], labels: [] })
-  const [display, setDisplay] = useState<DisplayState>(DEFAULT_DISPLAY)
+  const [display] = useState<DisplayState>(DEFAULT_DISPLAY)
+
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [subIssues, setSubIssues] = useState<Issue[]>([])
+  const [loadingDetail, setLoadingDetail] = useState(false)
+
+  // Read initial selection from URL on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const id = params.get('id')
+    if (id) setSelectedId(id)
+  }, [])
+
+  // Fetch sub-issues when selection changes
+  const fetchSubIssues = useCallback(async (id: string) => {
+    setLoadingDetail(true)
+    try {
+      const res = await fetch(`/api/issues/${id}`)
+      const data = await res.json()
+      setSubIssues(data.subIssues ?? [])
+    } finally {
+      setLoadingDetail(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!selectedId) { setSubIssues([]); return }
+    fetchSubIssues(selectedId)
+  }, [selectedId, fetchSubIssues])
+
+  function selectIssue(id: string) {
+    setSelectedId(id)
+    window.history.replaceState(null, '', `/admin/issues?id=${id}`)
+  }
+
+  function clearSelection() {
+    setSelectedId(null)
+    window.history.replaceState(null, '', '/admin/issues')
+    router.refresh()
+  }
 
   const triageCount = issues.filter(i => i.status === 'triage').length
   const hasFilters = filters.priorities.length > 0 || filters.labels.length > 0
 
-  // Apply view + triage filter
   let filtered = issues.filter(i => {
     if (!display.showTriageIssues && i.status === 'triage') return false
     if (view === 'active') return ['todo', 'next_up', 'in_progress', 'waiting'].includes(i.status)
@@ -722,17 +721,13 @@ export default function IssuesClient({ issues, pmEvents }: { issues: Issue[]; pm
     return true
   })
 
-  // Apply user filters
   if (filters.priorities.length > 0) {
-    filtered = filtered.filter(i =>
-      filters.priorities.includes(i.priority ?? 'none')
-    )
+    filtered = filtered.filter(i => filters.priorities.includes(i.status))
   }
   if (filters.labels.length > 0) {
     filtered = filtered.filter(i => i.label && filters.labels.includes(i.label))
   }
 
-  // Apply ordering
   filtered = [...filtered].sort((a, b) => {
     if (display.orderBy === 'priority') return (PRIORITY_ORDER[a.priority ?? ''] ?? 4) - (PRIORITY_ORDER[b.priority ?? ''] ?? 4)
     if (display.orderBy === 'updated') return new Date(b.updated_at ?? b.created_at).getTime() - new Date(a.updated_at ?? a.created_at).getTime()
@@ -743,6 +738,8 @@ export default function IssuesClient({ issues, pmEvents }: { issues: Issue[]; pm
     acc[s] = filtered.filter(i => i.status === s)
     return acc
   }, {})
+
+  const selectedIssue = selectedId ? (issues.find(i => i.id === selectedId) ?? null) : null
 
   const tabStyle = (active: boolean): React.CSSProperties => ({
     padding: '5px 12px', fontSize: 13, background: 'none', border: 'none',
@@ -761,137 +758,125 @@ export default function IssuesClient({ issues, pmEvents }: { issues: Issue[]; pm
   })
 
   return (
-    <div style={{ fontFamily: 'var(--font)', position: 'relative' }}>
+    <div style={{ fontFamily: 'var(--font)', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 52px)', overflow: 'hidden' }}>
       {showNew && <NewIssueModal onClose={() => setShowNew(false)} pmEvents={pmEvents} />}
 
-      {/* Display panel — fixed, top-right, like Linear */}
-      {showDisplay && (
-        <>
-          <div style={{ position: 'fixed', inset: 0, zIndex: 199 }} onClick={() => setShowDisplay(false)} />
-          <div style={{ position: 'fixed', top: 52, right: 0, zIndex: 200 }}>
-            <DisplayPanel display={display} onChange={setDisplay} onClose={() => setShowDisplay(false)} />
-          </div>
-        </>
-      )}
-
-      {/* Top bar */}
+      {/* Top bar — full width */}
       <div style={{
         display: 'flex', alignItems: 'center',
         padding: '0 16px', height: 46,
         borderBottom: '0.5px solid var(--border)',
-        position: 'sticky', top: 0, background: 'var(--bg)', zIndex: 10,
+        background: 'var(--bg)', flexShrink: 0,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
           <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>WSE</span>
           <span style={{ color: 'var(--text-tertiary)', fontSize: 13 }}>›</span>
           <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>Issues</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          {/* Filter */}
-          <div style={{ position: 'relative' }}>
-            <button style={iconBtn(showFilter || hasFilters)}
-              onClick={() => { setShowFilter(o => !o); setShowDisplay(false) }}
-              onMouseEnter={e => { if (!showFilter && !hasFilters) e.currentTarget.style.background = 'var(--bg-secondary)' }}
-              onMouseLeave={e => { if (!showFilter && !hasFilters) e.currentTarget.style.background = 'none' }}
-            >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 3.5h11M3.5 7h7M5.5 10.5h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
-              {hasFilters && <span style={{ position: 'absolute', top: 3, right: 3, width: 6, height: 6, borderRadius: '50%', background: '#2563eb' }} />}
-            </button>
-            {showFilter && (
-              <>
-                <div style={{ position: 'fixed', inset: 0, zIndex: 199 }} onClick={() => setShowFilter(false)} />
-                <FilterPanel filters={filters} onChange={setFilters} onClose={() => setShowFilter(false)} />
-              </>
+        <button onClick={() => setShowNew(true)} style={{
+          display: 'inline-flex', alignItems: 'center', gap: 5,
+          padding: '5px 12px', borderRadius: 6, fontSize: 13,
+          background: '#2563eb', color: '#fff', border: 'none',
+          cursor: 'pointer', fontFamily: 'var(--font)', fontWeight: 500,
+        }}>+ New issue</button>
+      </div>
+
+      {/* Body — split pane */}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+
+        {/* Left panel — issue list */}
+        <div style={{
+          width: 440, flexShrink: 0,
+          borderRight: '0.5px solid var(--border)',
+          display: 'flex', flexDirection: 'column',
+          overflow: 'hidden',
+        }}>
+          {/* List header with filter */}
+          <div style={{ display: 'flex', alignItems: 'center', height: 40, padding: '0 12px', borderBottom: '0.5px solid var(--border)', flexShrink: 0 }}>
+            <span style={{ fontSize: 12, color: 'var(--text-tertiary)', flex: 1 }}>
+              {filtered.length} {filtered.length === 1 ? 'issue' : 'issues'}
+            </span>
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setShowFilter(o => !o)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  padding: '4px 9px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
+                  border: `0.5px solid ${hasFilters ? '#2563eb' : 'var(--border)'}`,
+                  background: hasFilters ? 'rgba(37,99,235,0.08)' : 'transparent',
+                  color: hasFilters ? '#2563eb' : 'var(--text-secondary)',
+                  fontFamily: 'var(--font)',
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 3h10M3 6h6M5 9h2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+                Filter{hasFilters ? ` (${filters.priorities.length + filters.labels.length + (view !== 'all' ? 1 : 0)})` : ''}
+              </button>
+              {showFilter && <IssueFilterPanel view={view} setView={setView} filters={filters} setFilters={setFilters} onClose={() => setShowFilter(false)} />}
+            </div>
+          </div>
+
+          {/* Scrollable list */}
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            {filtered.length === 0 ? (
+              <div style={{ padding: '80px 32px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 13 }}>
+                {hasFilters ? 'No issues match your filters.' : 'No issues'}
+              </div>
+            ) : display.viewMode === 'board' ? (
+              <div style={{ overflowX: 'auto', height: '100%' }}>
+                <KanbanBoard issues={filtered} groupBy={display.groupBy === 'none' ? 'status' : display.groupBy} displayProps={display.props} selectedId={selectedId} onSelect={selectIssue} />
+              </div>
+            ) : display.groupBy === 'status' ? (
+              STATUSES.map(s => {
+                if (!display.showEmptyGroups && grouped[s].length === 0) return null
+                return <StatusGroup key={s} status={s} issues={grouped[s]} defaultOpen={!['done', 'cancelled'].includes(s)} selectedId={selectedId} onSelect={selectIssue} />
+              })
+            ) : display.groupBy === 'priority' ? (
+              ['urgent', 'high', 'medium', 'low', ''].map(p => {
+                const group = filtered.filter(i => (i.priority ?? '') === p)
+                if (group.length === 0) return null
+                const label = p ? p.charAt(0).toUpperCase() + p.slice(1) : 'No priority'
+                return (
+                  <div key={p || 'none'}>
+                    <div style={{ display: 'flex', alignItems: 'center', height: 32, padding: '0 16px', borderBottom: '0.5px solid var(--border)', gap: 8 }}>
+                      <PriorityIndicator priority={p || null} />
+                      <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)' }}>{label}</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{group.length}</span>
+                    </div>
+                    {group.map(issue => <IssueRow key={issue.id} issue={issue} selected={selectedId === issue.id} onSelect={selectIssue} />)}
+                  </div>
+                )
+              })
+            ) : (
+              filtered.map(issue => <IssueRow key={issue.id} issue={issue} selected={selectedId === issue.id} onSelect={selectIssue} />)
             )}
           </div>
-
-          {/* Display */}
-          <button style={iconBtn(showDisplay)}
-            onClick={() => { setShowDisplay(o => !o); setShowFilter(false) }}
-            onMouseEnter={e => { if (!showDisplay) e.currentTarget.style.background = 'var(--bg-secondary)' }}
-            onMouseLeave={e => { if (!showDisplay) e.currentTarget.style.background = 'none' }}
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <circle cx="4" cy="7" r="1.5" stroke="currentColor" strokeWidth="1.3"/>
-              <path d="M1.5 7h1M5.5 7h7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-              <circle cx="10" cy="4" r="1.5" stroke="currentColor" strokeWidth="1.3"/>
-              <path d="M1.5 4h7M11.5 4h1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-              <circle cx="6" cy="10" r="1.5" stroke="currentColor" strokeWidth="1.3"/>
-              <path d="M1.5 10h3M7.5 10h5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-            </svg>
-          </button>
-
-          <div style={{ width: 1, height: 16, background: 'var(--border)', margin: '0 4px' }} />
-          <button onClick={() => setShowNew(true)} style={{
-            display: 'inline-flex', alignItems: 'center', gap: 5,
-            padding: '5px 12px', borderRadius: 6, fontSize: 13,
-            background: '#2563eb', color: '#fff', border: 'none',
-            cursor: 'pointer', fontFamily: 'var(--font)', fontWeight: 500,
-          }}>+ New issue</button>
         </div>
-      </div>
 
-      {/* Tabs + filter chips */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 2, padding: '6px 12px', borderBottom: '0.5px solid var(--border)', flexWrap: 'wrap' }}>
-        <button style={tabStyle(view === 'all')} onClick={() => setView('all')}>
-          All issues
-          {triageCount > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 16, height: 16, borderRadius: 8, fontSize: 10, fontWeight: 700, background: '#ef4444', color: '#fff', padding: '0 4px' }}>{triageCount}</span>}
-        </button>
-        <button style={tabStyle(view === 'active')} onClick={() => setView('active')}>Active</button>
-        <button style={tabStyle(view === 'backlog')} onClick={() => setView('backlog')}>Backlog</button>
-
-        {hasFilters && (
-          <div style={{ display: 'flex', gap: 4, marginLeft: 8, flexWrap: 'wrap' }}>
-            {filters.priorities.map(p => (
-              <span key={p} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, padding: '2px 8px', borderRadius: 20, border: '0.5px solid #2563eb', color: '#2563eb', background: 'rgba(37,99,235,0.08)' }}>
-                Priority: {p === 'none' ? 'None' : p}
-                <button onClick={() => setFilters(f => ({ ...f, priorities: f.priorities.filter(x => x !== p) }))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#2563eb', padding: 0, fontSize: 13, lineHeight: 1 }}>×</button>
-              </span>
-            ))}
-            {filters.labels.map(l => (
-              <span key={l} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, padding: '2px 8px', borderRadius: 20, border: '0.5px solid #2563eb', color: '#2563eb', background: 'rgba(37,99,235,0.08)' }}>
-                {LABEL_DISPLAY[l]}
-                <button onClick={() => setFilters(f => ({ ...f, labels: f.labels.filter(x => x !== l) }))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#2563eb', padding: 0, fontSize: 13, lineHeight: 1 }}>×</button>
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Issue list / board */}
-      {filtered.length === 0 ? (
-        <div style={{ padding: '80px 32px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 13 }}>
-          {hasFilters ? 'No issues match your filters.' : 'No issues'}
-        </div>
-      ) : display.viewMode === 'board' ? (
-        <div style={{ overflowX: 'auto', height: 'calc(100vh - 140px)' }}>
-          <KanbanBoard issues={filtered} groupBy={display.groupBy === 'none' ? 'status' : display.groupBy} displayProps={display.props} />
-        </div>
-      ) : display.groupBy === 'status' ? (
-        STATUSES.map(s => {
-          if (!display.showEmptyGroups && grouped[s].length === 0) return null
-          return <StatusGroup key={s} status={s} issues={grouped[s]} defaultOpen={!['done', 'cancelled'].includes(s)} displayProps={display.props} />
-        })
-      ) : display.groupBy === 'priority' ? (
-        ['urgent', 'high', 'medium', 'low', ''].map(p => {
-          const group = filtered.filter(i => (i.priority ?? '') === p)
-          if (!display.showEmptyGroups && group.length === 0) return null
-          if (group.length === 0) return null
-          const label = p ? p.charAt(0).toUpperCase() + p.slice(1) : 'No priority'
-          return (
-            <div key={p || 'none'}>
-              <div style={{ display: 'flex', alignItems: 'center', height: 34, padding: '0 16px', borderBottom: '0.5px solid var(--border)', gap: 8 }}>
-                <PriorityIndicator priority={p || null} />
-                <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{label}</span>
-                <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{group.length}</span>
-              </div>
-              {group.map(issue => <IssueRow key={issue.id} issue={issue} displayProps={display.props} />)}
+        {/* Right panel — issue detail */}
+        <div style={{ flex: 1, overflowY: 'auto', minWidth: 0 }}>
+          {selectedIssue ? (
+            <IssueDetailClient
+              key={selectedIssue.id}
+              issue={selectedIssue}
+              subIssues={loadingDetail ? [] : subIssues}
+              pmEvents={pmEvents}
+              onDelete={clearSelection}
+              onRefreshSubIssues={() => fetchSubIssues(selectedIssue.id)}
+            />
+          ) : (
+            <div style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              height: '100%', color: 'var(--text-tertiary)', fontSize: 13, gap: 8,
+            }}>
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none" style={{ opacity: 0.3 }}>
+                <rect x="4" y="4" width="24" height="24" rx="4" stroke="currentColor" strokeWidth="1.5"/>
+                <path d="M10 12h12M10 16h8M10 20h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+              <span>Select an issue to view details</span>
             </div>
-          )
-        })
-      ) : (
-        filtered.map(issue => <IssueRow key={issue.id} issue={issue} displayProps={display.props} />)
-      )}
+          )}
+        </div>
+      </div>
     </div>
   )
 }
