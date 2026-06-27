@@ -17,7 +17,7 @@ export type Issue = {
   created_at: string
   updated_at: string | null
   pm_event_id: string | null
-  pm_events: { id: string; name: string; date?: string | null } | null
+  pm_events: { id: string; name: string; start_date?: string | null } | null
   parent_issue_id: string | null
   source: string | null
   tasks?: { id: string; status: string }[]
@@ -222,8 +222,8 @@ function IssueRow({ issue, selected, onSelect }: {
 }) {
   const lc = LABEL_COLORS[issue.label ?? ''] ?? LABEL_COLORS['other']
   const eventName = issue.pm_events?.name
-  const eventDate = issue.pm_events?.date
-    ? new Date(issue.pm_events.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+  const eventDate = issue.pm_events?.start_date
+    ? new Date(issue.pm_events.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
     : null
 
   return (
@@ -722,7 +722,7 @@ export default function IssuesClient({ issues, pmEvents }: { issues: Issue[]; pm
   })
 
   if (filters.priorities.length > 0) {
-    filtered = filtered.filter(i => filters.priorities.includes(i.status))
+    filtered = filtered.filter(i => filters.priorities.includes(i.priority ?? ''))
   }
   if (filters.labels.length > 0) {
     filtered = filtered.filter(i => i.label && filters.labels.includes(i.label))

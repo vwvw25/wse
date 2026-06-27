@@ -25,14 +25,44 @@ function timeAgo(date: string) {
   return `${days}d ago`
 }
 
+function EmailBody({ html }: { html: string }) {
+  const isHtml = /<[a-z][\s\S]*>/i.test(html)
+  if (!isHtml) {
+    return (
+      <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+        {html}
+      </div>
+    )
+  }
+  const srcDoc = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+    body { margin: 0; padding: 0; font-family: -apple-system, sans-serif; font-size: 13px; color: #c8c9cc; background: transparent; }
+    a { color: #7aa9ff; }
+    img { max-width: 100%; height: auto; }
+  </style></head><body>${html}</body></html>`
+  return (
+    <iframe
+      srcDoc={srcDoc}
+      sandbox="allow-same-origin"
+      style={{ width: '100%', border: 'none', minHeight: 400, display: 'block' }}
+      onLoad={e => {
+        const iframe = e.currentTarget
+        const body = iframe.contentDocument?.body
+        if (body) iframe.style.height = body.scrollHeight + 'px'
+      }}
+    />
+  )
+}
+
 export default function NotAnIssueClient({ items }: { items: InboxItem[] }) {
   const router = useRouter()
   const { register } = useUndo()
-  const [selected, setSelected] = useState<InboxItem | null>(items[0] ?? null)
-  const [promoting, setPromoting] = useState<'triage' | 'issues' | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(items[0]?.id ?? null)
+  const [promoting, setPromoting] = useState<string | null>(null) // id being promoted
+
+  const selected = items.find(i => i.id === selectedId) ?? null
 
   async function handlePromote(id: string, destination: 'triage' | 'issues') {
-    setPromoting(destination)
+    setPromoting(id)
     if (destination === 'triage') {
       const { issueId } = await promoteToTriage(id) as { issueId: string | null }
       if (issueId) {
@@ -46,7 +76,7 @@ export default function NotAnIssueClient({ items }: { items: InboxItem[] }) {
     }
     const idx = items.findIndex(i => i.id === id)
     const next = items[idx + 1] ?? items[idx - 1] ?? null
-    setSelected(next)
+    setSelectedId(next?.id ?? null)
     setPromoting(null)
     router.refresh()
   }
@@ -65,9 +95,9 @@ export default function NotAnIssueClient({ items }: { items: InboxItem[] }) {
           {items.length === 0 ? (
             <div style={{ padding: '48px 16px', textAlign: 'center', fontSize: 13, color: 'var(--text-tertiary)' }}>Nothing here</div>
           ) : items.map(item => {
-            const isActive = item.id === selected?.id
+            const isActive = item.id === selectedId
             return (
-              <button key={item.id} onClick={() => setSelected(item)} style={{
+              <button key={item.id} onClick={() => setSelectedId(item.id)} style={{
                 display: 'block', width: '100%', textAlign: 'left',
                 padding: '10px 16px', border: 'none', borderBottom: '0.5px solid var(--border)',
                 background: isActive ? 'var(--bg-secondary)' : 'transparent',
@@ -103,13 +133,13 @@ export default function NotAnIssueClient({ items }: { items: InboxItem[] }) {
               </span>
               <button
                 onClick={() => handlePromote(selected.id, 'triage')}
-                disabled={promoting !== null}
+                disabled={promoting === selected.id}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 5,
                   padding: '4px 12px', borderRadius: 6, fontSize: 12,
                   border: '0.5px solid #34d399', background: 'transparent',
-                  color: '#34d399', cursor: promoting ? 'default' : 'pointer',
-                  fontFamily: 'var(--font)', opacity: promoting ? 0.5 : 1,
+                  color: '#34d399', cursor: promoting === selected.id ? 'default' : 'pointer',
+                  fontFamily: 'var(--font)', opacity: promoting === selected.id ? 0.5 : 1,
                 }}
               >
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 10V2M2 6l4-4 4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -117,13 +147,13 @@ export default function NotAnIssueClient({ items }: { items: InboxItem[] }) {
               </button>
               <button
                 onClick={() => handlePromote(selected.id, 'issues')}
-                disabled={promoting !== null}
+                disabled={promoting === selected.id}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 5,
                   padding: '4px 12px', borderRadius: 6, fontSize: 12,
                   border: '0.5px solid #60a5fa', background: 'transparent',
-                  color: '#60a5fa', cursor: promoting ? 'default' : 'pointer',
-                  fontFamily: 'var(--font)', opacity: promoting ? 0.5 : 1,
+                  color: '#60a5fa', cursor: promoting === selected.id ? 'default' : 'pointer',
+                  fontFamily: 'var(--font)', opacity: promoting === selected.id ? 0.5 : 1,
                 }}
               >
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.4"/><path d="M6 4v2.5l1.5 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -139,9 +169,7 @@ export default function NotAnIssueClient({ items }: { items: InboxItem[] }) {
               <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 4 }}>Subject</div>
               <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 24 }}>{selected.subject ?? '(no subject)'}</div>
 
-              <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
-                {selected.body ?? ''}
-              </div>
+              {selected.body ? <EmailBody html={selected.body} /> : null}
             </div>
           </>
         ) : (

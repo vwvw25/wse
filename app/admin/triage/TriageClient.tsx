@@ -555,8 +555,8 @@ export default function TriageClient({ issues, pmEvents }: { issues: Issue[]; pm
                   {(() => {
                     const lc = LABEL_COLORS[issue.label ?? ''] ?? LABEL_COLORS['other']
                     const eventName = (issue as any).pm_events?.name
-                    const eventDate = (issue as any).pm_events?.date
-                      ? new Date((issue as any).pm_events.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+                    const eventDate = (issue as any).pm_events?.start_date
+                      ? new Date((issue as any).pm_events.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
                       : null
                     return (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
