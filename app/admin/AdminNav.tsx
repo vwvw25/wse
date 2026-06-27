@@ -96,6 +96,11 @@ const BellIcon = () => <Ico>
   <path d="M6.5 13.5a1.5 1.5 0 003 0" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
 </Ico>
 
+const InboxIcon = () => <Ico>
+  <path d="M2 10.5h3.5l1 2h3l1-2H14" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+  <rect x="1.5" y="2.5" width="13" height="11" rx=".5" stroke="currentColor" strokeWidth="1.3"/>
+</Ico>
+
 // ── Nav links config ──────────────────────────────────────────────────────────
 
 type NavItem =
@@ -104,6 +109,7 @@ type NavItem =
 
 const navLinks: NavItem[] = [
   { href: '/admin',                        label: 'Dashboard',     icon: <HomeIcon /> },
+  { href: '/admin/needs-you',              label: 'Needs you',     icon: <InboxIcon /> },
   { href: '/admin/events',                 label: 'Events',        icon: <CalendarIcon /> },
   { href: '/admin/triage',                 label: 'Triage',        icon: <TriageIcon /> },
   { href: '/admin/triage/not-an-issue',    label: 'Not an issue',  icon: null, indent: true },

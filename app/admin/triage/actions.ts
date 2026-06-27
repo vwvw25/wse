@@ -181,3 +181,60 @@ export async function undoPromoteToTriage(issueId: string, gmailInboxId: string)
   await supabase.from('gmail_inbox').update({ agent_decision: 'not_an_issue_human', issue_id: null }).eq('id', gmailInboxId)
   await supabase.from('triage_evals').delete().eq('issue_id', issueId)
 }
+
+// Promote a not-an-issue inbox item directly to issues (todo)
+export async function promoteToIssues(gmailInboxId: string) {
+  const supabase = createServiceClient()
+
+  const { data: email } = await supabase
+    .from('gmail_inbox')
+    .select('*')
+    .eq('id', gmailInboxId)
+    .single()
+
+  if (!email) throw new Error('Inbox item not found')
+
+  const { data: issue } = await supabase
+    .from('issues')
+    .insert({
+      title: email.subject ?? 'Email from inbox',
+      description: `**From:** ${email.from_address}\n**Subject:** ${email.subject}\n\n---\n${email.body?.slice(0, 2000) ?? ''}`,
+      status: 'todo',
+      source: 'email',
+      gmail_inbox_id: gmailInboxId,
+      agent_is_issue: false,
+      agent_label: null,
+      agent_priority: null,
+      agent_title: email.subject ?? null,
+    })
+    .select('id')
+    .single()
+
+  await supabase.from('triage_evals').insert({
+    gmail_inbox_id: gmailInboxId,
+    issue_id: issue?.id ?? null,
+    agent_is_issue: false,
+    agent_label: null,
+    agent_priority: null,
+    agent_title: email.subject ?? null,
+    final_is_issue: true,
+    final_label: null,
+    final_priority: null,
+    final_title: email.subject ?? null,
+  })
+
+  await supabase
+    .from('gmail_inbox')
+    .update({ agent_decision: 'issue_human', issue_id: issue?.id ?? null })
+    .eq('id', gmailInboxId)
+
+  return { issueId: issue?.id ?? null }
+}
+
+// Undo promote-to-issues — delete issue, restore gmail_inbox
+export async function undoPromoteToIssues(issueId: string, gmailInboxId: string) {
+  const supabase = createServiceClient()
+  await supabase.from('issues').delete().eq('id', issueId)
+  await supabase.from('gmail_inbox').update({ agent_decision: 'not_an_issue_human', issue_id: null }).eq('id', gmailInboxId)
+  await supabase.from('triage_evals').delete().eq('issue_id', issueId)
+}

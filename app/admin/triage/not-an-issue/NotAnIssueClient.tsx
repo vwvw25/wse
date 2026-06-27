@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { promoteToTriage, undoPromoteToTriage } from '../actions'
+import { promoteToTriage, undoPromoteToTriage, promoteToIssues, undoPromoteToIssues } from '../actions'
 import { useUndo } from '../../UndoContext'
 
 type InboxItem = {
@@ -29,18 +29,25 @@ export default function NotAnIssueClient({ items }: { items: InboxItem[] }) {
   const router = useRouter()
   const { register } = useUndo()
   const [selected, setSelected] = useState<InboxItem | null>(items[0] ?? null)
-  const [promoting, setPromoting] = useState(false)
+  const [promoting, setPromoting] = useState<'triage' | 'issues' | null>(null)
 
-  async function handlePromote(id: string) {
-    setPromoting(true)
-    const { issueId } = await promoteToTriage(id) as { issueId: string | null }
-    if (issueId) {
-      register({ label: 'move to triage', perform: async () => { await undoPromoteToTriage(issueId, id); router.refresh() } })
+  async function handlePromote(id: string, destination: 'triage' | 'issues') {
+    setPromoting(destination)
+    if (destination === 'triage') {
+      const { issueId } = await promoteToTriage(id) as { issueId: string | null }
+      if (issueId) {
+        register({ label: 'move to triage', perform: async () => { await undoPromoteToTriage(issueId, id); router.refresh() } })
+      }
+    } else {
+      const { issueId } = await promoteToIssues(id) as { issueId: string | null }
+      if (issueId) {
+        register({ label: 'move to issues', perform: async () => { await undoPromoteToIssues(issueId, id); router.refresh() } })
+      }
     }
     const idx = items.findIndex(i => i.id === id)
     const next = items[idx + 1] ?? items[idx - 1] ?? null
     setSelected(next)
-    setPromoting(false)
+    setPromoting(null)
     router.refresh()
   }
 
@@ -95,8 +102,8 @@ export default function NotAnIssueClient({ items }: { items: InboxItem[] }) {
                 {selected.subject ?? '(no subject)'}
               </span>
               <button
-                onClick={() => handlePromote(selected.id)}
-                disabled={promoting}
+                onClick={() => handlePromote(selected.id, 'triage')}
+                disabled={promoting !== null}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 5,
                   padding: '4px 12px', borderRadius: 6, fontSize: 12,
@@ -107,6 +114,20 @@ export default function NotAnIssueClient({ items }: { items: InboxItem[] }) {
               >
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 10V2M2 6l4-4 4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 Move to triage
+              </button>
+              <button
+                onClick={() => handlePromote(selected.id, 'issues')}
+                disabled={promoting !== null}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  padding: '4px 12px', borderRadius: 6, fontSize: 12,
+                  border: '0.5px solid #60a5fa', background: 'transparent',
+                  color: '#60a5fa', cursor: promoting ? 'default' : 'pointer',
+                  fontFamily: 'var(--font)', opacity: promoting ? 0.5 : 1,
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.4"/><path d="M6 4v2.5l1.5 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                Move to issues
               </button>
             </div>
 
