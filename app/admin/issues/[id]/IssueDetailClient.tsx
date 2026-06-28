@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useTransition } from 'react'
 import { updateIssue, createIssue, deleteIssue } from '../actions'
+import { postIssueMessage } from './actions'
+import type { IssueMessage } from './actions'
 import { useRouter } from 'next/navigation'
 import { StatusCircle, STATUSES, STATUS_LABELS, STATUS_COLORS, LABELS, LABEL_DISPLAY } from '../IssuesClient'
 import type { Issue } from '../IssuesClient'
@@ -18,6 +20,46 @@ function timeAgo(date: string) {
   const hrs = Math.floor(mins / 60)
   if (hrs < 24) return `${hrs}h ago`
   return new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+}
+
+function ToolCallBlock({ call }: { call: IssueMessage['tool_calls'][0] }) {
+  const [open, setOpen] = useState(false)
+  const success = call.success !== false
+  return (
+    <div style={{ marginTop: 6, borderRadius: 6, overflow: 'hidden', border: `0.5px solid ${success ? 'rgba(52,211,153,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
+      <button onClick={() => setOpen(o => !o)} style={{
+        display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+        padding: '5px 10px', background: success ? 'rgba(52,211,153,0.08)' : 'rgba(239,68,68,0.08)',
+        border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font)',
+      }}>
+        <svg width="10" height="10" viewBox="0 0 10 10" style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s', flexShrink: 0 }}>
+          <path d="M3 2l4 3-4 3" stroke={success ? '#34d399' : '#ef4444'} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+        </svg>
+        <span style={{ fontSize: 11, color: success ? '#34d399' : '#ef4444', fontFamily: 'monospace' }}>{call.name}</span>
+        {!open && call.input && (
+          <span style={{ fontSize: 11, color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+            {typeof (call.input as any)?.command === 'string'
+              ? (call.input as any).command.slice(0, 80)
+              : JSON.stringify(call.input).slice(0, 80)}
+          </span>
+        )}
+      </button>
+      {open && (
+        <div style={{ padding: '8px 10px', background: 'var(--bg-secondary)', borderTop: `0.5px solid ${success ? 'rgba(52,211,153,0.2)' : 'rgba(239,68,68,0.2)'}` }}>
+          <div style={{ fontSize: 11, color: 'var(--text-secondary)', fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-all', marginBottom: call.output ? 8 : 0 }}>
+            {typeof (call.input as any)?.command === 'string'
+              ? (call.input as any).command
+              : JSON.stringify(call.input, null, 2)}
+          </div>
+          {call.output && (
+            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-all', borderTop: '0.5px solid var(--border)', paddingTop: 6, marginTop: 2 }}>
+              {call.output.slice(0, 1000)}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function PropPill({ label, icon, onClick }: { label: string; icon?: React.ReactNode; onClick?: () => void }) {
@@ -79,13 +121,15 @@ function EditablePropPill({ label, icon, options, value, onChange }: {
 }
 
 export default function IssueDetailClient({
-  issue, subIssues, pmEvents, onDelete, onRefreshSubIssues,
+  issue, subIssues, pmEvents, messages, onDelete, onRefreshSubIssues, onMessagePosted,
 }: {
   issue: Issue & { pm_events: { id: string; name: string } | null }
   subIssues: Issue[]
   pmEvents: { id: string; name: string }[]
+  messages: IssueMessage[]
   onDelete?: () => void
   onRefreshSubIssues?: () => void
+  onMessagePosted?: () => void
 }) {
   const router = useRouter()
   const [, startTransition] = useTransition()
@@ -305,29 +349,75 @@ export default function IssueDetailClient({
           </div>
         )}
 
-        {/* Activity */}
+        {/* Chat thread */}
         <div style={{ borderTop: '0.5px solid var(--border)', paddingTop: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Activity</span>
-          </div>
+          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', display: 'block', marginBottom: 16 }}>Activity</span>
+
+          {/* Created event */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, fontSize: 13, color: 'var(--text-tertiary)' }}>
             <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#fff', flexShrink: 0 }}>V</div>
             <span>Issue created · {timeAgo(issue.created_at)}</span>
           </div>
-          <div style={{ border: '0.5px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+
+          {/* Messages */}
+          {messages.map(msg => (
+            <div key={msg.id} style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+              <div style={{
+                width: 24, height: 24, borderRadius: '50%', flexShrink: 0, marginTop: 1,
+                background: msg.role === 'agent' ? '#7c3aed' : '#16a34a',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 10, fontWeight: 700, color: '#fff',
+              }}>
+                {msg.role === 'agent' ? 'AI' : 'V'}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
+                  <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>
+                    {msg.role === 'agent' ? 'CEO' : 'Victoria'}
+                  </span>
+                  <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{timeAgo(msg.created_at)}</span>
+                </div>
+                {msg.content && (
+                  <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6, whiteSpace: 'pre-wrap', marginBottom: msg.tool_calls?.length ? 6 : 0 }}>
+                    {msg.content}
+                  </div>
+                )}
+                {msg.tool_calls?.map((tc, i) => (
+                  <ToolCallBlock key={i} call={tc} />
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {/* Comment input */}
+          <div style={{ border: '0.5px solid var(--border)', borderRadius: 8, overflow: 'hidden', marginTop: 8 }}>
             <textarea
               placeholder="Leave a comment..."
               value={comment}
               onChange={e => setComment(e.target.value)}
+              onKeyDown={async e => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && comment.trim()) {
+                  e.preventDefault()
+                  await postIssueMessage(issue.id, comment)
+                  setComment('')
+                  onMessagePosted?.()
+                }
+              }}
               rows={3}
               style={{ width: '100%', padding: '12px 14px', fontSize: 13, border: 'none', background: 'transparent', color: 'var(--text)', outline: 'none', resize: 'none', fontFamily: 'var(--font)', boxSizing: 'border-box' }}
             />
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, padding: '8px 12px', borderTop: '0.5px solid var(--border)' }}>
-              <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', display: 'flex' }}>
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M12 6.5L6.5 12a3.5 3.5 0 01-4.95-4.95l5.5-5.5a2 2 0 012.83 2.83L4.5 9.5a.5.5 0 01-.71-.71L9 3.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
-              </button>
-              <button style={{ background: '#2563eb', border: 'none', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center' }}>
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6h8M6 2l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              <span style={{ fontSize: 11, color: 'var(--text-tertiary)', marginRight: 'auto' }}>⌘↵ to send</span>
+              <button
+                onClick={async () => {
+                  if (!comment.trim()) return
+                  await postIssueMessage(issue.id, comment)
+                  setComment('')
+                  onMessagePosted?.()
+                }}
+                style={{ background: '#2563eb', border: 'none', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', color: '#fff', fontSize: 12, fontFamily: 'var(--font)' }}
+              >
+                Send
               </button>
             </div>
           </div>

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { createIssue } from './actions'
+import { getIssueMessages, type IssueMessage } from './[id]/actions'
 import { useRouter } from 'next/navigation'
 import IssueDetailClient from './[id]/IssueDetailClient'
 
@@ -675,6 +676,7 @@ export default function IssuesClient({ issues, pmEvents }: { issues: Issue[]; pm
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [subIssues, setSubIssues] = useState<Issue[]>([])
   const [loadingDetail, setLoadingDetail] = useState(false)
+  const [messages, setMessages] = useState<IssueMessage[]>([])
 
   // Read initial selection from URL on mount
   useEffect(() => {
@@ -699,6 +701,11 @@ export default function IssuesClient({ issues, pmEvents }: { issues: Issue[]; pm
     if (!selectedId) { setSubIssues([]); return }
     fetchSubIssues(selectedId)
   }, [selectedId, fetchSubIssues])
+
+  useEffect(() => {
+    if (!selectedId) { setMessages([]); return }
+    getIssueMessages(selectedId).then(setMessages)
+  }, [selectedId])
 
   function selectIssue(id: string) {
     setSelectedId(id)
@@ -860,8 +867,10 @@ export default function IssuesClient({ issues, pmEvents }: { issues: Issue[]; pm
               issue={selectedIssue}
               subIssues={loadingDetail ? [] : subIssues}
               pmEvents={pmEvents}
+              messages={messages}
               onDelete={clearSelection}
               onRefreshSubIssues={() => fetchSubIssues(selectedIssue.id)}
+              onMessagePosted={() => getIssueMessages(selectedIssue.id).then(setMessages)}
             />
           ) : (
             <div style={{

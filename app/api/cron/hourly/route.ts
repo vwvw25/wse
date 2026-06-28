@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBaseUrl } from '@/lib/get-base-url'
+import { processInbox } from '@/app/api/agents/ceo/tools/process-inbox'
 
 /**
  * Combined hourly cron — runs reminders, onboarding-reminders, and email-health
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
     fetch(`${baseUrl}/api/cron/email-health`, { headers }),
     fetch(`${baseUrl}/api/cron/musician-payment-reminders`, { headers }),
     fetch(`${baseUrl}/api/cron/cascade`, { headers }),
-    fetch(`${baseUrl}/api/cron/process-inbox`, { method: 'POST', headers }),
+    processInbox(),
   ])
 
   const results = {
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest) {
     emailHealth: healthRes.status === 'fulfilled' ? await healthRes.value.json() : { error: String((healthRes as PromiseRejectedResult).reason) },
     musicianPayments: musicianPaymentsRes.status === 'fulfilled' ? await musicianPaymentsRes.value.json() : { error: String((musicianPaymentsRes as PromiseRejectedResult).reason) },
     cascade: cascadeRes.status === 'fulfilled' ? await cascadeRes.value.json() : { error: String((cascadeRes as PromiseRejectedResult).reason) },
-    inbox: inboxRes.status === 'fulfilled' ? await inboxRes.value.json() : { error: String((inboxRes as PromiseRejectedResult).reason) },
+    inbox: inboxRes.status === 'fulfilled' ? inboxRes.value : { error: String((inboxRes as PromiseRejectedResult).reason) },
   }
 
   return NextResponse.json({ ok: true, ...results })

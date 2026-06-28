@@ -1,4 +1,3 @@
-import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import Anthropic from '@anthropic-ai/sdk'
 
@@ -66,18 +65,14 @@ Priority guide:
   }
 }
 
-export async function POST(req: NextRequest) {
-  // Allow calls from push webhook (no auth header needed internally)
-  // and from cron (with Bearer token)
-  const authHeader = req.headers.get('authorization')
-  const isInternalCall = req.headers.get('x-internal') === '1'
-  if (!isInternalCall && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+export type ProcessInboxResult = {
+  processed: number
+  results: { id: string; title: string; label: string }[]
+}
 
+export async function processInbox(): Promise<ProcessInboxResult> {
   const supabase = createServiceClient()
 
-  // Fetch pending emails (limit 5 per run to stay within timeout)
   const { data: emails, error } = await supabase
     .from('gmail_inbox')
     .select('*')
@@ -85,20 +80,14 @@ export async function POST(req: NextRequest) {
     .order('created_at', { ascending: true })
     .limit(5)
 
-  if (error || !emails?.length) {
-    return NextResponse.json({ ok: true, processed: 0 })
-  }
+  if (error || !emails?.length) return { processed: 0, results: [] }
 
   let processed = 0
   const results: { id: string; title: string; label: string }[] = []
 
   for (const email of emails) {
     try {
-      // Mark as processing to avoid double-processing
-      await supabase
-        .from('gmail_inbox')
-        .update({ status: 'processing' })
-        .eq('id', email.id)
+      await supabase.from('gmail_inbox').update({ status: 'processing' }).eq('id', email.id)
 
       const classification = await classifyEmail(
         email.from_address ?? '',
@@ -106,9 +95,7 @@ export async function POST(req: NextRequest) {
         email.body ?? ''
       )
 
-      // Build issue title: use classified title, fall back to subject
       const title = classification.title || email.subject || 'New email'
-
       const isIssue = classification.label !== 'other'
       const agentDecision = isIssue ? 'triage' : 'not_an_issue'
       const finalLabel = isIssue ? classification.label : null
@@ -116,7 +103,6 @@ export async function POST(req: NextRequest) {
       let issueId: string | null = null
 
       if (isIssue) {
-        // Create triage issue, storing agent snapshot alongside
         const { data: issue } = await supabase
           .from('issues')
           .insert({
@@ -137,7 +123,6 @@ export async function POST(req: NextRequest) {
         issueId = issue?.id ?? null
       }
 
-      // Mark email with agent decision
       await supabase
         .from('gmail_inbox')
         .update({ status: 'done', agent_decision: agentDecision, issue_id: issueId })
@@ -147,18 +132,9 @@ export async function POST(req: NextRequest) {
       results.push({ id: email.id, title, label: classification.label })
     } catch (err) {
       console.error('Failed to process email', email.id, err)
-      // Reset to pending so it can be retried
-      await supabase
-        .from('gmail_inbox')
-        .update({ status: 'pending' })
-        .eq('id', email.id)
+      await supabase.from('gmail_inbox').update({ status: 'pending' }).eq('id', email.id)
     }
   }
 
-  return NextResponse.json({ ok: true, processed, results })
-}
-
-// Also allow GET for manual triggering
-export async function GET(req: NextRequest) {
-  return POST(req)
+  return { processed, results }
 }

@@ -218,7 +218,7 @@ export default function AgentClient({ agent, runs, skills, enabledSkillIds }: {
   async function runHeartbeat() {
     setRunningHeartbeat(true)
     try {
-      const res = await fetch(`/api/agents/${agent.slug}/heartbeat`, { method: 'POST' })
+      const res = await fetch(`/api/agents/ceo`, { method: 'POST' })
       const data = await res.json()
       if (data.ok) { setTab('runs'); router.refresh() }
     } finally {
