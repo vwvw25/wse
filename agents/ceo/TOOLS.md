@@ -10,9 +10,16 @@ Your environment has these variables available:
 
 ## Reading data (Supabase REST API)
 
-Query issues in triage:
+Query issues in triage (with full description so you can read the content):
 ```bash
-curl "$SUPABASE_URL/rest/v1/issues?status=eq.triage&select=id,title,label,priority,created_at" \
+curl "$SUPABASE_URL/rest/v1/issues?status=eq.triage&select=id,title,label,priority,description,created_at,source" \
+  -H "apikey: $SUPABASE_SERVICE_KEY" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_KEY"
+```
+
+Query open issues:
+```bash
+curl "$SUPABASE_URL/rest/v1/issues?status=in.(todo,in_progress,waiting)&select=id,title,label,priority,status,updated_at,created_at" \
   -H "apikey: $SUPABASE_SERVICE_KEY" \
   -H "Authorization: Bearer $SUPABASE_SERVICE_KEY"
 ```
