@@ -69,15 +69,16 @@ function NewIssueModal({ onClose, pmEvents }: { onClose: () => void; pmEvents: {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState('')
-  const [label, setLabel] = useState('')
+  const [selectedLabels, setSelectedLabels] = useState<string[]>([])
   const [createMore, setCreateMore] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [showLabelPicker, setShowLabelPicker] = useState(false)
   const router = useRouter()
 
   async function handleSubmit() {
     if (!title.trim() || saving) return
     setSaving(true)
-    await createIssue({ title: title.trim(), description: description || null, status: 'triage', priority: priority || null, label: label || null, source: 'manual' })
+    await createIssue({ title: title.trim(), description: description || null, status: 'triage', priority: priority || null, labels: selectedLabels.length ? selectedLabels : null, source: 'manual' })
     router.refresh()
     if (createMore) { setTitle(''); setDescription(''); setSaving(false) }
     else onClose()
@@ -138,10 +139,33 @@ function NewIssueModal({ onClose, pmEvents }: { onClose: () => void; pmEvents: {
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="4" r="2.5" stroke="currentColor" strokeWidth="1.2"/><path d="M1.5 11c0-2.5 2-4 4.5-4s4.5 1.5 4.5 4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
             Assignee
           </button>
-          <select value={label} onChange={e => setLabel(e.target.value)} style={{ ...pill(!!label), appearance: 'none' as any }}>
-            <option value="">Labels</option>
-            {LABELS.map(l => <option key={l} value={l}>{LABEL_DISPLAY[l]}</option>)}
-          </select>
+          <div style={{ position: 'relative' }}>
+            <button type="button" onClick={() => setShowLabelPicker(o => !o)} style={pill(selectedLabels.length > 0)}>
+              {selectedLabels.length === 0 ? 'Labels' : selectedLabels.length === 1 ? LABEL_DISPLAY[selectedLabels[0]] : `${selectedLabels.length} labels`}
+            </button>
+            {showLabelPicker && (
+              <>
+                <div style={{ position: 'fixed', inset: 0, zIndex: 1100 }} onClick={() => setShowLabelPicker(false)} />
+                <div style={{ position: 'absolute', bottom: '100%', left: 0, zIndex: 1200, background: 'var(--bg)', border: '0.5px solid var(--border)', borderRadius: 8, minWidth: 200, boxShadow: '0 8px 30px rgba(0,0,0,0.4)', padding: '6px 0', marginBottom: 4 }}>
+                  {LABELS.map(l => {
+                    const checked = selectedLabels.includes(l)
+                    return (
+                      <button key={l} type="button" onClick={() => setSelectedLabels(checked ? selectedLabels.filter(x => x !== l) : [...selectedLabels, l])}
+                        style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '5px 12px', border: 'none', background: 'transparent', color: 'var(--text)', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 13, textAlign: 'left' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-secondary)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        <div style={{ width: 14, height: 14, borderRadius: 3, border: `1.5px solid ${checked ? '#2563eb' : 'var(--border-hover)'}`, background: checked ? '#2563eb' : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {checked && <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1.5 4.5l2 2 4-4" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </div>
+                        {LABEL_DISPLAY[l]}
+                      </button>
+                    )
+                  })}
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Bottom bar */}
@@ -224,7 +248,7 @@ function IssueDetail({ issue, pmEvents, onAction }: {
         <PropPill label="Event" icon={
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.2"/></svg>
         } />
-        <PropPill label={issue.label ? LABEL_DISPLAY[issue.label] : 'Labels'} icon={
+        <PropPill label={(issue.labels ?? []).length === 0 ? 'Labels' : (issue.labels ?? []).length === 1 ? (LABEL_DISPLAY[(issue.labels ?? [])[0]] ?? (issue.labels ?? [])[0]) : `${(issue.labels ?? []).length} labels`} icon={
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 1h4.5l5.5 5.5-4.5 4.5L1 5.5V1z" stroke="currentColor" strokeWidth="1.2"/><circle cx="3.5" cy="3.5" r="0.8" fill="currentColor"/></svg>
         } />
       </div>
@@ -447,7 +471,7 @@ export default function TriageClient({ issues, pmEvents }: { issues: Issue[]; pm
   // Apply filters + sort
   let displayIssues = issues.filter(i => {
     if (filterPriorities.length > 0 && !filterPriorities.includes(i.priority ?? '')) return false
-    if (filterLabels.length > 0 && !filterLabels.includes(i.label ?? '')) return false
+    if (filterLabels.length > 0 && !(i.labels ?? []).some((l: string) => filterLabels.includes(l))) return false
     return true
   })
   displayIssues = [...displayIssues].sort((a, b) => {
@@ -553,7 +577,6 @@ export default function TriageClient({ issues, pmEvents }: { issues: Issue[]; pm
                   </div>
                   {/* Row 2: status dot | label | event | time */}
                   {(() => {
-                    const lc = LABEL_COLORS[issue.label ?? ''] ?? LABEL_COLORS['other']
                     const eventName = (issue as any).pm_events?.name
                     const eventDate = (issue as any).pm_events?.start_date
                       ? new Date((issue as any).pm_events.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
@@ -561,11 +584,10 @@ export default function TriageClient({ issues, pmEvents }: { issues: Issue[]; pm
                     return (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <StatusCircle status={issue.status} size={11} />
-                        {issue.label && (
-                          <span style={{ fontSize: 11, padding: '1px 7px', borderRadius: 20, background: lc.bg, color: lc.color, border: `0.5px solid ${lc.border}`, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                            {LABEL_DISPLAY[issue.label]}
-                          </span>
-                        )}
+                        {(issue.labels ?? []).slice(0, 2).map((l: string) => {
+                          const lc = LABEL_COLORS[l] ?? LABEL_COLORS['other']
+                          return <span key={l} style={{ fontSize: 11, padding: '1px 7px', borderRadius: 20, background: lc.bg, color: lc.color, border: `0.5px solid ${lc.border}`, whiteSpace: 'nowrap', flexShrink: 0 }}>{LABEL_DISPLAY[l] ?? l}</span>
+                        })}
                         {eventName && (
                           <span style={{ fontSize: 11, color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                             {eventName}{eventDate ? ` · ${eventDate}` : ''}

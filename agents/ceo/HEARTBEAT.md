@@ -36,6 +36,8 @@ NO (noise, spam, marketing, duplicate, self-sent, already resolved) → set stat
 
 If it requires Victoria to reply or make a decision: create a proposal (type: `approval` or `question`) AND move to `todo`.
 
+When updating issue labels, use `labels` (an array). Apply ALL that fit — multiple labels are correct. Use PATCH with `{"labels": ["quote_request", "contract"]}` etc. Labels: `quote_request`, `confirmation_email`, `contract_chaser`, `contract`, `booked_event_question`, `musician_invoice`, `client_invoice`, `marketing`, `document_request`, `loading_info`, `repertoire_request`.
+
 **What counts as NOT an issue (cancel these):**
 - Transactional/automated emails (bank notifications, payment confirmations, platform emails e.g. SumUp, Stripe)
 - Supplier spam or marketing (directory listings, supplier promotions e.g. Poptop)

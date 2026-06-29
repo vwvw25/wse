@@ -17,7 +17,7 @@ export default async function NeedsYouPage() {
   const { data: issues } = issueIds.length > 0
     ? await supabase
         .from('issues')
-        .select('id, number, title, status, priority, label, pm_event_id, pm_events(id, name, date)')
+        .select('id, number, title, status, priority, labels, pm_event_id, pm_events(id, name, date)')
         .in('id', issueIds)
     : { data: [] }
 

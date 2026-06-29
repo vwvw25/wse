@@ -7,13 +7,9 @@ import Anthropic from '@anthropic-ai/sdk'
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 const LABEL_OPTIONS = [
-  'quote_request',
-  'confirmation_email',
-  'contract_chaser',
-  'contract',
-  'booked_event_question',
-  'musician_invoice',
-  'other',
+  'quote_request', 'confirmation_email', 'contract_chaser', 'contract',
+  'booked_event_question', 'musician_invoice', 'client_invoice',
+  'marketing', 'document_request', 'loading_info', 'repertoire_request',
 ]
 
 const DEFAULT_PROMPT = `You are an assistant for a music entertainment agency called Ward Music Entertainment (WSE). Classify this incoming email.
@@ -25,20 +21,31 @@ Body (first 1500 chars):
 
 Respond with a JSON object only, no markdown:
 {
-  "label": one of ${LABEL_OPTIONS.join(' | ')},
+  "labels": [array of applicable labels — can be multiple, can be empty],
+  "is_issue": true or false,
   "priority": one of urgent | high | medium | low,
   "title": "action-oriented issue title: what needs to happen, who it involves, and the event/occasion if identifiable — do NOT use the email subject line, write something descriptive like 'Send musician list to Tiger at AOK for Rose Court ID set' or 'Chase contract signature from Marriott for June wedding'",
   "summary": "one sentence describing what this email is about and what needs to happen"
 }
 
-Label guide:
+Labels — apply ALL that fit:
 - quote_request: someone asking for a quote or enquiring about booking musicians
-- confirmation_email: client or venue confirming booking details
+- confirmation_email: a client or agent confirming a booking
 - contract_chaser: chasing for a signed contract
-- contract: a signed contract has been sent/received
-- booked_event_question: question about an already-booked event (logistics, timings, etc)
-- musician_invoice: a musician sending their invoice for payment
-- other: anything else (general queries, marketing, spam, etc)
+- contract: a signed contract has been sent or received
+- booked_event_question: question about an already-booked event (logistics, timings, etc.)
+- musician_invoice: a musician sending their invoice to WSE for payment
+- client_invoice: WSE sending an invoice to a client
+- marketing: a reply to WSE's own outreach — potential client or venue responding to something WSE sent
+- document_request: a request for a document (insurance, contract, rider, etc.)
+- loading_info: load-in/load-out or venue logistics information
+- repertoire_request: a client or venue asking about a setlist/repertoire
+
+is_issue — set to false for:
+- Bank/payment platform notifications (SumUp, Stripe, etc.)
+- Supplier spam or directory marketing not initiated by WSE
+- Self-sent test emails
+- Emails about events already fully resolved
 
 Priority guide:
 - urgent: needs action today (contract deadline, day-of issue, unpaid invoice overdue)
@@ -69,11 +76,11 @@ async function classifyEmail(from: string, subject: string, body: string, system
   const costUsd = (tokensIn / 1_000_000) * HAIKU_IN_PER_M + (tokensOut / 1_000_000) * HAIKU_OUT_PER_M
 
   const text = message.content[0].type === 'text' ? message.content[0].text : '{}'
-  let result: { label: string; priority: string; title: string; summary: string }
+  let result: { labels: string[]; is_issue: boolean; priority: string; title: string; summary: string }
   try {
     result = JSON.parse(text)
   } catch {
-    result = { label: 'other', priority: 'medium', title: subject || 'New email', summary: '' }
+    result = { labels: [], is_issue: true, priority: 'medium', title: subject || 'New email', summary: '' }
   }
 
   return { result, tokensIn, tokensOut, costUsd, duration }
@@ -138,7 +145,10 @@ export async function POST(req: NextRequest) {
       const { result: classification, tokensIn, tokensOut, costUsd, duration: durationMs } = await classifyEmail(
         from, subject, emailBody, systemPrompt
       )
-      const isIssue = classification.label !== 'other'
+      const isIssue = classification.is_issue !== false
+      const labels = Array.isArray(classification.labels)
+        ? classification.labels.filter((l: string) => LABEL_OPTIONS.includes(l))
+        : []
       const title = classification.title || subject || 'New email'
 
       // Store inbox record
@@ -158,11 +168,11 @@ export async function POST(req: NextRequest) {
           title,
           description: `**From:** ${from}\n**Subject:** ${subject}\n\n${classification.summary}\n\n---\n${emailBody.slice(0, 2000)}`,
           status: 'triage',
-          label: classification.label,
+          labels: labels.length ? labels : null,
           priority: classification.priority,
           source: 'email',
           gmail_inbox_id: inboxRow.id,
-          agent_label: classification.label,
+          agent_label: labels[0] ?? null,
           agent_priority: classification.priority,
           agent_title: title,
           agent_is_issue: true,
@@ -176,14 +186,14 @@ export async function POST(req: NextRequest) {
           agent_id: ceoAgent.id,
           trigger: 'email',
           input_summary: `From: ${from} | Subject: ${subject}`,
-          output_summary: `${classification.label} · ${classification.priority} · ${isIssue ? 'Created issue' : 'Not an issue'}`,
+          output_summary: `${labels.join(', ') || 'no label'} · ${classification.priority} · ${isIssue ? 'Created issue' : 'Not an issue'}`,
           tokens_in: tokensIn,
           tokens_out: tokensOut,
           cost_usd: costUsd,
           duration_ms: durationMs,
           model: 'claude-haiku-4-5-20251001',
           status: 'succeeded',
-          transcript: `Label: ${classification.label}\nPriority: ${classification.priority}\nTitle: ${classification.title}\nSummary: ${classification.summary}`,
+          transcript: `Labels: ${labels.join(', ') || 'none'}\nPriority: ${classification.priority}\nTitle: ${classification.title}\nSummary: ${classification.summary}`,
           issues_touched: issueId ? [issueId] : [],
         })
 

@@ -19,13 +19,14 @@ export async function GET(req: NextRequest) {
     'x-cron-secret': cronSecret,
   }
 
-  const [remindersRes, onboardingRes, healthRes, musicianPaymentsRes, cascadeRes, inboxRes] = await Promise.allSettled([
+  const [remindersRes, onboardingRes, healthRes, musicianPaymentsRes, cascadeRes, inboxRes, gmailWatchRes] = await Promise.allSettled([
     fetch(`${baseUrl}/api/cron/reminders`, { headers }),
     fetch(`${baseUrl}/api/cron/onboarding-reminders`, { headers }),
     fetch(`${baseUrl}/api/cron/email-health`, { headers }),
     fetch(`${baseUrl}/api/cron/musician-payment-reminders`, { headers }),
     fetch(`${baseUrl}/api/cron/cascade`, { headers }),
     processInbox(),
+    fetch(`${baseUrl}/api/gmail/watch?secret=${cronSecret}`),
   ])
 
   const results = {
@@ -35,6 +36,7 @@ export async function GET(req: NextRequest) {
     musicianPayments: musicianPaymentsRes.status === 'fulfilled' ? await musicianPaymentsRes.value.json() : { error: String((musicianPaymentsRes as PromiseRejectedResult).reason) },
     cascade: cascadeRes.status === 'fulfilled' ? await cascadeRes.value.json() : { error: String((cascadeRes as PromiseRejectedResult).reason) },
     inbox: inboxRes.status === 'fulfilled' ? inboxRes.value : { error: String((inboxRes as PromiseRejectedResult).reason) },
+    gmailWatch: gmailWatchRes.status === 'fulfilled' ? await gmailWatchRes.value.json() : { error: String((gmailWatchRes as PromiseRejectedResult).reason) },
   }
 
   return NextResponse.json({ ok: true, ...results })

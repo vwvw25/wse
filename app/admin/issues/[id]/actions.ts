@@ -7,7 +7,7 @@ export type IssueMessage = {
   issue_id: string
   role: 'agent' | 'user'
   content: string | null
-  tool_calls: { name: string; input: unknown; output?: string; success?: boolean }[]
+  tool_calls: { name: string; input: Record<string, unknown>; output?: string; success?: boolean }[]
   created_at: string
 }
 

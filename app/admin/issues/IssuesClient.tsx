@@ -12,7 +12,7 @@ export type Issue = {
   title: string
   status: string
   priority: string | null
-  label: string | null
+  labels: string[] | null
   description: string | null
   due_date: string | null
   created_at: string
@@ -31,6 +31,11 @@ export const LABEL_COLORS: Record<string, { bg: string; color: string; border: s
   contract:             { bg: 'rgba(167,139,250,0.1)', color: '#a78bfa', border: 'rgba(167,139,250,0.3)' },
   booked_event_question:{ bg: 'rgba(20,184,166,0.1)',  color: '#2dd4bf', border: 'rgba(45,212,191,0.3)' },
   musician_invoice:     { bg: 'rgba(234,179,8,0.1)',   color: '#fbbf24', border: 'rgba(251,191,36,0.3)' },
+  client_invoice:       { bg: 'rgba(16,185,129,0.1)',  color: '#10b981', border: 'rgba(16,185,129,0.3)' },
+  marketing:            { bg: 'rgba(236,72,153,0.1)',  color: '#ec4899', border: 'rgba(236,72,153,0.3)' },
+  document_request:     { bg: 'rgba(99,102,241,0.1)',  color: '#818cf8', border: 'rgba(129,140,248,0.3)' },
+  loading_info:         { bg: 'rgba(14,165,233,0.1)',  color: '#38bdf8', border: 'rgba(56,189,248,0.3)' },
+  repertoire_request:   { bg: 'rgba(168,85,247,0.1)',  color: '#c084fc', border: 'rgba(192,132,252,0.3)' },
   other:                { bg: 'var(--bg-secondary)',   color: 'var(--text-tertiary)', border: 'var(--border)' },
 }
 
@@ -44,11 +49,18 @@ export const STATUS_COLORS: Record<string, string> = {
   next_up: '#a78bfa', in_progress: '#f59e0b', waiting: '#f97316',
   done: '#34d399', cancelled: '#4b5563',
 }
-export const LABELS = ['quote_request', 'confirmation_email', 'contract_chaser', 'contract', 'booked_event_question', 'musician_invoice']
+export const LABELS = [
+  'quote_request', 'confirmation_email', 'contract_chaser', 'contract',
+  'booked_event_question', 'musician_invoice', 'client_invoice',
+  'marketing', 'document_request', 'loading_info', 'repertoire_request',
+]
 export const LABEL_DISPLAY: Record<string, string> = {
   quote_request: 'Quote Request', confirmation_email: 'Confirmation Email',
   contract_chaser: 'Contract Chaser', contract: 'Contract',
   booked_event_question: 'Booked Event Question', musician_invoice: 'Musician Invoice',
+  client_invoice: 'Client Invoice', marketing: 'Marketing',
+  document_request: 'Document Request', loading_info: 'Loading Info',
+  repertoire_request: 'Repertoire Request',
 }
 
 export function StatusCircle({ status, size = 14 }: { status: string; size?: number }) {
@@ -100,15 +112,16 @@ function NewIssueModal({ onClose, pmEvents }: { onClose: () => void; pmEvents: {
   const [description, setDescription] = useState('')
   const [status, setStatus] = useState('todo')
   const [priority, setPriority] = useState('')
-  const [label, setLabel] = useState('')
+  const [selectedLabels, setSelectedLabels] = useState<string[]>([])
   const [pmEventId, setPmEventId] = useState('')
   const [saving, setSaving] = useState(false)
+  const [showLabelPicker, setShowLabelPicker] = useState(false)
   const router = useRouter()
 
   async function handleSubmit() {
     if (!title.trim() || saving) return
     setSaving(true)
-    await createIssue({ title: title.trim(), description: description || null, status, priority: priority || null, label: label || null, pm_event_id: pmEventId || null, source: 'manual' })
+    await createIssue({ title: title.trim(), description: description || null, status, priority: priority || null, labels: selectedLabels.length ? selectedLabels : null, pm_event_id: pmEventId || null, source: 'manual' })
     router.refresh()
     onClose()
   }
@@ -178,10 +191,33 @@ function NewIssueModal({ onClose, pmEvents }: { onClose: () => void; pmEvents: {
             <option value="medium">Medium</option>
             <option value="low">Low</option>
           </select>
-          <select value={label} onChange={e => setLabel(e.target.value)} style={{ ...pill('', null, !!label), appearance: 'none' as any }}>
-            <option value="">Labels</option>
-            {LABELS.map(l => <option key={l} value={l}>{LABEL_DISPLAY[l]}</option>)}
-          </select>
+          <div style={{ position: 'relative' }}>
+            <button type="button" onClick={() => setShowLabelPicker(o => !o)} style={{ ...pill('', null, selectedLabels.length > 0) }}>
+              {selectedLabels.length === 0 ? 'Labels' : selectedLabels.length === 1 ? LABEL_DISPLAY[selectedLabels[0]] : `${selectedLabels.length} labels`}
+            </button>
+            {showLabelPicker && (
+              <>
+                <div style={{ position: 'fixed', inset: 0, zIndex: 1100 }} onClick={() => setShowLabelPicker(false)} />
+                <div style={{ position: 'absolute', bottom: '100%', left: 0, zIndex: 1200, background: 'var(--bg)', border: '0.5px solid var(--border)', borderRadius: 8, minWidth: 200, boxShadow: '0 8px 30px rgba(0,0,0,0.4)', padding: '6px 0', marginBottom: 4 }}>
+                  {LABELS.map(l => {
+                    const checked = selectedLabels.includes(l)
+                    return (
+                      <button key={l} type="button" onClick={() => setSelectedLabels(checked ? selectedLabels.filter(x => x !== l) : [...selectedLabels, l])}
+                        style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '5px 12px', border: 'none', background: 'transparent', color: 'var(--text)', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 13, textAlign: 'left' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-secondary)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        <div style={{ width: 14, height: 14, borderRadius: 3, border: `1.5px solid ${checked ? '#2563eb' : 'var(--border-hover)'}`, background: checked ? '#2563eb' : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {checked && <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1.5 4.5l2 2 4-4" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </div>
+                        {LABEL_DISPLAY[l]}
+                      </button>
+                    )
+                  })}
+                </div>
+              </>
+            )}
+          </div>
           <select value={pmEventId} onChange={e => setPmEventId(e.target.value)} style={{ ...pill('', null, !!pmEventId), appearance: 'none' as any }}>
             <option value="">Event</option>
             {pmEvents.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
@@ -221,7 +257,6 @@ function IssueRow({ issue, selected, onSelect }: {
   selected: boolean
   onSelect: (id: string) => void
 }) {
-  const lc = LABEL_COLORS[issue.label ?? ''] ?? LABEL_COLORS['other']
   const eventName = issue.pm_events?.name
   const eventDate = issue.pm_events?.start_date
     ? new Date(issue.pm_events.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
@@ -250,11 +285,11 @@ function IssueRow({ issue, selected, onSelect }: {
       {/* Row 2: status dot | label | event | time */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <StatusCircle status={issue.status} size={11} />
-        {issue.label && (
-          <span style={{ fontSize: 11, padding: '1px 7px', borderRadius: 20, background: lc.bg, color: lc.color, border: `0.5px solid ${lc.border}`, whiteSpace: 'nowrap', flexShrink: 0 }}>
-            {LABEL_DISPLAY[issue.label]}
-          </span>
-        )}
+        {(issue.labels ?? []).slice(0, 2).map(l => {
+          const lc = LABEL_COLORS[l] ?? LABEL_COLORS['other']
+          return <span key={l} style={{ fontSize: 11, padding: '1px 7px', borderRadius: 20, background: lc.bg, color: lc.color, border: `0.5px solid ${lc.border}`, whiteSpace: 'nowrap', flexShrink: 0 }}>{LABEL_DISPLAY[l] ?? l}</span>
+        })}
+        {(issue.labels?.length ?? 0) > 2 && <span style={{ fontSize: 11, color: 'var(--text-tertiary)', flexShrink: 0 }}>+{(issue.labels?.length ?? 0) - 2}</span>}
         {eventName && (
           <span style={{ fontSize: 11, color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
             {eventName}{eventDate ? ` · ${eventDate}` : ''}
@@ -617,11 +652,11 @@ function KanbanBoard({ issues, groupBy, displayProps, selectedId, onSelect }: {
                     {displayProps.status && groupBy === 'priority' && (
                       <StatusCircle status={issue.status} size={12} />
                     )}
-                    {displayProps.labels && issue.label && (
-                      <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 20, border: '0.5px solid var(--border)', color: 'var(--text-tertiary)' }}>
-                        {LABEL_DISPLAY[issue.label]}
+                    {displayProps.labels && (issue.labels ?? []).map(l => (
+                      <span key={l} style={{ fontSize: 10, padding: '1px 6px', borderRadius: 20, border: '0.5px solid var(--border)', color: 'var(--text-tertiary)' }}>
+                        {LABEL_DISPLAY[l] ?? l}
                       </span>
-                    )}
+                    ))}
                     {issue.tasks && issue.tasks.length > 0 && (
                       <span style={{ fontSize: 10, color: 'var(--text-tertiary)', marginLeft: 'auto' }}>
                         {issue.tasks.filter(s => s.status === 'done').length}/{issue.tasks.length}
@@ -732,7 +767,7 @@ export default function IssuesClient({ issues, pmEvents }: { issues: Issue[]; pm
     filtered = filtered.filter(i => filters.priorities.includes(i.priority ?? ''))
   }
   if (filters.labels.length > 0) {
-    filtered = filtered.filter(i => i.label && filters.labels.includes(i.label))
+    filtered = filtered.filter(i => (i.labels ?? []).some(l => filters.labels.includes(l)))
   }
 
   filtered = [...filtered].sort((a, b) => {
