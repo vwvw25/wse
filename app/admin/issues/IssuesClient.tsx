@@ -21,6 +21,7 @@ export type Issue = {
   pm_events: { id: string; name: string; start_date?: string | null } | null
   parent_issue_id: string | null
   source: string | null
+  assigned_agent_id: string | null
   tasks?: { id: string; status: string }[]
 }
 
@@ -700,7 +701,7 @@ const DEFAULT_DISPLAY: DisplayState = {
   props: { id: true, status: true, assignee: true, priority: true, dueDate: false, labels: true, created: true, updated: false },
 }
 
-export default function IssuesClient({ issues, pmEvents }: { issues: Issue[]; pmEvents: { id: string; name: string }[] }) {
+export default function IssuesClient({ issues, pmEvents, agents }: { issues: Issue[]; pmEvents: { id: string; name: string }[]; agents: { id: string; name: string; slug: string }[] }) {
   const router = useRouter()
   const [view, setView] = useState<'all' | 'active' | 'backlog'>('all')
   const [showNew, setShowNew] = useState(false)
@@ -902,6 +903,7 @@ export default function IssuesClient({ issues, pmEvents }: { issues: Issue[]; pm
               issue={selectedIssue}
               subIssues={loadingDetail ? [] : subIssues}
               pmEvents={pmEvents}
+              agents={agents}
               messages={messages}
               onDelete={clearSelection}
               onRefreshSubIssues={() => fetchSubIssues(selectedIssue.id)}

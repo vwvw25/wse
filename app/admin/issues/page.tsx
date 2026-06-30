@@ -14,5 +14,10 @@ export default async function IssuesPage() {
     .select('id, name')
     .order('name')
 
-  return <IssuesClient issues={issues ?? []} pmEvents={pmEvents ?? []} />
+  const { data: agents } = await supabase
+    .from('agents')
+    .select('id, name, slug')
+    .order('name')
+
+  return <IssuesClient issues={issues ?? []} pmEvents={pmEvents ?? []} agents={agents ?? []} />
 }

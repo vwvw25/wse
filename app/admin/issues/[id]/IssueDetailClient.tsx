@@ -82,11 +82,12 @@ function EditablePropPill({ label, icon, options, value, onChange }: {
 }
 
 export default function IssueDetailClient({
-  issue, subIssues, pmEvents, messages, onDelete, onRefreshSubIssues, onMessagePosted,
+  issue, subIssues, pmEvents, agents, messages, onDelete, onRefreshSubIssues, onMessagePosted,
 }: {
   issue: Issue & { pm_events: { id: string; name: string } | null }
   subIssues: Issue[]
   pmEvents: { id: string; name: string }[]
+  agents: { id: string; name: string; slug: string }[]
   messages: IssueMessage[]
   onDelete?: () => void
   onRefreshSubIssues?: () => void
@@ -99,8 +100,9 @@ export default function IssueDetailClient({
   const [status, setStatus] = useState(issue.status)
   const [priority, setPriority] = useState(issue.priority ?? '')
   const [labels, setLabels] = useState<string[]>(issue.labels ?? [])
-  const [showLabelPicker, setShowLabelPicker] = useState(false)
   const [pmEventId, setPmEventId] = useState(issue.pm_event_id ?? '')
+  const [assignedAgentId, setAssignedAgentId] = useState(issue.assigned_agent_id ?? '')
+  const [showLabelAdd, setShowLabelAdd] = useState(false)
   const [addingTask, setAddingTask] = useState(false)
   const [taskTitle, setTaskTitle] = useState('')
   const [comment, setComment] = useState('')
@@ -112,6 +114,7 @@ export default function IssueDetailClient({
     setPriority(issue.priority ?? '')
     setLabels(issue.labels ?? [])
     setPmEventId(issue.pm_event_id ?? '')
+    setAssignedAgentId(issue.assigned_agent_id ?? '')
   }, [issue.id])
 
   function save(fields: Record<string, unknown>) {
@@ -150,15 +153,28 @@ export default function IssueDetailClient({
     ...pmEvents.map(e => ({ value: e.id, label: e.name })),
   ]
 
+  const assigneeOptions = [
+    { value: '', label: 'Victoria' },
+    ...agents.map(a => ({ value: a.id, label: a.name })),
+  ]
+
   const currentStatusLabel = STATUS_LABELS[status] ?? status
   const currentPriorityLabel = priority ? priority.charAt(0).toUpperCase() + priority.slice(1) : 'Priority'
-  const currentLabelsLabel = labels.length === 0 ? 'Labels' : labels.length === 1 ? LABEL_DISPLAY[labels[0]] : `${labels.length} labels`
   const currentEventLabel = pmEventId ? (pmEvents.find(e => e.id === pmEventId)?.name ?? 'Event') : 'Event'
+  const currentAssigneeLabel = assignedAgentId ? (agents.find(a => a.id === assignedAgentId)?.name ?? 'Unknown') : 'Victoria'
 
-  function toggleLabel(l: string) {
-    const next = labels.includes(l) ? labels.filter(x => x !== l) : [...labels, l]
+  function removeLabel(l: string) {
+    const next = labels.filter(x => x !== l)
     setLabels(next)
     save({ labels: next.length ? next : null })
+  }
+
+  function addLabel(l: string) {
+    if (labels.includes(l)) return
+    const next = [...labels, l]
+    setLabels(next)
+    save({ labels: next })
+    setShowLabelAdd(false)
   }
 
   return (
@@ -202,9 +218,9 @@ export default function IssueDetailClient({
 
       {/* Properties strip */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 6,
+        display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap',
         padding: '8px 16px', borderBottom: '0.5px solid var(--border)',
-        flexShrink: 0, overflowX: 'auto',
+        flexShrink: 0,
       }}>
         <EditablePropPill
           label={currentStatusLabel}
@@ -215,16 +231,18 @@ export default function IssueDetailClient({
         />
         <EditablePropPill
           label={currentPriorityLabel}
-          icon={
-            <svg width="11" height="11" viewBox="0 0 11 11"><rect x="1" y="6" width="2" height="4" rx="0.5" fill="currentColor" opacity="0.4"/><rect x="4.5" y="3.5" width="2" height="6.5" rx="0.5" fill="currentColor" opacity="0.4"/><rect x="8" y="1" width="2" height="9" rx="0.5" fill="currentColor" opacity="0.4"/></svg>
-          }
+          icon={<svg width="11" height="11" viewBox="0 0 11 11"><rect x="1" y="6" width="2" height="4" rx="0.5" fill="currentColor" opacity="0.4"/><rect x="4.5" y="3.5" width="2" height="6.5" rx="0.5" fill="currentColor" opacity="0.4"/><rect x="8" y="1" width="2" height="9" rx="0.5" fill="currentColor" opacity="0.4"/></svg>}
           options={priorityOptions}
           value={priority}
           onChange={v => { setPriority(v); save({ priority: v || null }) }}
         />
-        <PropPill label="Vic" icon={
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="4.5" r="2.5" stroke="currentColor" strokeWidth="1.2"/><path d="M1 11c0-2.5 2.24-4 5-4s5 1.5 5 4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
-        } />
+        <EditablePropPill
+          label={currentAssigneeLabel}
+          icon={<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="4.5" r="2.5" stroke="currentColor" strokeWidth="1.2"/><path d="M1 11c0-2.5 2.24-4 5-4s5 1.5 5 4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>}
+          options={assigneeOptions}
+          value={assignedAgentId}
+          onChange={v => { setAssignedAgentId(v); save({ assigned_agent_id: v || null }) }}
+        />
         <EditablePropPill
           label={currentEventLabel}
           icon={<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.2"/></svg>}
@@ -232,32 +250,64 @@ export default function IssueDetailClient({
           value={pmEventId}
           onChange={v => { setPmEventId(v); save({ pm_event_id: v || null }) }}
         />
+
+        {/* Individual label pills */}
+        {labels.map(l => {
+          const lc = LABEL_COLORS[l] ?? LABEL_COLORS['other']
+          return (
+            <span key={l} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              padding: '3px 8px 3px 9px', borderRadius: 20, fontSize: 11,
+              background: lc.bg, color: lc.color, border: `0.5px solid ${lc.border}`,
+              whiteSpace: 'nowrap',
+            }}>
+              {LABEL_DISPLAY[l] ?? l}
+              <button onClick={() => removeLabel(l)} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: lc.color, padding: 0, lineHeight: 1, opacity: 0.7, fontSize: 13,
+              }}
+                onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                onMouseLeave={e => (e.currentTarget.style.opacity = '0.7')}
+              >×</button>
+            </span>
+          )
+        })}
+
+        {/* Add label button */}
         <div style={{ position: 'relative' }}>
-          <PropPill
-            label={currentLabelsLabel}
-            icon={<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 1h4.5l5.5 5.5-4.5 4.5L1 5.5V1z" stroke="currentColor" strokeWidth="1.2"/><circle cx="3.5" cy="3.5" r="0.8" fill="currentColor"/></svg>}
-            onClick={() => setShowLabelPicker(o => !o)}
-          />
-          {showLabelPicker && (
+          <button onClick={() => setShowLabelAdd(o => !o)} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            padding: '3px 8px', borderRadius: 6, fontSize: 11,
+            border: '0.5px dashed var(--border)', background: 'transparent',
+            color: 'var(--text-tertiary)', cursor: 'pointer', fontFamily: 'var(--font)',
+          }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-hover)'; e.currentTarget.style.color = 'var(--text-secondary)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-tertiary)' }}
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+            Label
+          </button>
+          {showLabelAdd && (
             <>
-              <div style={{ position: 'fixed', inset: 0, zIndex: 299 }} onClick={() => setShowLabelPicker(false)} />
+              <div style={{ position: 'fixed', inset: 0, zIndex: 299 }} onClick={() => setShowLabelAdd(false)} />
               <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 300, background: 'var(--bg)', border: '0.5px solid var(--border)', borderRadius: 8, minWidth: 200, boxShadow: '0 8px 30px rgba(0,0,0,0.4)', padding: '6px 0', marginTop: 4 }}>
-                {LABELS.map(l => {
-                  const checked = labels.includes(l)
+                {LABELS.filter(l => !labels.includes(l)).map(l => {
                   const lc = LABEL_COLORS[l] ?? LABEL_COLORS['other']
                   return (
-                    <button key={l} type="button" onClick={() => toggleLabel(l)}
+                    <button key={l} type="button" onClick={() => addLabel(l)}
                       style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '5px 12px', border: 'none', background: 'transparent', color: 'var(--text)', cursor: 'pointer', fontFamily: 'var(--font)', fontSize: 13, textAlign: 'left' }}
                       onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-secondary)')}
                       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                     >
-                      <div style={{ width: 14, height: 14, borderRadius: 3, border: `1.5px solid ${checked ? lc.color : 'var(--border-hover)'}`, background: checked ? lc.color : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {checked && <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1.5 4.5l2 2 4-4" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                      </div>
-                      <span style={{ color: checked ? lc.color : 'var(--text)' }}>{LABEL_DISPLAY[l] ?? l}</span>
+                      <span style={{ width: 10, height: 10, borderRadius: '50%', background: lc.color, flexShrink: 0, display: 'inline-block' }} />
+                      <span>{LABEL_DISPLAY[l] ?? l}</span>
                     </button>
                   )
                 })}
+                {LABELS.every(l => labels.includes(l)) && (
+                  <div style={{ padding: '8px 12px', fontSize: 12, color: 'var(--text-tertiary)' }}>All labels applied</div>
+                )}
               </div>
             </>
           )}
