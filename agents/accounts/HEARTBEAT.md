@@ -6,13 +6,23 @@ On each run, do the following in order.
 
 ## 1. Process new musician invoice issues
 
-Query issues with `labels` containing `musician_invoice` and `assigned_agent_id` is null (not yet picked up):
+Query issues assigned to you (the accounts agent) that are in triage or todo and haven't been processed yet. "Not yet processed" means no issue_messages with role=agent exist for this issue.
 
 ```bash
-curl "$SUPABASE_URL/rest/v1/issues?labels=cs.{musician_invoice}&assigned_agent_id=is.null&status=eq.triage&select=id,title,created_at" \
+curl "$SUPABASE_URL/rest/v1/issues?assigned_agent_id=eq.a48c0f24-f4c9-4e07-ba0f-ae14b21057bd&status=in.(triage,todo)&select=id,title,labels,created_at" \
   -H "apikey: $SUPABASE_SERVICE_KEY" \
   -H "Authorization: Bearer $SUPABASE_SERVICE_KEY"
 ```
+
+For each issue, check if you've already posted a message on it:
+```bash
+curl "$SUPABASE_URL/rest/v1/issue_messages?issue_id=eq.ISSUE_ID&role=eq.agent&select=id" \
+  -H "apikey: $SUPABASE_SERVICE_KEY" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_KEY"
+```
+
+If no agent messages exist yet, process it based on its labels:
+- `musician_invoice` → call the process-musician-invoice tool
 
 For each issue, call the process-musician-invoice tool:
 

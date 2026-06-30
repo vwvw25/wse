@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.wse.accounts-watcher</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/victoriaward/.nvm/versions/node/v20.20.0/bin/npx</string>
+    <string>tsx</string>
+    <string>/Users/victoriaward/Projects/wse/agents/accounts/watcher.ts</string>
+  </array>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/Users/victoriaward/.nvm/versions/node/v20.20.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>/Users/victoriaward/Projects/wse/agents/accounts/logs/watcher.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/victoriaward/Projects/wse/agents/accounts/logs/watcher.log</string>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <true/>
+</dict>
+</plist>

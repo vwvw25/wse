@@ -51,10 +51,14 @@ The issue description contains the raw email. Read it and determine:
 - `medium` — needs action this week (confirmation, general enquiry)
 - `low` — informational, no immediate action needed
 
-PATCH the issue with the new title, labels, and priority in one call:
+PATCH the issue with the new title, labels, priority, and assigned_agent_id in one call:
 ```
-{"title": "...", "labels": ["..."], "priority": "..."}
+{"title": "...", "labels": ["..."], "priority": "...", "assigned_agent_id": "AGENT_ID_OR_NULL"}
 ```
+
+Assign to agents as follows:
+- `musician_invoice` → accounts agent: `a48c0f24-f4c9-4e07-ba0f-ae14b21057bd`
+- All other labels → omit assigned_agent_id (leave null)
 
 ### Step 2 — Decide
 
