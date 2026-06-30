@@ -834,6 +834,20 @@ export default function SettingsPage() {
                 {monMessage && <span style={{ fontSize: 13, color: monMessage.type === 'success' ? '#166534' : '#b91c1c' }}>{monMessage.text}</span>}
               </div>
 
+              <div style={{ ...sectionHeaderStyle, marginTop: 32 }}>Gmail connection</div>
+              <div style={{ ...rowStyle, borderBottom: 'none' }}>
+                <span style={labelStyle}>
+                  Renew email token
+                  <span style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>Re-authorise Gmail access if emails stop coming through. Google expires this token periodically.</span>
+                </span>
+                <a
+                  href="/api/gmail/auth"
+                  style={{ padding: '6px 14px', fontSize: 13, fontWeight: 500, background: 'var(--bg)', color: 'var(--text)', border: '0.5px solid var(--border-hover)', borderRadius: 'var(--radius-sm)', textDecoration: 'none', flexShrink: 0, whiteSpace: 'nowrap' }}
+                >
+                  Reconnect Gmail
+                </a>
+              </div>
+
               <div style={{ ...sectionHeaderStyle, marginTop: 32 }}>Musician email templates</div>
               <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 12px' }}>Send a test version to the address above.</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
