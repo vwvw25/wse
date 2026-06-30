@@ -66,6 +66,47 @@ function extractBody(payload: any): string {
   return ''
 }
 
+export type GmailAttachment = {
+  partId: string
+  filename: string
+  mimeType: string
+  size: number
+  attachmentId: string
+}
+
+export function extractAttachments(message: any): GmailAttachment[] {
+  const attachments: GmailAttachment[] = []
+
+  function walk(parts: any[]) {
+    for (const part of parts ?? []) {
+      if (part.filename && part.body?.attachmentId) {
+        attachments.push({
+          partId: part.partId ?? '',
+          filename: part.filename,
+          mimeType: part.mimeType ?? 'application/octet-stream',
+          size: part.body.size ?? 0,
+          attachmentId: part.body.attachmentId,
+        })
+      }
+      if (part.parts) walk(part.parts)
+    }
+  }
+
+  walk(message.payload?.parts ?? [])
+  return attachments
+}
+
+export async function fetchAttachment(messageId: string, attachmentId: string, accessToken: string): Promise<Buffer> {
+  const res = await fetch(
+    `https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}/attachments/${attachmentId}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  )
+  const json = await res.json()
+  // Gmail returns base64url encoding
+  const base64 = (json.data as string).replace(/-/g, '+').replace(/_/g, '/')
+  return Buffer.from(base64, 'base64')
+}
+
 export async function registerGmailWatch(accessToken: string) {
   const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID!
   const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/watch', {

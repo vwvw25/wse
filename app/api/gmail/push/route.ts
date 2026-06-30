@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
-import { getGmailAccessToken, fetchEmailById, extractEmailText } from '@/lib/gmail'
+import { getGmailAccessToken, fetchEmailById, extractEmailText, extractAttachments } from '@/lib/gmail'
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
       if (labelIds.includes('SENT') || labelIds.includes('DRAFT')) continue
 
       const { subject, from, body: emailBody } = extractEmailText(full)
+      const attachments = extractAttachments(full)
 
       // Store the raw email — CEO will classify it on next heartbeat
       const { data: inboxRow } = await supabase.from('gmail_inbox').insert({
@@ -52,6 +53,8 @@ export async function POST(req: NextRequest) {
         subject,
         body: emailBody,
         status: 'pending',
+        has_attachments: attachments.length > 0,
+        attachment_ids: attachments.length > 0 ? attachments : null,
       }).select('id').single()
 
       if (inboxRow) {
