@@ -22,45 +22,6 @@ function timeAgo(date: string) {
   return new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 }
 
-function ToolCallBlock({ call }: { call: IssueMessage['tool_calls'][0] }) {
-  const [open, setOpen] = useState(false)
-  const success = call.success !== false
-  return (
-    <div style={{ marginTop: 6, borderRadius: 6, overflow: 'hidden', border: `0.5px solid ${success ? 'rgba(52,211,153,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
-      <button onClick={() => setOpen(o => !o)} style={{
-        display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-        padding: '5px 10px', background: success ? 'rgba(52,211,153,0.08)' : 'rgba(239,68,68,0.08)',
-        border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font)',
-      }}>
-        <svg width="10" height="10" viewBox="0 0 10 10" style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s', flexShrink: 0 }}>
-          <path d="M3 2l4 3-4 3" stroke={success ? '#34d399' : '#ef4444'} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-        </svg>
-        <span style={{ fontSize: 11, color: success ? '#34d399' : '#ef4444', fontFamily: 'monospace' }}>{call.name}</span>
-        {!open && call.input && (
-          <span style={{ fontSize: 11, color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-            {typeof (call.input as any)?.command === 'string'
-              ? (call.input as any).command.slice(0, 80)
-              : JSON.stringify(call.input).slice(0, 80)}
-          </span>
-        )}
-      </button>
-      {open && (
-        <div style={{ padding: '8px 10px', background: 'var(--bg-secondary)', borderTop: `0.5px solid ${success ? 'rgba(52,211,153,0.2)' : 'rgba(239,68,68,0.2)'}` }}>
-          <div style={{ fontSize: 11, color: 'var(--text-secondary)', fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-all', marginBottom: call.output ? 8 : 0 }}>
-            {typeof (call.input as any)?.command === 'string'
-              ? (call.input as any).command
-              : JSON.stringify(call.input, null, 2)}
-          </div>
-          {call.output && (
-            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-all', borderTop: '0.5px solid var(--border)', paddingTop: 6, marginTop: 2 }}>
-              {call.output.slice(0, 1000)}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
 
 function PropPill({ label, icon, onClick }: { label: string; icon?: React.ReactNode; onClick?: () => void }) {
   return (
@@ -403,13 +364,10 @@ export default function IssueDetailClient({
                   <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{timeAgo(msg.created_at)}</span>
                 </div>
                 {msg.content && (
-                  <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6, whiteSpace: 'pre-wrap', marginBottom: msg.tool_calls?.length ? 6 : 0 }}>
+                  <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
                     {msg.content}
                   </div>
                 )}
-                {msg.tool_calls?.map((tc, i) => (
-                  <ToolCallBlock key={i} call={tc} />
-                ))}
               </div>
             </div>
           ))}

@@ -23,10 +23,10 @@ export SUPABASE_SERVICE_KEY="$SUPABASE_SERVICE_ROLE_KEY"
 # Run Claude Code with the CEO instructions, pipe output through parser
 claude \
   --print \
+  --verbose \
   --output-format stream-json \
   --dangerously-skip-permissions \
   --system-prompt "$(cat "$SCRIPT_DIR/SOUL.md")" \
   "$(cat "$SCRIPT_DIR/HEARTBEAT.md")
 
-Your instruction files are at $SCRIPT_DIR — read AGENTS.md and TOOLS.md before starting work." \
-  | npx tsx "$SCRIPT_DIR/process-output.ts"
+Your instruction files are at $SCRIPT_DIR — read AGENTS.md and TOOLS.md before starting work."

@@ -10,48 +10,40 @@ Your environment has these variables available:
 
 ## Reading data (Supabase REST API)
 
-Query issues in triage (with full description so you can read the content):
+Query issues in triage (always include description — it contains the full email body):
 ```bash
-curl "$SUPABASE_URL/rest/v1/issues?status=eq.triage&select=id,title,label,priority,description,created_at,source" \
+curl "$SUPABASE_URL/rest/v1/issues?status=eq.triage&select=id,title,labels,priority,description,created_at,source" \
   -H "apikey: $SUPABASE_SERVICE_KEY" \
   -H "Authorization: Bearer $SUPABASE_SERVICE_KEY"
 ```
 
 Query open issues:
 ```bash
-curl "$SUPABASE_URL/rest/v1/issues?status=in.(todo,in_progress,waiting)&select=id,title,label,priority,status,updated_at,created_at" \
+curl "$SUPABASE_URL/rest/v1/issues?status=in.(todo,in_progress,waiting)&select=id,title,labels,priority,status,updated_at,created_at" \
   -H "apikey: $SUPABASE_SERVICE_KEY" \
   -H "Authorization: Bearer $SUPABASE_SERVICE_KEY"
 ```
 
-Count pending emails:
-```bash
-curl "$SUPABASE_URL/rest/v1/gmail_inbox?status=eq.pending&select=id" \
-  -H "apikey: $SUPABASE_SERVICE_KEY" \
-  -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" \
-  -H "Prefer: count=exact" \
-  -I
-```
-
 ---
 
-## Process inbox (classifies pending emails → creates triage issues)
+## Update an issue (status, title, labels, priority)
 
-```bash
-curl -X POST "$WSE_URL/api/agents/ceo/tools/process-inbox" \
-  -H "Authorization: Bearer $WSE_SECRET"
-```
-
----
-
-## Update an issue
-
+Use a single PATCH to set everything at once. For triage classification:
 ```bash
 curl -X PATCH "$SUPABASE_URL/rest/v1/issues?id=eq.ISSUE_ID" \
   -H "apikey: $SUPABASE_SERVICE_KEY" \
   -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"status": "todo", "priority": "high"}'
+  -d '{"title": "Chase contract from Marriott for June wedding", "labels": ["contract_chaser"], "priority": "high", "status": "todo"}'
+```
+
+To cancel a non-issue:
+```bash
+curl -X PATCH "$SUPABASE_URL/rest/v1/issues?id=eq.ISSUE_ID" \
+  -H "apikey: $SUPABASE_SERVICE_KEY" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"status": "cancelled"}'
 ```
 
 ---
