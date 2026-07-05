@@ -45,4 +45,8 @@ supabase
   })
   .subscribe(status => {
     console.log('[watcher] Realtime status:', status)
+    if (status === 'TIMED_OUT' || status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+      console.log('[watcher] Connection lost — exiting for launchd restart')
+      process.exit(1)
+    }
   })

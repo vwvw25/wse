@@ -73,16 +73,24 @@ NO → set status to `cancelled`
 - Self-sent test emails
 - Emails about events that are already resolved and closed
 
-If it requires Victoria to reply or make a decision: create a proposal (type: `approval` or `question`) AND move to `todo`.
+If it requires Victoria to reply or make a decision: create a proposal (type: `approval` or `question`) AND set status to `waiting`.
 
 ---
 
 ## 2. Review open issues
 
-Query issues with `status=in.(todo,in_progress,waiting)`. For each one, check:
-- Is it stalled more than 5 days with no update? → post a note, create a manual_action proposal
-- Is it linked to an event in the next 14 days? → flag if anything looks unresolved
-- Is it actually resolved? → set to `done`, post why
+Query issues with `status=in.(todo,in_progress,waiting)`. For each one:
+
+- **Is it actually resolved?** → set to `done`, post why
+- **Is it linked to an event in the next 14 days with something unresolved?** → flag it
+- **Is it `waiting` with no pending proposals?** → something is wrong. The issue is blocked but there is nothing for Victoria to act on. Post a note and create a manual_action proposal flagging this. (Check pending proposals: `agent_proposals?issue_id=eq.ISSUE_ID&status=eq.pending`)
+- **Is it `waiting` with pending proposals?** → correctly blocked, Victoria hasn't responded yet. Leave it entirely.
+- **Is it stalled in `todo` or `in_progress` more than 24h with no proposals and no messages?** → the assigned agent has not acted. Post a note and create a manual_action proposal flagging that nothing has happened. Set status to `waiting`.
+- **Is it stalled in `todo` or `in_progress` more than 5 days despite having agent messages?** → the agent is working it but it's dragging. Flag it only if there are no pending proposals already.
+
+**Rule: never create a proposal on an issue that is `waiting` with pending proposals already in the queue. Victoria is already looking at it.**
+
+**Rule: any time you create a proposal (of any type) on an issue, set that issue's status to `waiting` in the same step.** The query in step 2 skips `waiting` issues, so you will not return to it until Victoria responds. Never create a proposal and leave the issue in `todo` or `in_progress`.
 
 ---
 

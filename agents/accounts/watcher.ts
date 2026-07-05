@@ -9,8 +9,6 @@ function getEnv(key: string) {
   return match?.[1]?.trim() ?? ''
 }
 
-const supabase = createClient(getEnv('NEXT_PUBLIC_SUPABASE_URL'), getEnv('SUPABASE_SERVICE_ROLE_KEY'))
-
 const ACCOUNTS_AGENT_ID = 'a48c0f24-f4c9-4e07-ba0f-ae14b21057bd'
 const RUN_SCRIPT = path.join(__dirname, 'run.sh')
 let running = false
@@ -31,22 +29,32 @@ function triggerAccounts(reason: string) {
   }
 }
 
-console.log('[watcher] Starting — watching issues for accounts agent assignment...')
+function connect() {
+  const supabase = createClient(getEnv('NEXT_PUBLIC_SUPABASE_URL'), getEnv('SUPABASE_SERVICE_ROLE_KEY'))
 
-supabase
-  .channel('accounts-triggers')
-  .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'issues' }, payload => {
-    const p = payload.new as any
-    if (p.assigned_agent_id === ACCOUNTS_AGENT_ID) {
-      triggerAccounts(`issue assigned to accounts: ${p.id}`)
-    }
-  })
-  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'issues' }, payload => {
-    const p = payload.new as any
-    if (p.assigned_agent_id === ACCOUNTS_AGENT_ID) {
-      triggerAccounts(`new issue assigned to accounts: ${p.id}`)
-    }
-  })
-  .subscribe(status => {
-    console.log('[watcher] Realtime status:', status)
-  })
+  console.log('[watcher] Connecting to Supabase realtime...')
+
+  const channel = supabase
+    .channel('accounts-triggers')
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'issues' }, payload => {
+      const p = payload.new as any
+      if (p.assigned_agent_id === ACCOUNTS_AGENT_ID) {
+        triggerAccounts(`issue assigned to accounts: ${p.id}`)
+      }
+    })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'issues' }, payload => {
+      const p = payload.new as any
+      if (p.assigned_agent_id === ACCOUNTS_AGENT_ID) {
+        triggerAccounts(`new issue assigned to accounts: ${p.id}`)
+      }
+    })
+    .subscribe(status => {
+      console.log('[watcher] Realtime status:', status)
+      if (status === 'TIMED_OUT' || status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+        console.log('[watcher] Connection lost — exiting for launchd restart')
+        process.exit(1)
+      }
+    })
+}
+
+connect()
