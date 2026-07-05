@@ -39,7 +39,7 @@ function BandStatusBadge({ eventMusicians }: { eventMusicians?: { id: string; mu
 }
 
 function InvoiceBadge({ invoices, status }: { invoices?: { id: string; status: string }[] | null; status: string }) {
-  const CONFIRMED: string[] = ['confirmed_stc', 'contracted']
+  const CONFIRMED: string[] = ['confirmed_stc', 'contract_received', 'contracted']
   if (!CONFIRMED.includes(status)) return null
   const list = invoices ?? []
   if (list.length === 0) {
@@ -143,7 +143,7 @@ function KanbanCard({ ev }: { ev: EventRecord }) {
   )
 }
 
-const CONFIRMED_STATUSES: EventStatus[] = ['confirmed_stc', 'contracted']
+const CONFIRMED_STATUSES: EventStatus[] = ['confirmed_stc', 'contract_received', 'contracted']
 
 type FilterMode = 'all' | 'confirmed'
 

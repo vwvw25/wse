@@ -1,8 +1,11 @@
 'use client'
 
-import { useState, useTransition, useRef } from 'react'
+import { useState, useTransition, useRef, useEffect } from 'react'
 import { createEvent } from '../actions'
 import type { DressCodeTemplate } from '../../dress-codes/actions'
+import { EVENT_STATUSES } from '@/lib/event-statuses'
+import type { EventStatus } from '@/lib/event-statuses'
+import ContractStatusModal from '../ContractStatusModal'
 
 function Field({ label, hint, children, span2 }: { label: string; hint?: string; children: React.ReactNode; span2?: boolean }) {
   return (
@@ -93,6 +96,8 @@ export default function NewEventForm({ dressCodeTemplates }: { dressCodeTemplate
   const contractFileRef = useRef<HTMLInputElement>(null)
   const [parsing, setParsing] = useState(false)
   const [parseError, setParseError] = useState<string | null>(null)
+  const [status, setStatus] = useState<EventStatus>('enquiry')
+  const [showStatusPrompt, setShowStatusPrompt] = useState(false)
 
   async function handleContractUpload(file: File) {
     setParsing(true)
@@ -117,9 +122,10 @@ export default function NewEventForm({ dressCodeTemplates }: { dressCodeTemplate
       if (p.finish_time) setFinishTime(p.finish_time)
       if (p.load_out_time) setLoadOutTime(p.load_out_time)
       if (p.guests != null) setGuests(String(p.guests))
-      if (p.band_size) setBandSizeRequested(p.band_size)
-      if (p.sets_requested) setSetsRequested(p.sets_requested)
+      if (p.band_size) setBookedBandSize(p.band_size)
+      if (p.sets_requested) setBookedSets(p.sets_requested)
       if (p.fee != null) setBookedFee(String(p.fee))
+      setShowStatusPrompt(true)
     } catch (e: unknown) {
       setParseError(e instanceof Error ? e.message : 'Failed to parse contract')
     } finally {
@@ -127,10 +133,40 @@ export default function NewEventForm({ dressCodeTemplates }: { dressCodeTemplate
     }
   }
 
+  function handleStatusSelect(next: 'contract_received' | 'contracted') {
+    setStatus(next)
+    setShowStatusPrompt(false)
+  }
+
+  // Warn before leaving with unsaved input — this form only creates the event
+  // on submit, so there's nothing to autosave into until then.
+  const isDirty = !!(
+    agencyName || agentName || clientEmail || clientPhone ||
+    eventDate || eventType || guests ||
+    venueName || venueAddress || venuePostcode || location ||
+    arrivalTime || startTime || finishTime || loadOutTime ||
+    bandSizeRequested || setsRequested || bookedBandSize || bookedSets || bookedFee ||
+    dressCode || dressCodeTemplateId || idRequired || specialRequirements ||
+    food || foodNotes || source || sourceJobUrl
+  )
+  const submittedRef = useRef(false)
+
+  useEffect(() => {
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      if (isDirty && !submittedRef.current) {
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [isDirty])
+
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
     fd.set('is_agency', String(isAgency))
+    submittedRef.current = true
     startTransition(async () => {
       await createEvent(fd)
     })
@@ -182,6 +218,24 @@ export default function NewEventForm({ dressCodeTemplates }: { dressCodeTemplate
             {parsing ? 'Parsing contract…' : 'Fill from contract'}
           </button>
           {parseError && <span style={{ fontSize: 12, color: '#b91c1c' }}>{parseError}</span>}
+          {status !== 'enquiry' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{
+                fontSize: 11, fontWeight: 500, padding: '3px 9px', borderRadius: 6,
+                background: EVENT_STATUSES.find(s => s.value === status)?.bg,
+                color: EVENT_STATUSES.find(s => s.value === status)?.color,
+              }}>
+                {EVENT_STATUSES.find(s => s.value === status)?.label}
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowStatusPrompt(true)}
+                style={{ fontSize: 11, color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0, fontFamily: 'var(--font)' }}
+              >
+                change
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -198,6 +252,7 @@ export default function NewEventForm({ dressCodeTemplates }: { dressCodeTemplate
       />
 
       <form onSubmit={handleSubmit}>
+        <input type="hidden" name="status" value={status} />
         {/* Client type toggle */}
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 8 }}>Client type</div>
@@ -403,6 +458,8 @@ export default function NewEventForm({ dressCodeTemplates }: { dressCodeTemplate
           </button>
         </div>
       </form>
+
+      {showStatusPrompt && <ContractStatusModal onSelect={handleStatusSelect} />}
     </div>
   )
 }

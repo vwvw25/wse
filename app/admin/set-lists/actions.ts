@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createServiceClient } from '@/lib/supabase'
 import type { Song } from '@/types/set-list'
+import { logEventActivity } from '@/lib/event-activity'
 
 // ── Tag options ───────────────────────────────────────────────────────────────
 
@@ -74,9 +75,13 @@ export async function deleteSetList(id: string) {
 
 export async function renameSetList(id: string, name: string) {
   const supabase = createServiceClient()
+  const { data: setList } = await supabase.from('set_lists').select('event_id').eq('id', id).single()
   await supabase.from('set_lists').update({ name }).eq('id', id)
   revalidatePath('/admin/set-lists')
   revalidatePath(`/admin/set-lists/${id}`)
+  if (setList?.event_id) {
+    await logEventActivity(setList.event_id, { type: 'set_list_change', summary: `Set list renamed to "${name}"` })
+  }
 }
 
 // ── Set list songs ────────────────────────────────────────────────────────────
@@ -131,4 +136,9 @@ export async function applyTemplate(templateId: string, targetSetListId: string)
     songs.map(s => ({ set_list_id: targetSetListId, song_id: s.song_id, position: s.position, set_number: s.set_number })),
   )
   revalidatePath(`/admin/set-lists/${targetSetListId}`)
+
+  const { data: setList } = await supabase.from('set_lists').select('event_id, name').eq('id', targetSetListId).single()
+  if (setList?.event_id) {
+    await logEventActivity(setList.event_id, { type: 'set_list_change', summary: `Applied template to set list "${setList.name}"` })
+  }
 }

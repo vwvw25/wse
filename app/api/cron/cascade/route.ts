@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { triggerCascade } from '@/app/api/availability/respond/route'
 import { getBaseUrl } from '@/lib/get-base-url'
+import { logEventActivity } from '@/lib/event-activity'
 
 /**
  * Cascade cron — checks for musician invites where the deadline has passed
@@ -60,6 +61,13 @@ export async function GET(req: NextRequest) {
       .from('musician_invites')
       .update({ availability: 'deadline_expired' })
       .eq('id', invite.id)
+
+    if (slot?.event_id) {
+      await logEventActivity(slot.event_id, {
+        type: 'musician_change',
+        summary: `Invite for ${slot.instrument} expired without response`,
+      })
+    }
 
     // Update slot availability to tbc (clearing the stale 'tbc' isn't needed but make explicit)
     if (slot && slot.cascade_enabled !== false) {

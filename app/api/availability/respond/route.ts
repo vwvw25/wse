@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { sendEmail } from '@/lib/send-email'
 import { musicianFullName } from '@/types/musicians'
+import { logEventActivity } from '@/lib/event-activity'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 // ── Cascade helper ────────────────────────────────────────────────────────────
@@ -355,6 +356,12 @@ export async function POST(req: NextRequest) {
           .from('musician_invites')
           .update({ availability: 'deadline_expired' })
           .eq('token', token)
+        if (event.id) {
+          await logEventActivity(event.id, {
+            type: 'musician_change',
+            summary: `${musicianName} responded after the deadline for ${slot.instrument} — invite expired`,
+          })
+        }
         if (slot.cascade_enabled !== false) {
           triggerCascade({ supabase, slot, currentMusicianId: invite.musician_id as string, origin: req.nextUrl.origin }).catch(() => {})
         }
@@ -393,6 +400,13 @@ export async function POST(req: NextRequest) {
         .update({ availability: 'tbc', invite_status: null, reminder_status: null })
         .eq('token', token)
       throw new Error(`Slot update failed: ${slotUpdateError.message}`)
+    }
+
+    if (event.id) {
+      await logEventActivity(event.id, {
+        type: 'musician_change',
+        summary: `${musicianName} ${availability === 'yes' ? 'accepted' : 'declined'} the invite (${slot.instrument})`,
+      })
     }
 
     // Admin notification email — sent on every accept or decline

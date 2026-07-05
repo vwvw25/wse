@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase'
 import { musicianFullName } from '@/types/musicians'
 import { sendEmail } from '@/lib/send-email'
 import { getBaseUrl } from '@/lib/get-base-url'
+import { logEventActivity } from '@/lib/event-activity'
 
 function formatDate(d: string | null) {
   if (!d) return '—'
@@ -241,6 +242,13 @@ export async function GET(req: NextRequest) {
           availability: 'reminder_sent',
         })
         .eq('id', invite.id)
+
+      if (result.ok && event.id) {
+        await logEventActivity(event.id, {
+          type: 'musician_change',
+          summary: `Reminder email sent to ${musicianName} (${slot.instrument})`,
+        })
+      }
 
       sent++
     } catch (err) {

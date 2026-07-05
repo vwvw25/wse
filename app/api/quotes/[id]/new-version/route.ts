@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
+import { logEventActivity } from '@/lib/event-activity'
 
 export async function POST(
   _req: NextRequest,
@@ -41,6 +42,10 @@ export async function POST(
 
   if (insertErr || !newQuote) {
     return NextResponse.json({ error: 'Failed to create new version' }, { status: 500 })
+  }
+
+  if (source.event_id) {
+    await logEventActivity(source.event_id, { type: 'quote_change', summary: `Quote revised to v${(source.version ?? 1) + 1}` })
   }
 
   return NextResponse.json({ id: newQuote.id })

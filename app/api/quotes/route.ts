@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { calculate, DEFAULT_SETTINGS } from '@/lib/calculations'
 import type { QuoteInputs, Settings } from '@/types/quote'
+import { logEventActivity } from '@/lib/event-activity'
 
 export async function POST(req: NextRequest) {
   try {
@@ -42,6 +43,7 @@ export async function POST(req: NextRequest) {
         .from('events')
         .update({ status: 'quoted' })
         .eq('id', event_id)
+      await logEventActivity(event_id, { type: 'quote_change', summary: 'Quote sent' })
     }
 
     return NextResponse.json({ id: data.id })

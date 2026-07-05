@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase'
 import { musicianFullName } from '@/types/musicians'
 import { sendEmail } from '@/lib/send-email'
 import { getBaseUrl } from '@/lib/get-base-url'
+import { logEventActivity } from '@/lib/event-activity'
 
 function formatDate(d: string | null) {
   if (!d) return '—'
@@ -238,6 +239,13 @@ export async function POST(req: NextRequest) {
         availability: result.ok ? 'email_sent' : 'tbc',
       })
       .eq('id', invite.id)
+
+    if (result.ok) {
+      await logEventActivity(event.id, {
+        type: 'musician_change',
+        summary: `Invite email sent to ${musicianName} (${slot.instrument})`,
+      })
+    }
 
     return NextResponse.json({ ok: true })
   } catch (err) {

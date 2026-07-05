@@ -3,7 +3,16 @@
 import { createServiceClient } from '@/lib/supabase'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { EVENT_STATUSES } from '@/lib/event-statuses'
 import type { EventStatus } from '@/lib/event-statuses'
+import { logEventActivity } from '@/lib/event-activity'
+
+export async function addEventComment(eventId: string, text: string) {
+  const trimmed = text.trim()
+  if (!trimmed) return
+  await logEventActivity(eventId, { type: 'comment', summary: trimmed })
+  revalidatePath(`/admin/events/${eventId}`)
+}
 
 export async function updateEventStatus(eventId: string, status: EventStatus) {
   const supabase = createServiceClient()
@@ -20,40 +29,12 @@ export interface ContractFlag {
   event_value: string
 }
 
+// Labels for the request_details fields that a contract review can touch —
+// these live inside a JSONB blob, so the events-table trigger can't see into
+// them and diff them automatically the way it does for plain columns.
 const FIELD_LABELS: Record<string, string> = {
-  event_date: 'Event date',
-  agency_name: 'Agency',
-  agent_name: 'Agent',
-  client_email: 'Client email',
-  venue_name: 'Venue',
-  venue_address: 'Venue address',
-  venue_postcode: 'Postcode',
-  location: 'Location',
-  guests: 'Guests',
-  arrival_time: 'Arrival time',
-  start_time: 'Start time',
-  finish_time: 'Finish time',
-  load_out_time: 'Load out time',
   band_size_requested: 'Band size',
   sets_requested: 'Sets',
-}
-
-async function logFieldChange(
-  supabase: ReturnType<typeof import('@/lib/supabase').createServiceClient>,
-  eventId: string,
-  field: string,
-  oldValue: string | null | undefined,
-  newValue: string | number | null,
-  source: string,
-) {
-  await supabase.from('event_activity_log').insert({
-    event_id: eventId,
-    field,
-    field_label: FIELD_LABELS[field] ?? field,
-    old_value: oldValue ?? null,
-    new_value: newValue != null ? String(newValue) : null,
-    source,
-  })
 }
 
 export async function saveContractReview(
@@ -77,7 +58,10 @@ export async function saveContractReview(
     }
   }
 
-  // Merge request_details if needed
+  // Merge request_details if needed, and log those changes explicitly — they
+  // live inside a JSONB blob the events-table trigger can't see into. Plain
+  // top-level fields in eventUpdate are logged automatically by that trigger
+  // once the update below lands, so no manual logging is needed for those.
   let currentRd: Record<string, unknown> = {}
   if (Object.keys(rdUpdate).length > 0) {
     const { data: current } = await supabase
@@ -87,21 +71,18 @@ export async function saveContractReview(
       .single()
     currentRd = current?.request_details ?? {}
     eventUpdate.request_details = { ...currentRd, ...rdUpdate }
-  }
 
-  // Fetch current event values for the activity log
-  const { data: currentEvent0 } = await supabase.from('events').select('*').eq('id', eventId).single()
-
-  // Log accepted field changes
-  const logPromises: Promise<unknown>[] = []
-  for (const [key, newValue] of Object.entries(acceptedFields)) {
-    const isRd = RD_FIELDS.includes(key)
-    const oldValue = isRd
-      ? String((currentRd[key] ?? currentEvent0?.request_details?.[key]) ?? '')
-      : String((currentEvent0?.[key as keyof typeof currentEvent0] ?? '') ?? '')
-    logPromises.push(logFieldChange(supabase, eventId, key, oldValue || null, newValue, 'contract_review'))
+    await Promise.all(Object.entries(rdUpdate).map(([key, newValue]) =>
+      logEventActivity(eventId, {
+        type: 'field_change',
+        field: key,
+        fieldLabel: FIELD_LABELS[key] ?? key,
+        oldValue: currentRd[key] != null ? String(currentRd[key]) : null,
+        newValue: newValue != null ? String(newValue) : null,
+        source: 'contract_review',
+      })
+    ))
   }
-  await Promise.all(logPromises)
 
   // Fetch current contract so we can preserve file info and attachments
   const { data: currentEvent } = await supabase.from('events').select('contract').eq('id', eventId).single()
@@ -148,6 +129,7 @@ export async function saveContractParsed(
       },
     })
     .eq('id', eventId)
+  await logEventActivity(eventId, { type: 'contract_change', summary: 'Contract uploaded' })
   revalidatePath(`/admin/events/${eventId}`)
 }
 
@@ -173,17 +155,25 @@ export async function acceptContractFlag(eventId: string, flag: ContractFlag) {
   // Apply the contract value to the event
   const RD_FIELDS = ['band_size_requested', 'sets_requested']
   const eventUpdate: Record<string, unknown> = {}
+  const isRd = RD_FIELDS.includes(flag.field === 'band_size' ? 'band_size_requested' : flag.field)
 
-  if (RD_FIELDS.includes(flag.field === 'band_size' ? 'band_size_requested' : flag.field)) {
+  if (isRd) {
+    // request_details is a JSONB blob the events-table trigger can't diff, so log explicitly.
     const rdKey = flag.field === 'band_size' ? 'band_size_requested' : flag.field
     const { data: current } = await supabase.from('events').select('request_details').eq('id', eventId).single()
     eventUpdate.request_details = { ...(current?.request_details ?? {}), [rdKey]: flag.contract_value }
+    await logEventActivity(eventId, {
+      type: 'field_change',
+      field: rdKey,
+      fieldLabel: FIELD_LABELS[rdKey] ?? rdKey,
+      oldValue: flag.event_value || null,
+      newValue: flag.contract_value,
+      source: 'contract_review',
+    })
   } else {
+    // Plain top-level column — the events-table trigger logs this automatically on update.
     eventUpdate[flag.field] = flag.contract_value
   }
-
-  // Log the change
-  await logFieldChange(supabase, eventId, flag.field, flag.event_value || null, flag.contract_value, 'contract_review')
 
   // Remove the flag
   const { data } = await supabase.from('events').select('contract').eq('id', eventId).single()
@@ -233,85 +223,88 @@ export async function deleteEvent(eventId: string) {
   redirect('/admin/events')
 }
 
-export async function updateEvent(eventId: string, formData: FormData) {
+export interface UpdateEventData {
+  is_agency: boolean
+  agency_name: string | null
+  agent_name: string | null
+  agent_first_name: string | null
+  agent_surname: string | null
+  client_email: string | null
+  client_phone: string | null
+  source: string | null
+  source_job_url: string | null
+  event_date: string | null
+  venue_name: string | null
+  venue_postcode: string | null
+  venue_address: string | null
+  location: string | null
+  start_time: string | null
+  finish_time: string | null
+  arrival_time: string | null
+  load_out_time: string | null
+  guests: number | null
+  food: 'yes' | 'no' | 'tbc' | null
+  food_notes: string | null
+  dress_code: string | null
+  dress_code_template_id: string | null
+  id_required: boolean | null
+  booked_band_template_id: string | null
+  booked_lineup: string | null
+  booked_sets: string | null
+  band_size_requested: string | null
+  sets_requested: string | null
+  special_requirements: string | null
+  sound_requirements: string | null
+  notes: string | null
+  roaming_requested: boolean
+}
+
+// Autosaves the full edit form — called on every debounced field change, so it
+// must not redirect (the caller stays on the edit page for the whole session).
+export async function updateEvent(eventId: string, data: UpdateEventData) {
   const supabase = createServiceClient()
 
-  const isAgency = formData.get('is_agency') === 'true'
-  const agencyName = (formData.get('agency_name') as string)?.trim() || null
-  const agentName = (formData.get('agent_name') as string)?.trim() || null
-  const agentFirstName = (formData.get('agent_first_name') as string)?.trim() || null
-  const agentSurname = (formData.get('agent_surname') as string)?.trim() || null
-  const clientEmail = (formData.get('client_email') as string)?.trim() || null
-  const clientPhone = (formData.get('client_phone') as string)?.trim() || null
-  const source = (formData.get('source') as string)?.trim() || null
-  const sourceJobUrl = (formData.get('source_job_url') as string)?.trim() || null
-  const eventDate = (formData.get('event_date') as string) || null
-  const venueName = (formData.get('venue_name') as string)?.trim() || null
-  const venuePostcode = (formData.get('venue_postcode') as string)?.trim() || null
-  const venueAddress = (formData.get('venue_address') as string)?.trim() || null
-  const location = (formData.get('location') as string)?.trim() || null
-  const startTime = (formData.get('start_time') as string) || null
-  const finishTime = (formData.get('finish_time') as string) || null
-  const arrivalTime = (formData.get('arrival_time') as string) || null
-  const loadOutTime = (formData.get('load_out_time') as string) || null
-  const guestsRaw = formData.get('guests') as string
-  const guests = guestsRaw ? parseInt(guestsRaw) : null
-
-  const foodRaw = (formData.get('food') as string)?.trim() || null
-  const food = foodRaw === 'yes' || foodRaw === 'no' || foodRaw === 'tbc' ? foodRaw : null
-
-  const idRequiredRaw = (formData.get('id_required') as string)?.trim() || null
-  const idRequired = idRequiredRaw === 'yes' ? true : idRequiredRaw === 'no' ? false : null
-
-  const dressCodeTemplateId = (formData.get('dress_code_template_id') as string)?.trim() || null
-
-  const bookedBandTemplateId = (formData.get('booked_band_template_id') as string)?.trim() || null
-  const bookedLineup = (formData.get('booked_lineup') as string)?.trim() || null
-  const bookedSets = (formData.get('booked_sets') as string)?.trim() || null
-  const foodNotes = (formData.get('food_notes') as string)?.trim() || null
-  const dressCode = (formData.get('dress_code') as string)?.trim() || null
-
-  const bandSizeRequested = (formData.get('band_size_requested') as string)?.trim() || null
-  const setsRequested = (formData.get('sets_requested') as string)?.trim() || null
-  const specialRequirements = (formData.get('special_requirements') as string)?.trim() || null
-  const soundRequirements = (formData.get('sound_requirements') as string)?.trim() || null
-  const notes = (formData.get('notes') as string)?.trim() || null
-  const roamingRequested = formData.get('roaming_requested') === 'on' ? true : false
-
-  const requestDetails = (bandSizeRequested || setsRequested || specialRequirements || soundRequirements || notes || roamingRequested)
-    ? { band_size_requested: bandSizeRequested, sets_requested: setsRequested, special_requirements: specialRequirements, sound_requirements: soundRequirements, notes, roaming_requested: roamingRequested || null }
+  const requestDetails = (data.band_size_requested || data.sets_requested || data.special_requirements || data.sound_requirements || data.notes || data.roaming_requested)
+    ? {
+        band_size_requested: data.band_size_requested,
+        sets_requested: data.sets_requested,
+        special_requirements: data.special_requirements,
+        sound_requirements: data.sound_requirements,
+        notes: data.notes,
+        roaming_requested: data.roaming_requested || null,
+      }
     : null
 
   const { error } = await supabase
     .from('events')
     .update({
-      is_agency: isAgency,
-      agency_name: isAgency ? agencyName : null,
-      agent_name: isAgency ? agentName : null,
-      agent_first_name: agentFirstName,
-      agent_surname: agentSurname,
-      client_email: clientEmail,
-      client_phone: clientPhone,
-      source,
-      source_job_url: sourceJobUrl,
-      event_date: eventDate,
-      venue_name: venueName,
-      venue_postcode: venuePostcode,
-      venue_address: venueAddress,
-      location,
-      start_time: startTime,
-      finish_time: finishTime,
-      arrival_time: arrivalTime,
-      load_out_time: loadOutTime,
-      guests,
-      food,
-      food_notes: foodNotes,
-      dress_code: dressCode,
-      dress_code_template_id: dressCodeTemplateId,
-      id_required: idRequired,
-      booked_band_template_id: bookedBandTemplateId,
-      booked_lineup: bookedLineup,
-      booked_sets: bookedSets,
+      is_agency: data.is_agency,
+      agency_name: data.is_agency ? data.agency_name : null,
+      agent_name: data.is_agency ? data.agent_name : null,
+      agent_first_name: data.agent_first_name,
+      agent_surname: data.agent_surname,
+      client_email: data.client_email,
+      client_phone: data.client_phone,
+      source: data.source,
+      source_job_url: data.source_job_url,
+      event_date: data.event_date,
+      venue_name: data.venue_name,
+      venue_postcode: data.venue_postcode,
+      venue_address: data.venue_address,
+      location: data.location,
+      start_time: data.start_time,
+      finish_time: data.finish_time,
+      arrival_time: data.arrival_time,
+      load_out_time: data.load_out_time,
+      guests: data.guests,
+      food: data.food,
+      food_notes: data.food_notes,
+      dress_code: data.dress_code,
+      dress_code_template_id: data.dress_code_template_id,
+      id_required: data.id_required,
+      booked_band_template_id: data.booked_band_template_id,
+      booked_lineup: data.booked_lineup,
+      booked_sets: data.booked_sets,
       request_details: requestDetails,
     })
     .eq('id', eventId)
@@ -320,7 +313,6 @@ export async function updateEvent(eventId: string, formData: FormData) {
 
   revalidatePath(`/admin/events/${eventId}`)
   revalidatePath('/admin/events')
-  redirect(`/admin/events/${eventId}`)
 }
 
 export async function createEvent(formData: FormData) {
@@ -332,6 +324,8 @@ export async function createEvent(formData: FormData) {
   const isAgency = formData.get('is_agency') === 'true'
   const guestsRaw = formData.get('guests') as string
   const bookedFeeRaw = formData.get('booked_fee') as string
+  const statusRaw = formData.get('status') as string
+  const status: EventStatus = EVENT_STATUSES.some(s => s.value === statusRaw) ? (statusRaw as EventStatus) : 'enquiry'
 
   const bandSizeRequested = str('band_size_requested')
   const setsRequested = str('sets_requested')
@@ -378,7 +372,7 @@ export async function createEvent(formData: FormData) {
       source: str('source'),
       source_job_url: str('source_job_url'),
       request_details: requestDetails,
-      status: 'enquiry',
+      status,
     })
     .select('id')
     .single()
@@ -402,6 +396,7 @@ export async function addContractAttachment(eventId: string, attachment: Contrac
   const contract = data?.contract ?? {}
   const attachments = [...(contract.attachments ?? []), attachment]
   await supabase.from('events').update({ contract: { ...contract, attachments } }).eq('id', eventId)
+  await logEventActivity(eventId, { type: 'contract_change', summary: `Attached ${attachment.name}` })
   revalidatePath(`/admin/events/${eventId}`)
 }
 

@@ -13,6 +13,7 @@ import InvoiceSection from './InvoiceSection'
 import ClientLinkSection from './ClientLinkSection'
 import EventQuotesClient from './EventQuotesClient'
 import RequestsSection from './RequestsSection'
+import CommentsSection from './CommentsSection'
 import SetListEditor from '@/app/admin/set-lists/[id]/SetListEditor'
 import type { EventRequest } from '@/types/event-request'
 import type { SetList, SetListSong, Song, TagOption } from '@/types/set-list'
@@ -61,29 +62,70 @@ function FullRow({ label, value }: { label: string; value: string | null | undef
   )
 }
 
-type Tab = 'information' | 'musicians' | 'quotes' | 'requests' | 'set-lists' | 'contract' | 'invoices'
+type Tab = 'information' | 'musicians' | 'quotes' | 'requests' | 'set-lists' | 'contract' | 'invoices' | 'activity' | 'comments'
+
+type ActivityEntry = {
+  id: string
+  type: string
+  field: string | null
+  field_label: string | null
+  old_value: string | null
+  new_value: string | null
+  summary: string | null
+  note: string | null
+  actor: string
+  source: string
+  changed_at: string
+}
+
+const ACTIVITY_FILTERS: { value: string; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'communication', label: 'Communication' },
+  { value: 'field_change', label: 'Field changes' },
+  { value: 'status_change', label: 'Status' },
+  { value: 'musician_change', label: 'Musicians' },
+  { value: 'quote_change', label: 'Quotes' },
+  { value: 'invoice_change', label: 'Invoices' },
+  { value: 'request_change', label: 'Requests' },
+  { value: 'set_list_change', label: 'Set lists' },
+  { value: 'contract_change', label: 'Contract' },
+  { value: 'comment', label: 'Comments' },
+]
+
+const ACTIVITY_TYPE_META: Record<string, { label: string; bg: string; color: string }> = {
+  field_change: { label: 'Field change', bg: 'var(--pill-enquiry-bg)', color: 'var(--pill-enquiry-text)' },
+  status_change: { label: 'Status', bg: 'var(--pill-stc-bg)', color: 'var(--pill-stc-text)' },
+  musician_change: { label: 'Musicians', bg: 'var(--pill-quoted-bg)', color: 'var(--pill-quoted-text)' },
+  quote_change: { label: 'Quote', bg: 'var(--pill-contracted-bg)', color: 'var(--pill-contracted-text)' },
+  invoice_change: { label: 'Invoice', bg: 'var(--pill-paid-bg)', color: 'var(--pill-paid-text)' },
+  request_change: { label: 'Request', bg: 'var(--pill-outstanding-bg)', color: 'var(--pill-outstanding-text)' },
+  set_list_change: { label: 'Set list', bg: 'var(--pill-uninvoiced-bg)', color: 'var(--pill-uninvoiced-text)' },
+  contract_change: { label: 'Contract', bg: 'var(--pill-contract-received-bg)', color: 'var(--pill-contract-received-text)' },
+  ai_agent_action: { label: 'Agent', bg: 'var(--pill-cancelled-bg)', color: 'var(--pill-cancelled-text)' },
+  comment: { label: 'Comment', bg: 'var(--pill-enquiry-bg)', color: 'var(--pill-enquiry-text)' },
+}
 
 export default async function EventDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ tab?: string }>
+  searchParams: Promise<{ tab?: string; activityType?: string }>
 }) {
   const { id } = await params
-  const { tab: tabParam } = await searchParams
-  const tab: Tab = tabParam === 'musicians' ? 'musicians' : tabParam === 'quotes' ? 'quotes' : tabParam === 'requests' ? 'requests' : tabParam === 'set-lists' ? 'set-lists' : tabParam === 'contract' ? 'contract' : tabParam === 'invoices' ? 'invoices' : 'information'
+  const { tab: tabParam, activityType: activityTypeParam } = await searchParams
+  const tab: Tab = tabParam === 'musicians' ? 'musicians' : tabParam === 'quotes' ? 'quotes' : tabParam === 'requests' ? 'requests' : tabParam === 'set-lists' ? 'set-lists' : tabParam === 'contract' ? 'contract' : tabParam === 'invoices' ? 'invoices' : tabParam === 'activity' ? 'activity' : tabParam === 'comments' ? 'comments' : 'information'
+  const activityType = activityTypeParam ?? 'all'
 
   const supabase = createServiceClient()
 
-  const [{ data: eventData }, { data: quotesData }, { data: invoicesData }, { data: invoiceSettingsData }, { data: allClientsData }, { data: monitoringData }, { data: activityLogData }] = await Promise.all([
+  const [{ data: eventData }, { data: quotesData }, { data: invoicesData }, { data: invoiceSettingsData }, { data: allClientsData }, { data: monitoringData }] = await Promise.all([
     supabase.from('events').select('*, booked_template:band_templates!booked_band_template_id(name)').eq('id', id).single(),
     supabase.from('quotes').select('id, created_at, inputs, calculated, version, status, accepted_option').eq('event_id', id).order('version', { ascending: false }),
     supabase.from('invoices').select('*, line_items:invoice_line_items(*)').eq('event_id', id).order('created_at'),
     supabase.from('invoice_settings').select('*').single(),
     supabase.from('clients').select('*').order('name'),
     supabase.from('monitoring_settings').select('reply_to_email').eq('id', 1).single(),
-    supabase.from('event_activity_log').select('*').eq('event_id', id).order('changed_at', { ascending: false }),
   ])
 
   if (!eventData) notFound()
@@ -95,8 +137,6 @@ export default async function EventDetailPage({
   const allClients = (allClientsData ?? []) as Client[]
   const linkedClient = allClients.find(c => c.id === event.client_id) ?? null
   const adminEmail = (monitoringData as { reply_to_email?: string | null } | null)?.reply_to_email ?? null
-  type ActivityEntry = { id: string; field: string; field_label: string; old_value: string | null; new_value: string | null; source: string; changed_at: string }
-  const activityLog = (activityLogData ?? []) as ActivityEntry[]
   const rd = event.request_details
   const quotePrice: number | null = quotes[0]?.calculated?.total_fee ?? null
 
@@ -228,6 +268,33 @@ export default async function EventDetailPage({
     allSongs = (songsData ?? []) as Song[]
   }
 
+  // Fetch activity log when on the activity tab, filtered server-side
+  let activityLog: ActivityEntry[] = []
+
+  if (tab === 'activity') {
+    let activityQuery = supabase.from('event_activity_log').select('*').eq('event_id', id).order('changed_at', { ascending: false })
+    if (activityType === 'communication') {
+      activityQuery = activityQuery.or('type.eq.request_change,type.eq.contract_change,and(type.eq.field_change,source.eq.contract_review)')
+    } else if (activityType !== 'all') {
+      activityQuery = activityQuery.eq('type', activityType)
+    }
+    const { data: activityLogData } = await activityQuery
+    activityLog = (activityLogData ?? []) as ActivityEntry[]
+  }
+
+  // Fetch comments when on the comments tab
+  let comments: ActivityEntry[] = []
+
+  if (tab === 'comments') {
+    const { data: commentsData } = await supabase
+      .from('event_activity_log')
+      .select('*')
+      .eq('event_id', id)
+      .eq('type', 'comment')
+      .order('changed_at', { ascending: false })
+    comments = (commentsData ?? []) as ActivityEntry[]
+  }
+
   const tabStyle = (active: boolean): React.CSSProperties => ({
     display: 'inline-block', padding: '8px 16px', fontSize: 13, fontWeight: active ? 500 : 400,
     color: active ? 'var(--text)' : 'var(--text-secondary)',
@@ -317,6 +384,8 @@ export default async function EventDetailPage({
         <a href={`/admin/events/${id}?tab=contract`} style={tabStyle(tab === 'contract')}>
           Contract{event.contract ? ' ✓' : ''}
         </a>
+        <a href={`/admin/events/${id}?tab=activity`} style={tabStyle(tab === 'activity')}>Activity</a>
+        <a href={`/admin/events/${id}?tab=comments`} style={tabStyle(tab === 'comments')}>Comments</a>
       </div>
 
       {/* ── Information tab ── */}
@@ -441,34 +510,6 @@ export default async function EventDetailPage({
             </div>
           </Section>
 
-
-          {activityLog.length > 0 && (
-            <Section label="Change log">
-              <div>
-                {activityLog.map((entry, i) => (
-                  <div key={entry.id} style={{
-                    display: 'grid', gridTemplateColumns: '130px 1fr 1fr',
-                    gap: '0 12px', padding: '9px 0', alignItems: 'start',
-                    borderTop: i === 0 ? 'none' : '0.5px solid var(--border)',
-                  }}>
-                    <div>
-                      <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{entry.field_label}</div>
-                      <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 2 }}>
-                        {new Date(entry.changed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                      </div>
-                    </div>
-                    <div style={{ fontSize: 13, color: 'var(--text-secondary)', textDecoration: 'line-through' }}>
-                      {entry.old_value || <em style={{ fontStyle: 'normal', color: 'var(--text-tertiary)' }}>—</em>}
-                    </div>
-                    <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 500 }}>
-                      {entry.new_value || <em style={{ fontStyle: 'normal', color: 'var(--text-tertiary)' }}>—</em>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Section>
-          )}
-
           {event.raw_email && (
             <details style={{ marginTop: 24 }}>
               <summary style={{
@@ -552,6 +593,92 @@ export default async function EventDetailPage({
       {tab === 'contract' && (
         <div style={{ maxWidth: 720 }}>
           <ContractSection event={event} quotePrice={quotePrice} />
+        </div>
+      )}
+
+      {/* ── Activity tab ── */}
+      {tab === 'activity' && (
+        <div style={{ maxWidth: 720 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
+            {ACTIVITY_FILTERS.map(f => (
+              <a
+                key={f.value}
+                href={`/admin/events/${id}?tab=activity${f.value === 'all' ? '' : `&activityType=${f.value}`}`}
+                style={{
+                  padding: '4px 10px', fontSize: 12, fontWeight: 500, borderRadius: 'var(--radius-sm)',
+                  textDecoration: 'none',
+                  background: activityType === f.value ? 'var(--text)' : 'var(--bg-secondary)',
+                  color: activityType === f.value ? 'var(--bg)' : 'var(--text-secondary)',
+                  border: '0.5px solid var(--border)',
+                }}
+              >
+                {f.label}
+              </a>
+            ))}
+          </div>
+
+          <Section label="Activity">
+            {activityLog.length === 0 ? (
+              <div style={{ padding: '16px 0', fontSize: 13, color: 'var(--text-tertiary)' }}>No activity yet.</div>
+            ) : (
+              <div>
+                {activityLog.map((entry, i) => {
+                  const meta = ACTIVITY_TYPE_META[entry.type] ?? ACTIVITY_TYPE_META.field_change
+                  const isDiff = entry.type === 'field_change' || entry.type === 'status_change'
+                  return (
+                    <div key={entry.id} style={{
+                      display: 'grid', gridTemplateColumns: '110px 90px 1fr', gap: '0 12px',
+                      padding: '10px 0', alignItems: 'start',
+                      borderTop: i === 0 ? 'none' : '0.5px solid var(--border)',
+                    }}>
+                      <div>
+                        <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+                          {new Date(entry.changed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </div>
+                        <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 2 }}>
+                          {new Date(entry.changed_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} · {entry.actor}
+                        </div>
+                      </div>
+                      <div>
+                        <span style={{
+                          display: 'inline-block', padding: '2px 8px', fontSize: 10, fontWeight: 500,
+                          borderRadius: 5, background: meta.bg, color: meta.color, whiteSpace: 'nowrap',
+                        }}>
+                          {meta.label}
+                        </span>
+                      </div>
+                      <div>
+                        {isDiff ? (
+                          <div style={{ fontSize: 13, color: 'var(--text)' }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>{entry.field_label ?? entry.field}: </span>
+                            <span style={{ textDecoration: 'line-through', color: 'var(--text-tertiary)' }}>
+                              {entry.old_value || '—'}
+                            </span>
+                            {' → '}
+                            <span style={{ fontWeight: 500 }}>{entry.new_value || '—'}</span>
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: 13, color: 'var(--text)' }}>{entry.summary}</div>
+                        )}
+                        {entry.note && (
+                          <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 3, fontStyle: 'italic' }}>
+                            {entry.note}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </Section>
+        </div>
+      )}
+
+      {/* ── Comments tab ── */}
+      {tab === 'comments' && (
+        <div style={{ maxWidth: 720 }}>
+          <CommentsSection eventId={id} comments={comments} />
         </div>
       )}
     </div>

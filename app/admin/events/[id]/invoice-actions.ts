@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createServiceClient } from '@/lib/supabase'
 import type { InvoiceLineItem, ClientType } from '@/types/invoice'
+import { logEventActivity } from '@/lib/event-activity'
 
 function revalidate(eventId: string) {
   revalidatePath(`/admin/events/${eventId}`)
@@ -62,6 +63,7 @@ export async function createInvoice(
   }
 
   revalidate(eventId)
+  if (invoice) await logEventActivity(eventId, { type: 'invoice_change', summary: `Invoice ${invoice.number} created` })
   return invoice
 }
 
@@ -82,12 +84,15 @@ export async function updateInvoice(
   const supabase = createServiceClient()
   await supabase.from('invoices').update(data).eq('id', invoiceId)
   revalidate(eventId)
+  if (data.status) await logEventActivity(eventId, { type: 'invoice_change', summary: `Invoice status set to ${data.status}` })
 }
 
 export async function deleteInvoice(invoiceId: string, eventId: string) {
   const supabase = createServiceClient()
+  const { data: invoice } = await supabase.from('invoices').select('number').eq('id', invoiceId).single()
   await supabase.from('invoices').delete().eq('id', invoiceId)
   revalidate(eventId)
+  await logEventActivity(eventId, { type: 'invoice_change', summary: `Invoice ${invoice?.number ?? ''} deleted`.trim() })
 }
 
 export async function upsertLineItem(
@@ -132,6 +137,7 @@ export async function markInvoiceSent(invoiceId: string, eventId: string) {
   await supabase.from('invoices').update({ sent_at: now, status: 'sent' }).eq('id', invoiceId).eq('status', 'unsent')
   await supabase.from('invoices').update({ sent_at: now }).eq('id', invoiceId).neq('status', 'unsent')
   revalidate(eventId)
+  await logEventActivity(eventId, { type: 'invoice_change', summary: 'Invoice marked as sent' })
 }
 
 // ── Client linking ────────────────────────────────────────────────────────────

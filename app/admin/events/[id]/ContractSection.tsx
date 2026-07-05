@@ -2,7 +2,8 @@
 
 import { useState, useRef, useTransition } from 'react'
 import type { EventRecord, ContractFlag, ContractFile } from '@/types/quote'
-import { saveContractReview, saveContractParsed, resolveContractFlag, acceptContractFlag, deleteContract, deleteContractAttachment } from '../actions'
+import { saveContractReview, saveContractParsed, resolveContractFlag, acceptContractFlag, deleteContract, deleteContractAttachment, updateEventStatus } from '../actions'
+import ContractStatusModal from '../ContractStatusModal'
 
 type ParsedContract = Record<string, string | number | null>
 
@@ -146,6 +147,7 @@ export default function ContractSection({
   const [localContract, setLocalContract] = useState(event.contract)
   const [modalUrl, setModalUrl] = useState<string | null>(null)
   const [modalFileName, setModalFileName] = useState<string>('Contract')
+  const [showStatusPrompt, setShowStatusPrompt] = useState(false)
 
   const savedContract = localContract
   const existingFlags = savedContract?.flags ?? []
@@ -185,11 +187,17 @@ export default function ContractSection({
       setParsed(json.parsed)
       setLocalContract(newContract)
       await saveContractParsed(event.id, json.parsed, json.file)
+      setShowStatusPrompt(true)
     } catch (e: unknown) {
       setParseError(e instanceof Error ? e.message : 'Failed to parse contract')
     } finally {
       setParsing(false)
     }
+  }
+
+  function handleStatusSelect(status: 'contract_received' | 'contracted') {
+    setShowStatusPrompt(false)
+    startSaving(async () => { await updateEventStatus(event.id, status) })
   }
 
   async function handleAttach(file: File) {
@@ -665,6 +673,9 @@ export default function ContractSection({
           </div>
         </div>
       )}
+
+      {/* Post-parse status prompt */}
+      {showStatusPrompt && <ContractStatusModal onSelect={handleStatusSelect} />}
 
       {/* PDF/file viewer modal */}
       {modalUrl && (

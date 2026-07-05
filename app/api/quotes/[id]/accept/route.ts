@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
+import { logEventActivity } from '@/lib/event-activity'
 
 export async function POST(
   req: NextRequest,
@@ -14,12 +15,18 @@ export async function POST(
 
   const supabase = createServiceClient()
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('quotes')
     .update({ status: 'accepted', accepted_option: accepted_option.trim() })
     .eq('id', id)
+    .select('event_id')
+    .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  if (data?.event_id) {
+    await logEventActivity(data.event_id, { type: 'quote_change', summary: `Quote accepted (${accepted_option.trim()})` })
+  }
 
   return NextResponse.json({ ok: true })
 }
@@ -32,12 +39,18 @@ export async function DELETE(
   const { id } = await params
   const supabase = createServiceClient()
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('quotes')
     .update({ status: 'sent', accepted_option: null })
     .eq('id', id)
+    .select('event_id')
+    .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  if (data?.event_id) {
+    await logEventActivity(data.event_id, { type: 'quote_change', summary: 'Quote acceptance undone' })
+  }
 
   return NextResponse.json({ ok: true })
 }

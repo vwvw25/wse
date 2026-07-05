@@ -24,6 +24,7 @@
   --pill-enquiry-bg:    #efeaff; --pill-enquiry-text:    #5b3fa8;
   --pill-quoted-bg:     #f3ffd6; --pill-quoted-text:     #5a6b0f;
   --pill-stc-bg:        #e6f9ef; --pill-stc-text:        #0f7a4a;
+  --pill-contract-received-bg: #fef3c7; --pill-contract-received-text: #92400e;
   --pill-contracted-bg: #d8f5e3; --pill-contracted-text: #0c5c38;
   --pill-paid-bg:       #22e07a; --pill-paid-text:       #0c2417;
   --pill-outstanding-bg:#ffe3e8; --pill-outstanding-text:#b53a52;
@@ -50,6 +51,7 @@
     --pill-enquiry-bg:    #2c2350; --pill-enquiry-text:    #b9a6ff;
     --pill-quoted-bg:     #3a3a14; --pill-quoted-text:     #d4ff4f;
     --pill-stc-bg:        #103024; --pill-stc-text:        #6ee7b0;
+    --pill-contract-received-bg: #3d2e0a; --pill-contract-received-text: #f0b429;
     --pill-contracted-bg: #0c2818; --pill-contracted-text: #0f9b5f;
     --pill-paid-bg:       #22e07a; --pill-paid-text:       #0c2417;
     --pill-outstanding-bg:#3a1f26; --pill-outstanding-text:#ff8fa3;

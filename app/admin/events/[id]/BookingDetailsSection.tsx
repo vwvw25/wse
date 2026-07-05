@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { updateBookingDetails } from '../actions'
 
@@ -26,17 +26,30 @@ export default function BookingDetailsSection({
   const [bandSize, setBandSize] = useState(initialBandSize ?? '')
   const [sets, setSets] = useState(initialSets ?? '')
   const [fee, setFee] = useState(initialFee != null ? String(initialFee) : '')
-  const [dirty, setDirty] = useState(false)
   const [saving, startTransition] = useTransition()
+  const [savedAt, setSavedAt] = useState<number | null>(null)
+  const savedTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  function handleSave() {
+  // Track the values already persisted, so blur only saves when something actually changed
+  const lastSaved = useRef({ bandSize: bandSize, sets: sets, fee: fee })
+
+  function handleBlur(next: { bandSize: string; sets: string; fee: string }) {
+    if (
+      next.bandSize === lastSaved.current.bandSize &&
+      next.sets === lastSaved.current.sets &&
+      next.fee === lastSaved.current.fee
+    ) return
+
+    lastSaved.current = next
     startTransition(async () => {
       await updateBookingDetails(eventId, {
-        booked_band_size: bandSize.trim() || null,
-        booked_sets: sets.trim() || null,
-        booked_fee: fee ? parseFloat(fee) : null,
+        booked_band_size: next.bandSize.trim() || null,
+        booked_sets: next.sets.trim() || null,
+        booked_fee: next.fee ? parseFloat(next.fee) : null,
       })
-      setDirty(false)
+      setSavedAt(Date.now())
+      if (savedTimeout.current) clearTimeout(savedTimeout.current)
+      savedTimeout.current = setTimeout(() => setSavedAt(null), 2000)
       router.refresh()
     })
   }
@@ -48,14 +61,15 @@ export default function BookingDetailsSection({
 
   return (
     <div style={{ padding: '12px 0' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 24px', marginBottom: dirty ? 12 : 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 24px' }}>
         <div>
           <label style={labelStyle}>Band size booked</label>
           <input
             style={inputStyle}
             placeholder="e.g. 5-piece"
             value={bandSize}
-            onChange={e => { setBandSize(e.target.value); setDirty(true) }}
+            onChange={e => setBandSize(e.target.value)}
+            onBlur={() => handleBlur({ bandSize, sets, fee })}
           />
         </div>
         <div>
@@ -64,7 +78,8 @@ export default function BookingDetailsSection({
             style={inputStyle}
             placeholder="e.g. 2 × 45 min"
             value={sets}
-            onChange={e => { setSets(e.target.value); setDirty(true) }}
+            onChange={e => setSets(e.target.value)}
+            onBlur={() => handleBlur({ bandSize, sets, fee })}
           />
         </div>
         <div>
@@ -78,24 +93,16 @@ export default function BookingDetailsSection({
               min="0"
               placeholder="0.00"
               value={fee}
-              onChange={e => { setFee(e.target.value); setDirty(true) }}
+              onChange={e => setFee(e.target.value)}
+              onBlur={() => handleBlur({ bandSize, sets, fee })}
             />
           </div>
         </div>
       </div>
-      {dirty && (
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          style={{
-            padding: '5px 14px', fontSize: 12, fontWeight: 500,
-            background: 'var(--accent)', color: 'var(--accent-text-on)', border: 'none',
-            borderRadius: 'var(--radius-sm)', cursor: saving ? 'not-allowed' : 'pointer',
-            opacity: saving ? 0.6 : 1, fontFamily: 'var(--font)',
-          }}
-        >
-          {saving ? 'Saving…' : 'Save'}
-        </button>
+      {(saving || savedAt) && (
+        <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 8 }}>
+          {saving ? 'Saving…' : 'Saved'}
+        </div>
       )}
     </div>
   )

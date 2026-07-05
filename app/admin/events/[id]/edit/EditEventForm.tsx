@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect, useRef } from 'react'
 import type { EventRecord } from '@/types/quote'
 import type { BandTemplate, BandTemplateSlot } from '@/types/musicians'
 import type { DressCodeTemplate } from '../../../dress-codes/actions'
 import { updateEvent, deleteEvent } from '../../actions'
+import type { UpdateEventData } from '../../actions'
 
 const SETS_OPTIONS = ['2 × 45 min', '2 × 60 min', '3 × 45 min', '4 × 45 min']
 
@@ -49,7 +50,10 @@ function SectionCard({ label, children }: { label: string; children: React.React
 }
 
 export default function EditEventForm({ event, templates, dressCodeTemplates, sources }: { event: EventRecord; templates: (BandTemplate & { slots: BandTemplateSlot[] })[]; dressCodeTemplates: DressCodeTemplate[]; sources: string[] }) {
-  const [isPending, startTransition] = useTransition()
+  const [deleting, startDeleteTransition] = useTransition()
+  const [saving, startSaveTransition] = useTransition()
+  const [savedAt, setSavedAt] = useState<number | null>(null)
+  const savedTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const rd = event.request_details
 
   const [isAgency, setIsAgency] = useState(event.is_agency)
@@ -113,28 +117,68 @@ export default function EditEventForm({ event, templates, dressCodeTemplates, so
     fontFamily: 'var(--font)', transition: 'all 0.1s',
   })
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    const fd = new FormData(e.currentTarget)
-    fd.set('is_agency', String(isAgency))
-    fd.set('food', food ?? '')
-    fd.set('id_required', idRequired === true ? 'yes' : idRequired === false ? 'no' : '')
-    fd.set('dress_code_template_id', dressCodeTemplateId)
-    fd.set('booked_band_template_id', bookedTemplateId)
-    fd.set('booked_lineup', bookedLineup)
-    fd.set('booked_sets', bookedSets === 'custom' ? bookedSetsCustom : bookedSets)
-    fd.set('agent_first_name', agentFirstName)
-    fd.set('agent_surname', agentSurname)
-    fd.set('client_phone', clientPhone)
-    fd.set('source', source)
-    fd.set('source_job_url', sourceJobUrl)
-    startTransition(async () => {
-      await updateEvent(event.id, fd)
-    })
+  function buildPayload(): UpdateEventData {
+    return {
+      is_agency: isAgency,
+      agency_name: agencyName.trim() || null,
+      agent_name: agentName.trim() || null,
+      agent_first_name: agentFirstName.trim() || null,
+      agent_surname: agentSurname.trim() || null,
+      client_email: clientEmail.trim() || null,
+      client_phone: clientPhone.trim() || null,
+      source: source || null,
+      source_job_url: sourceJobUrl.trim() || null,
+      event_date: eventDate || null,
+      venue_name: venueName.trim() || null,
+      venue_postcode: venuePostcode.trim() || null,
+      venue_address: venueAddress.trim() || null,
+      location: location.trim() || null,
+      start_time: startTime || null,
+      finish_time: finishTime || null,
+      arrival_time: arrivalTime || null,
+      load_out_time: loadOutTime || null,
+      guests: guests ? parseInt(guests) : null,
+      food,
+      food_notes: foodNotes.trim() || null,
+      dress_code: dressCode.trim() || null,
+      dress_code_template_id: dressCodeTemplateId || null,
+      id_required: idRequired,
+      booked_band_template_id: bookedTemplateId || null,
+      booked_lineup: bookedLineup.trim() || null,
+      booked_sets: (bookedSets === 'custom' ? bookedSetsCustom : bookedSets).trim() || null,
+      band_size_requested: bandSizeRequested.trim() || null,
+      sets_requested: setsRequested.trim() || null,
+      special_requirements: specialRequirements.trim() || null,
+      sound_requirements: soundRequirements.trim() || null,
+      notes: notes.trim() || null,
+      roaming_requested: roamingRequested,
+    }
   }
 
+  // Debounced autosave — waits for a pause in edits, then saves the whole form.
+  // Coalesces rapid changes (typing, clicking several selects) into one write.
+  const isFirstRender = useRef(true)
+  const payload = buildPayload()
+  const payloadJson = JSON.stringify(payload)
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+      return
+    }
+    const timeout = setTimeout(() => {
+      startSaveTransition(async () => {
+        await updateEvent(event.id, JSON.parse(payloadJson))
+        setSavedAt(Date.now())
+        if (savedTimeout.current) clearTimeout(savedTimeout.current)
+        savedTimeout.current = setTimeout(() => setSavedAt(null), 2000)
+      })
+    }, 600)
+    return () => clearTimeout(timeout)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [payloadJson])
+
   return (
-    <form onSubmit={handleSubmit}>
+    <div>
 
       {/* Client type toggle */}
       <div style={{ marginBottom: 20 }}>
@@ -409,49 +453,40 @@ export default function EditEventForm({ event, templates, dressCodeTemplates, so
 
       {/* Actions */}
       <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
           <a href={`/admin/events/${event.id}`} style={{
             padding: '8px 20px', fontSize: 13, fontWeight: 500,
             background: 'transparent', border: '0.5px solid var(--border-hover)',
             color: 'var(--text-secondary)', borderRadius: 'var(--radius-md)',
             textDecoration: 'none', display: 'inline-block',
           }}>
-            Cancel
+            Done
           </a>
-          <button
-            type="submit"
-            disabled={isPending}
-            style={{
-              padding: '8px 20px', fontSize: 13, fontWeight: 500,
-              background: 'var(--text)', border: 'none',
-              color: 'var(--bg)', borderRadius: 'var(--radius-md)',
-              cursor: isPending ? 'not-allowed' : 'pointer',
-              opacity: isPending ? 0.6 : 1,
-              fontFamily: 'var(--font)',
-            }}
-          >
-            {isPending ? 'Saving…' : 'Save changes'}
-          </button>
+          {(saving || savedAt) && (
+            <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
+              {saving ? 'Saving…' : 'Saved'}
+            </span>
+          )}
         </div>
         <button
           type="button"
-          disabled={isPending}
+          disabled={deleting}
           onClick={() => {
             if (confirm('Delete this event? This cannot be undone.')) {
-              startTransition(async () => { await deleteEvent(event.id) })
+              startDeleteTransition(async () => { await deleteEvent(event.id) })
             }
           }}
           style={{
             padding: '8px 20px', fontSize: 13, fontWeight: 500,
             background: 'transparent', border: '0.5px solid var(--border)',
             color: 'var(--text-tertiary)', borderRadius: 'var(--radius-md)',
-            cursor: isPending ? 'not-allowed' : 'pointer',
+            cursor: deleting ? 'not-allowed' : 'pointer',
             fontFamily: 'var(--font)',
           }}
         >
-          Delete event
+          {deleting ? 'Deleting…' : 'Delete event'}
         </button>
       </div>
-    </form>
+    </div>
   )
 }
