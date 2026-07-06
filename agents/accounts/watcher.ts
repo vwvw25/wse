@@ -38,7 +38,9 @@ function connect() {
     .channel('accounts-triggers')
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'issues' }, payload => {
       const p = payload.new as any
-      if (p.assigned_agent_id === ACCOUNTS_AGENT_ID) {
+      const old = payload.old as any
+      // Only trigger when assigned_agent_id is newly set to accounts — not on every update the agent itself makes
+      if (p.assigned_agent_id === ACCOUNTS_AGENT_ID && old.assigned_agent_id !== ACCOUNTS_AGENT_ID) {
         triggerAccounts(`issue assigned to accounts: ${p.id}`)
       }
     })

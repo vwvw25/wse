@@ -1,4 +1,4 @@
-# Lucy — Tools
+# Accounts Agent — Tools
 
 Your environment has these variables available:
 - `WSE_URL` — the Vercel app URL (e.g. https://wse-gamma.vercel.app)
