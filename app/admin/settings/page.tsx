@@ -788,12 +788,6 @@ export default function SettingsPage() {
                 <textarea style={{ ...inputStyle, width: 260, height: 72, resize: 'vertical', padding: '6px 10px', lineHeight: 1.5 }} value={invSettings.default_notes ?? ''} onChange={e => handleInvChange('default_notes', e.target.value || null)} placeholder="e.g. Payment terms, thank you note…" />
               </div>
 
-              <div style={sectionHeaderStyle}>Quote flow</div>
-              <div style={{ ...rowStyle, borderBottom: 'none' }}>
-                <span style={labelStyle}>Home postcode <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>(used to calculate travel distance in quote builder)</span></span>
-                <input type="text" style={{ ...inputStyle, width: 140 }} value={invSettings.home_postcode ?? ''} onChange={e => handleInvChange('home_postcode', e.target.value || null)} placeholder="e.g. N3 1AA" />
-              </div>
-
               <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 16 }}>
                 <button onClick={handleInvSave} disabled={invSaving} style={{ padding: '9px 20px', background: 'var(--accent)', color: 'var(--accent-text-on)', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: 14, fontWeight: 500, fontFamily: 'var(--font)', cursor: invSaving ? 'not-allowed' : 'pointer', opacity: invSaving ? 0.7 : 1 }}>
                   {invSaving ? 'Saving…' : 'Save invoice settings'}
@@ -869,6 +863,18 @@ export default function SettingsPage() {
           {/* ── General ── */}
           {section === 'general' && (
             <>
+              <div style={sectionHeaderStyle}>Postcode</div>
+              <div style={{ ...rowStyle, borderBottom: 'none' }}>
+                <span style={labelStyle}>Postcode <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>(used to calculate travel distance for quotes and travel expenses)</span></span>
+                <input type="text" style={{ ...inputStyle, width: 140 }} value={invSettings.home_postcode ?? ''} onChange={e => handleInvChange('home_postcode', e.target.value || null)} placeholder="e.g. N3 1AA" />
+              </div>
+              <div style={{ marginTop: 16, marginBottom: 32, display: 'flex', alignItems: 'center', gap: 16 }}>
+                <button onClick={handleInvSave} disabled={invSaving} style={{ padding: '9px 20px', background: 'var(--accent)', color: 'var(--accent-text-on)', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: 14, fontWeight: 500, fontFamily: 'var(--font)', cursor: invSaving ? 'not-allowed' : 'pointer', opacity: invSaving ? 0.7 : 1 }}>
+                  {invSaving ? 'Saving…' : 'Save'}
+                </button>
+                {invMessage && <span style={{ fontSize: 13, color: invMessage.type === 'success' ? '#166534' : '#b91c1c' }}>{invMessage.text}</span>}
+              </div>
+
               <div style={sectionHeaderStyle}>User accounts</div>
               <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 12px' }}>
                 Manage who can log in to the admin. Passwords must be at least 8 characters.

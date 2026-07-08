@@ -14,6 +14,11 @@ import ClientLinkSection from './ClientLinkSection'
 import EventQuotesClient from './EventQuotesClient'
 import RequestsSection from './RequestsSection'
 import CommentsSection from './CommentsSection'
+import CalendarNotesSection from './CalendarNotesSection'
+import TravelDetailsForm from './TravelDetailsForm'
+import JourneyDetailsCard from './JourneyDetailsCard'
+import TravelExpensesTable from './TravelExpensesTable'
+import type { TravelExpense } from '@/types/travel'
 import SetListEditor from '@/app/admin/set-lists/[id]/SetListEditor'
 import type { EventRequest } from '@/types/event-request'
 import type { SetList, SetListSong, Song, TagOption } from '@/types/set-list'
@@ -43,6 +48,15 @@ function formatCreated(d: string) {
   return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
+function resolveDressCode(
+  dressCode: string | null | undefined,
+  template: { name: string; description: string | null } | null | undefined
+): string | null {
+  if (dressCode) return dressCode
+  if (template) return template.description ? `${template.name} — ${template.description}` : template.name
+  return null
+}
+
 function Cell({ label, value }: { label: string; value: string | null | undefined }) {
   return (
     <div style={{ padding: '10px 0' }}>
@@ -62,7 +76,7 @@ function FullRow({ label, value }: { label: string; value: string | null | undef
   )
 }
 
-type Tab = 'information' | 'musicians' | 'quotes' | 'requests' | 'set-lists' | 'contract' | 'invoices' | 'activity' | 'comments'
+type Tab = 'information' | 'musicians' | 'quotes' | 'requests' | 'set-lists' | 'contract' | 'invoices' | 'calendar' | 'travel' | 'activity' | 'comments'
 
 type ActivityEntry = {
   id: string
@@ -114,13 +128,13 @@ export default async function EventDetailPage({
 }) {
   const { id } = await params
   const { tab: tabParam, activityType: activityTypeParam } = await searchParams
-  const tab: Tab = tabParam === 'musicians' ? 'musicians' : tabParam === 'quotes' ? 'quotes' : tabParam === 'requests' ? 'requests' : tabParam === 'set-lists' ? 'set-lists' : tabParam === 'contract' ? 'contract' : tabParam === 'invoices' ? 'invoices' : tabParam === 'activity' ? 'activity' : tabParam === 'comments' ? 'comments' : 'information'
+  const tab: Tab = tabParam === 'musicians' ? 'musicians' : tabParam === 'quotes' ? 'quotes' : tabParam === 'requests' ? 'requests' : tabParam === 'set-lists' ? 'set-lists' : tabParam === 'contract' ? 'contract' : tabParam === 'invoices' ? 'invoices' : tabParam === 'calendar' ? 'calendar' : tabParam === 'travel' ? 'travel' : tabParam === 'activity' ? 'activity' : tabParam === 'comments' ? 'comments' : 'information'
   const activityType = activityTypeParam ?? 'all'
 
   const supabase = createServiceClient()
 
   const [{ data: eventData }, { data: quotesData }, { data: invoicesData }, { data: invoiceSettingsData }, { data: allClientsData }, { data: monitoringData }] = await Promise.all([
-    supabase.from('events').select('*, booked_template:band_templates!booked_band_template_id(name)').eq('id', id).single(),
+    supabase.from('events').select('*, booked_template:band_templates!booked_band_template_id(name), dress_code_template:dress_code_templates!dress_code_template_id(name, description)').eq('id', id).single(),
     supabase.from('quotes').select('id, created_at, inputs, calculated, version, status, accepted_option').eq('event_id', id).order('version', { ascending: false }),
     supabase.from('invoices').select('*, line_items:invoice_line_items(*)').eq('event_id', id).order('created_at'),
     supabase.from('invoice_settings').select('*').single(),
@@ -137,6 +151,10 @@ export default async function EventDetailPage({
   const allClients = (allClientsData ?? []) as Client[]
   const linkedClient = allClients.find(c => c.id === event.client_id) ?? null
   const adminEmail = (monitoringData as { reply_to_email?: string | null } | null)?.reply_to_email ?? null
+  const dressCode = resolveDressCode(
+    (event as unknown as { dress_code?: string | null }).dress_code,
+    (event as unknown as { dress_code_template?: { name: string; description: string | null } | null }).dress_code_template
+  )
   const rd = event.request_details
   const quotePrice: number | null = quotes[0]?.calculated?.total_fee ?? null
 
@@ -268,6 +286,63 @@ export default async function EventDetailPage({
     allSongs = (songsData ?? []) as Song[]
   }
 
+  // Fetch set list song titles when on the calendar tab
+  let calendarSetListText: string | null = null
+
+  if (tab === 'calendar') {
+    const { data: existingSetList } = await supabase
+      .from('set_lists')
+      .select('id')
+      .eq('event_id', id)
+      .eq('is_template', false)
+      .order('created_at')
+      .limit(1)
+      .maybeSingle()
+
+    if (existingSetList?.id) {
+      const { data: slSongs } = await supabase
+        .from('set_list_songs')
+        .select('*, song:songs(title)')
+        .eq('set_list_id', existingSetList.id)
+        .order('set_number', { ascending: true, nullsFirst: false })
+        .order('position', { ascending: true })
+
+      const songs = (slSongs ?? []) as (SetListSong & { song?: { title: string } })[]
+      if (songs.length > 0) {
+        const setNumbers = Array.from(new Set(songs.map(s => s.set_number ?? 1)))
+        calendarSetListText = setNumbers.length > 1
+          ? setNumbers
+              .map(sn => `Set ${sn}: ${songs.filter(s => (s.set_number ?? 1) === sn).map(s => s.song?.title).filter(Boolean).join(', ')}`)
+              .join(' | ')
+          : songs.map(s => s.song?.title).filter(Boolean).join(', ')
+      }
+    }
+  }
+
+  const calendarNotesData = {
+    date: event.event_date ? formatOrdinalDate(event.event_date) : null,
+    address: [event.venue_name, event.venue_address, event.venue_postcode].filter(Boolean).join(', ') || null,
+    bandSize: event.booked_band_size ?? rd?.band_size_requested ?? null,
+    numberOfSets: event.booked_sets ?? rd?.sets_requested ?? null,
+    arrival: event.arrival_time,
+    finish: event.finish_time,
+    setList: calendarSetListText,
+    food: event.food === 'yes' ? 'Yes' : event.food === 'no' ? 'No' : event.food === 'tbc' ? 'TBC' : null,
+    dressCode,
+  }
+
+  // Fetch travel expenses when on the travel tab
+  let travelExpenses: TravelExpense[] = []
+
+  if (tab === 'travel') {
+    const { data: travelExpensesData } = await supabase
+      .from('event_travel_expenses')
+      .select('*')
+      .eq('event_id', id)
+      .order('sort_order')
+    travelExpenses = (travelExpensesData ?? []) as TravelExpense[]
+  }
+
   // Fetch activity log when on the activity tab, filtered server-side
   let activityLog: ActivityEntry[] = []
 
@@ -384,6 +459,8 @@ export default async function EventDetailPage({
         <a href={`/admin/events/${id}?tab=contract`} style={tabStyle(tab === 'contract')}>
           Contract{event.contract ? ' ✓' : ''}
         </a>
+        <a href={`/admin/events/${id}?tab=calendar`} style={tabStyle(tab === 'calendar')}>Calendar</a>
+        <a href={`/admin/events/${id}?tab=travel`} style={tabStyle(tab === 'travel')}>Travel expenses</a>
         <a href={`/admin/events/${id}?tab=activity`} style={tabStyle(tab === 'activity')}>Activity</a>
         <a href={`/admin/events/${id}?tab=comments`} style={tabStyle(tab === 'comments')}>Comments</a>
       </div>
@@ -441,9 +518,7 @@ export default async function EventDetailPage({
               <Cell label="Food provided" value={event.food === 'yes' ? 'Yes' : event.food === 'no' ? 'No' : event.food === 'tbc' ? 'TBC' : null} />
               <Cell label="Food notes" value={event.food_notes} />
             </PairGrid>
-            {(event as unknown as { dress_code?: string | null }).dress_code && (
-              <FullRow label="Dress code" value={(event as unknown as { dress_code?: string | null }).dress_code} />
-            )}
+            {dressCode && <FullRow label="Dress code" value={dressCode} />}
             <FullRow label="Address" value={event.venue_address} />
           </Section>
 
@@ -593,6 +668,36 @@ export default async function EventDetailPage({
       {tab === 'contract' && (
         <div style={{ maxWidth: 720 }}>
           <ContractSection event={event} quotePrice={quotePrice} />
+        </div>
+      )}
+
+      {/* ── Calendar tab ── */}
+      {tab === 'calendar' && (
+        <CalendarNotesSection data={calendarNotesData} />
+      )}
+
+      {/* ── Travel expenses tab ── */}
+      {tab === 'travel' && (
+        <div style={{ maxWidth: 720 }}>
+          <Section label="Journey details">
+            <JourneyDetailsCard
+              eventId={event.id}
+              initialRoundTripMiles={(event as unknown as { round_trip_miles?: number | null }).round_trip_miles ?? null}
+              homePostcode={invoiceSettings?.home_postcode ?? null}
+              venuePostcode={event.venue_postcode}
+            />
+          </Section>
+          <Section label="Travel details">
+            <TravelDetailsForm
+              eventId={event.id}
+              initialTravelMethod={(event as unknown as { travel_method?: string | null }).travel_method ?? null}
+              initialCongestionChargeRequired={(event as unknown as { congestion_charge_required?: string | null }).congestion_charge_required ?? null}
+              initialParkingType={(event as unknown as { parking_type?: string | null }).parking_type ?? null}
+            />
+          </Section>
+          <Section label="Travel expenses">
+            <TravelExpensesTable eventId={event.id} initialExpenses={travelExpenses} />
+          </Section>
         </div>
       )}
 
