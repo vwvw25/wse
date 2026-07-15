@@ -23,7 +23,7 @@ export default async function InvoicesPage() {
     .filter(e => !invoicedEventIds.has(e.id))
 
   return (
-    <div style={{ padding: '32px 32px', fontFamily: 'var(--font)', maxWidth: 960 }}>
+    <div style={{ padding: '32px 32px', fontFamily: 'var(--font)' }}>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0 0 4px', color: 'var(--text)' }}>Invoices</h1>
       </div>

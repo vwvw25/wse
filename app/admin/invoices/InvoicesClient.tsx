@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { invoiceTotal } from '@/types/invoice'
 import type { InvoiceLineItem } from '@/types/invoice'
+import { updateInvoiceStatus, updateInvoicePaidDate, updateInvoiceAmountReceived, updateInvoiceNotes } from './actions'
 
 function fmt(n: number) {
   return `£${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`
@@ -11,10 +13,14 @@ function formatDate(d: string | null) {
   if (!d) return '—'
   return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
+function isPastDue(dueDate: string | null): boolean {
+  if (!dueDate) return false
+  return new Date(dueDate) < new Date(new Date().toDateString())
+}
 
 type SortKey = 'number' | 'event_date' | 'issue_date' | 'total' | 'status' | 'sent_at'
 type SortDir = 'asc' | 'desc'
-type StatusFilter = 'all' | 'unsent' | 'sent' | 'chased' | 'paid' | 'not_invoiced'
+type StatusFilter = 'all' | 'unsent' | 'sent' | 'invoiced_due' | 'chased' | 'paid' | 'paid_incorrect_amount' | 'not_invoiced'
 
 export type InvoiceRow = {
   id: string
@@ -23,6 +29,9 @@ export type InvoiceRow = {
   sent_at: string | null
   issue_date: string | null
   due_date: string | null
+  paid_date: string | null
+  amount_received: number | null
+  notes: string | null
   line_items: InvoiceLineItem[]
   event: {
     id: string
@@ -56,6 +65,148 @@ const STATUS_LABELS: Record<string, string> = {
   contracted: 'Contracted',
 }
 
+const inputStyle: React.CSSProperties = {
+  height: 30, padding: '0 8px', fontSize: 12, boxSizing: 'border-box',
+  background: 'var(--bg-secondary)', color: 'var(--text)',
+  border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)',
+  fontFamily: 'var(--font)', outline: 'none',
+}
+
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  unsent:                 { label: 'Unsent',                  color: 'var(--text-tertiary)',         bg: 'var(--bg-secondary)' },
+  sent:                   { label: 'Sent',                    color: 'var(--pill-stc-text)',         bg: 'var(--pill-stc-bg)' },
+  invoiced_due:           { label: 'Invoiced – due',           color: 'var(--pill-cancelled-text)',   bg: 'var(--pill-cancelled-bg)' },
+  chased:                 { label: 'Chased',                  color: 'var(--pill-outstanding-text)', bg: 'var(--pill-outstanding-bg)' },
+  paid:                   { label: 'Paid',                    color: 'var(--pill-paid-text)',        bg: 'var(--pill-paid-bg)' },
+  paid_incorrect_amount:  { label: 'Paid – incorrect amount',  color: 'var(--pill-outstanding-text)', bg: 'var(--pill-outstanding-bg)' },
+}
+
+function StatusCell({ invoiceId, eventId, status, dueDate }: { invoiceId: string; eventId?: string | null; status: string; dueDate: string | null }) {
+  const router = useRouter()
+  const [, startTransition] = useTransition()
+  const [current, setCurrent] = useState(status)
+
+  function handleChange(val: string) {
+    setCurrent(val)
+    startTransition(async () => {
+      await updateInvoiceStatus(invoiceId, val, eventId)
+      router.refresh()
+    })
+  }
+
+  const overdue = current === 'sent' && isPastDue(dueDate)
+  const displayKey = overdue ? 'invoiced_due' : current
+  const cfg = STATUS_CONFIG[displayKey] ?? STATUS_CONFIG.unsent
+
+  return (
+    <select
+      value={current}
+      onChange={e => handleChange(e.target.value)}
+      style={{
+        ...inputStyle, width: 190, fontWeight: 500, cursor: 'pointer',
+        background: cfg.bg, color: cfg.color, border: `0.5px solid ${cfg.bg}`,
+      }}
+    >
+      <option value="unsent">Unsent</option>
+      <option value="sent">{overdue ? 'Invoiced – due' : 'Sent'}</option>
+      <option value="chased">Chased</option>
+      <option value="paid">Paid</option>
+      <option value="paid_incorrect_amount">Paid – incorrect amount</option>
+    </select>
+  )
+}
+
+function PaidDateCell({ invoiceId, eventId, date }: { invoiceId: string; eventId?: string | null; date: string | null }) {
+  const router = useRouter()
+  const [, startTransition] = useTransition()
+  const [current, setCurrent] = useState(date ?? '')
+
+  function handleChange(val: string) {
+    setCurrent(val)
+    startTransition(async () => {
+      await updateInvoicePaidDate(invoiceId, val || null, eventId)
+      router.refresh()
+    })
+  }
+
+  return (
+    <input
+      type="date"
+      value={current}
+      onChange={e => handleChange(e.target.value)}
+      style={{ ...inputStyle, width: 130, colorScheme: 'light' }}
+    />
+  )
+}
+
+function AmountReceivedCell({ invoiceId, eventId, amount, total }: { invoiceId: string; eventId?: string | null; amount: number | null; total: number }) {
+  const router = useRouter()
+  const [, startTransition] = useTransition()
+  const [current, setCurrent] = useState(amount != null ? String(amount) : '')
+
+  function commit() {
+    const trimmed = current.trim()
+    const parsed = trimmed === '' ? null : parseFloat(trimmed)
+    const value = parsed != null && Number.isNaN(parsed) ? null : parsed
+    setCurrent(value != null ? String(value) : '')
+    startTransition(async () => {
+      await updateInvoiceAmountReceived(invoiceId, value, eventId)
+      router.refresh()
+    })
+  }
+
+  const mismatch = amount != null && Math.abs(amount - total) > 0.005
+
+  return (
+    <div
+      title={mismatch ? `Differs from invoiced total of ${fmt(total)}` : undefined}
+      style={{ position: 'relative', width: 100 }}
+    >
+      <span style={{
+        position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)',
+        fontSize: 12, color: mismatch ? 'var(--pill-outstanding-text)' : 'var(--text-tertiary)', pointerEvents: 'none',
+      }}>£</span>
+      <input
+        type="text"
+        inputMode="decimal"
+        value={current}
+        onChange={e => setCurrent(e.target.value)}
+        onBlur={commit}
+        placeholder="0.00"
+        style={{
+          ...inputStyle, width: '100%', textAlign: 'right', paddingLeft: 18, boxSizing: 'border-box',
+          color: mismatch ? 'var(--pill-outstanding-text)' : 'var(--text)',
+          background: mismatch ? 'var(--pill-outstanding-bg)' : 'var(--bg-secondary)',
+          border: `0.5px solid ${mismatch ? 'var(--pill-outstanding-text)' : 'var(--border)'}`,
+        }}
+      />
+    </div>
+  )
+}
+
+function NotesCell({ invoiceId, eventId, notes }: { invoiceId: string; eventId?: string | null; notes: string | null }) {
+  const router = useRouter()
+  const [, startTransition] = useTransition()
+  const [value, setValue] = useState(notes ?? '')
+
+  function commit() {
+    startTransition(async () => {
+      await updateInvoiceNotes(invoiceId, value.trim() || null, eventId)
+      router.refresh()
+    })
+  }
+
+  return (
+    <input
+      value={value}
+      onChange={e => setValue(e.target.value)}
+      onBlur={commit}
+      placeholder="Add note…"
+      style={{ ...inputStyle, width: 160 }}
+    />
+  )
+}
+
 export default function InvoicesClient({
   invoices,
   uninvoicedEvents,
@@ -77,8 +228,10 @@ export default function InvoicesClient({
     }
   }
 
-  const unpaid = invoices.filter(i => i.status !== 'paid')
-  const paid = invoices.filter(i => i.status === 'paid')
+  const isDue = (i: InvoiceRow) => i.status === 'sent' && isPastDue(i.due_date)
+
+  const unpaid = invoices.filter(i => i.status !== 'paid' && i.status !== 'paid_incorrect_amount')
+  const paid = invoices.filter(i => i.status === 'paid' || i.status === 'paid_incorrect_amount')
   const totalOutstanding = unpaid.reduce((sum, i) => sum + invoiceTotal(i.line_items), 0)
   const totalPaid = paid.reduce((sum, i) => sum + invoiceTotal(i.line_items), 0)
   const totalUninvoiced = uninvoicedEvents.reduce((sum, e) => sum + (e.booked_fee ?? 0), 0)
@@ -88,6 +241,8 @@ export default function InvoicesClient({
       ? invoices
       : statusFilter === 'not_invoiced'
       ? []
+      : statusFilter === 'invoiced_due'
+      ? invoices.filter(isDue)
       : invoices.filter(i => i.status === statusFilter)
 
     return [...filtered].sort((a, b) => {
@@ -140,7 +295,7 @@ export default function InvoicesClient({
       background: statusFilter === f ? 'var(--text)' : 'none',
       color: statusFilter === f ? 'var(--bg)' : 'var(--text-secondary)',
       border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)',
-      cursor: 'pointer', fontFamily: 'var(--font)',
+      cursor: 'pointer', fontFamily: 'var(--font)', whiteSpace: 'nowrap',
     }}>
       {label} <span style={{ opacity: 0.6 }}>{count}</span>
     </button>
@@ -212,12 +367,14 @@ export default function InvoicesClient({
       </div>
 
       {/* Filter row */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end', marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end', marginBottom: 16, flexWrap: 'wrap' }}>
         {filterBtn('all', 'All', invoices.length)}
         {filterBtn('unsent', 'Unsent', invoices.filter(i => i.status === 'unsent').length)}
         {filterBtn('sent', 'Sent', invoices.filter(i => i.status === 'sent').length)}
+        {filterBtn('invoiced_due', 'Invoiced – due', invoices.filter(isDue).length)}
         {filterBtn('chased', 'Chased', invoices.filter(i => i.status === 'chased').length)}
-        {filterBtn('paid', 'Paid', paid.length)}
+        {filterBtn('paid', 'Paid', invoices.filter(i => i.status === 'paid').length)}
+        {filterBtn('paid_incorrect_amount', 'Paid – incorrect amt', invoices.filter(i => i.status === 'paid_incorrect_amount').length)}
       </div>
 
       {/* Not invoiced table */}
@@ -280,8 +437,8 @@ export default function InvoicesClient({
           No invoices match.
         </div>
       ) : (
-        <div style={{ border: '0.5px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div style={{ border: '0.5px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1550 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
                 <Th label="Number" sortable="number" />
@@ -289,9 +446,13 @@ export default function InvoicesClient({
                 <Th label="Client" />
                 <Th label="Event date" sortable="event_date" />
                 <Th label="Issue date" sortable="issue_date" />
+                <Th label="Due date" />
                 <Th label="Total" sortable="total" right />
                 <Th label="Status" sortable="status" />
                 <Th label="Date sent" sortable="sent_at" />
+                <Th label="Amount received" right />
+                <Th label="Paid date" />
+                <Th label="Notes" />
               </tr>
             </thead>
             <tbody>
@@ -302,11 +463,6 @@ export default function InvoicesClient({
                 const label = event?.agency_name
                   ? (event.agent_name ? `${event.agent_name} / ${event.agency_name}` : event.agency_name)
                   : (event?.agent_name ?? '—')
-                const pillCfg =
-                  inv.status === 'paid'    ? { bg: 'var(--pill-paid-bg)',         color: 'var(--pill-paid-text)',         label: 'Paid' } :
-                  inv.status === 'chased'  ? { bg: 'var(--pill-outstanding-bg)',   color: 'var(--pill-outstanding-text)',  label: 'Chased' } :
-                  inv.status === 'sent'    ? { bg: 'var(--pill-stc-bg)',           color: 'var(--pill-stc-text)',          label: 'Sent' } :
-                                             { bg: 'var(--bg-secondary)',           color: 'var(--text-tertiary)',          label: 'Unsent' }
 
                 return (
                   <tr key={inv.id} style={{ borderBottom: '0.5px solid var(--border)' }}>
@@ -323,14 +479,22 @@ export default function InvoicesClient({
                     <td style={{ padding: '10px 12px', fontSize: 13, color: 'var(--text-secondary)' }}>{client?.name ?? '—'}</td>
                     <td style={{ padding: '10px 12px', fontSize: 13, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{formatDate(event?.event_date ?? null)}</td>
                     <td style={{ padding: '10px 12px', fontSize: 13, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{formatDate(inv.issue_date)}</td>
+                    <td style={{ padding: '10px 12px', fontSize: 13, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{formatDate(inv.due_date)}</td>
                     <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 500, textAlign: 'right', whiteSpace: 'nowrap' }}>{fmt(total)}</td>
                     <td style={{ padding: '10px 12px' }}>
-                      <span style={{ fontSize: 11, fontWeight: 500, padding: '2px 7px', borderRadius: 4, background: pillCfg.bg, color: pillCfg.color }}>
-                        {pillCfg.label}
-                      </span>
+                      <StatusCell invoiceId={inv.id} eventId={event?.id} status={inv.status} dueDate={inv.due_date} />
                     </td>
                     <td style={{ padding: '10px 12px', fontSize: 12, color: inv.sent_at ? 'var(--pill-stc-text)' : 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
                       {inv.sent_at ? `✓ ${formatDate(inv.sent_at)}` : '—'}
+                    </td>
+                    <td style={{ padding: '10px 12px' }}>
+                      <AmountReceivedCell invoiceId={inv.id} eventId={event?.id} amount={inv.amount_received} total={total} />
+                    </td>
+                    <td style={{ padding: '10px 12px' }}>
+                      <PaidDateCell invoiceId={inv.id} eventId={event?.id} date={inv.paid_date} />
+                    </td>
+                    <td style={{ padding: '10px 12px' }}>
+                      <NotesCell invoiceId={inv.id} eventId={event?.id} notes={inv.notes} />
                     </td>
                   </tr>
                 )

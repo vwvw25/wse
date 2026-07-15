@@ -42,7 +42,7 @@ export interface InvoiceLineItem {
   sort_order: number
 }
 
-export type InvoiceStatus = 'unsent' | 'sent' | 'chased' | 'paid'
+export type InvoiceStatus = 'unsent' | 'sent' | 'chased' | 'paid' | 'paid_incorrect_amount'
 
 export interface Invoice {
   id: string
@@ -56,6 +56,8 @@ export interface Invoice {
   auto_send_day_of_event: boolean
   issue_date: string | null
   due_date: string | null
+  paid_date: string | null
+  amount_received: number | null
   notes: string | null
   po_number: string | null
   created_at: string

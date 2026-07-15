@@ -163,6 +163,8 @@ function InvoiceCard({
 
   const statusCfg = invoice.status === 'paid'
     ? { label: 'Paid', color: 'var(--pill-paid-text)', bg: 'var(--pill-paid-bg)', border: 'var(--pill-paid-text)' }
+    : invoice.status === 'paid_incorrect_amount'
+    ? { label: 'Paid – incorrect amount', color: 'var(--pill-outstanding-text)', bg: 'var(--pill-outstanding-bg)', border: 'var(--pill-outstanding-text)' }
     : invoice.status === 'chased'
     ? { label: 'Chased', color: 'var(--pill-outstanding-text)', bg: 'var(--pill-outstanding-bg)', border: 'var(--pill-outstanding-text)' }
     : invoice.status === 'sent'
@@ -214,6 +216,7 @@ function InvoiceCard({
                 <option value="sent">Sent</option>
                 <option value="chased">Chased</option>
                 <option value="paid">Paid</option>
+                <option value="paid_incorrect_amount">Paid – incorrect amount</option>
               </select>
             </div>
             {/* Issue date */}
