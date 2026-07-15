@@ -7,6 +7,26 @@ import { logEventActivity } from '@/lib/event-activity'
 
 function revalidate(eventId: string) {
   revalidatePath(`/admin/events/${eventId}`)
+  revalidatePath('/admin/invoices')
+}
+
+function formatDate(d: string) {
+  return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+function computeDefaultDueDate(eventDate: string | null): string | null {
+  if (!eventDate) return null
+  const d = new Date(eventDate)
+  d.setDate(d.getDate() + 30)
+  return d.toISOString().split('T')[0]
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  unsent: 'Unsent',
+  sent: 'Sent',
+  chased: 'Chased',
+  paid: 'Paid',
+  paid_incorrect_amount: 'Paid – incorrect amount',
 }
 
 // Generate next invoice number for the year
@@ -35,7 +55,10 @@ export async function createInvoice(
   prefillLineItems: { description: string; cost: number }[],
 ) {
   const supabase = createServiceClient()
-  const { number, year, sequence } = await nextInvoiceNumber(supabase)
+  const [{ number, year, sequence }, { data: event }] = await Promise.all([
+    nextInvoiceNumber(supabase),
+    supabase.from('events').select('event_date').eq('id', eventId).single(),
+  ])
 
   const { data: invoice } = await supabase
     .from('invoices')
@@ -46,6 +69,7 @@ export async function createInvoice(
       sequence,
       status: 'unsent',
       issue_date: new Date().toISOString().split('T')[0],
+      due_date: computeDefaultDueDate(event?.event_date ?? null),
     })
     .select()
     .single()
@@ -82,9 +106,21 @@ export async function updateInvoice(
   },
 ) {
   const supabase = createServiceClient()
+  const { data: invoice } = await supabase.from('invoices').select('number').eq('id', invoiceId).single()
   await supabase.from('invoices').update(data).eq('id', invoiceId)
   revalidate(eventId)
-  if (data.status) await logEventActivity(eventId, { type: 'invoice_change', summary: `Invoice status set to ${data.status}` })
+
+  const changes: string[] = []
+  if (data.status) changes.push(`status set to ${STATUS_LABELS[data.status] ?? data.status}`)
+  if ('issue_date' in data) changes.push(`issue date set to ${data.issue_date ? formatDate(data.issue_date) : 'none'}`)
+  if ('due_date' in data) changes.push(`due date set to ${data.due_date ? formatDate(data.due_date) : 'none'}`)
+  if ('notes' in data) changes.push('notes updated')
+  if ('po_number' in data) changes.push(`PO number set to ${data.po_number || 'none'}`)
+  if ('auto_send_at' in data || 'auto_send_day_of_event' in data) changes.push('auto-send settings updated')
+
+  if (changes.length > 0) {
+    await logEventActivity(eventId, { type: 'invoice_change', summary: `Invoice ${invoice?.number ?? ''} ${changes.join(', ')}`.trim() })
+  }
 }
 
 export async function deleteInvoice(invoiceId: string, eventId: string) {

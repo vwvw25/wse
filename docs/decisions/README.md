@@ -13,3 +13,4 @@ Significant decisions made during the design and development of the WSE quoting 
 | [ADR-007](ADR-007-client-model.md) | Client model — all bookings have a client record | Accepted | 2026-04-21 |
 | [ADR-008](ADR-008-email-monitoring.md) | Email monitoring and delivery logging | Accepted | 2026-04-21 |
 | [ADR-009](ADR-009-musician-availability-ux.md) | Musician availability UX — confirmation flow and celebration GIFs | Accepted | 2026-04-21 |
+| [ADR-011](ADR-011-event-activity-log.md) | Event activity log — purpose and coverage requirement | Accepted | 2026-07-15 |

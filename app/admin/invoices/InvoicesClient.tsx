@@ -17,6 +17,12 @@ function isPastDue(dueDate: string | null): boolean {
   if (!dueDate) return false
   return new Date(dueDate) < new Date(new Date().toDateString())
 }
+function computeDefaultDueDate(eventDate: string | null): string | null {
+  if (!eventDate) return null
+  const d = new Date(eventDate)
+  d.setDate(d.getDate() + 30)
+  return d.toISOString().split('T')[0]
+}
 
 type SortKey = 'number' | 'event_date' | 'issue_date' | 'total' | 'status' | 'sent_at'
 type SortDir = 'asc' | 'desc'
@@ -81,7 +87,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
   paid_incorrect_amount:  { label: 'Paid – incorrect amount',  color: 'var(--pill-outstanding-text)', bg: 'var(--pill-outstanding-bg)' },
 }
 
-function StatusCell({ invoiceId, eventId, status, dueDate }: { invoiceId: string; eventId?: string | null; status: string; dueDate: string | null }) {
+function StatusCell({ invoiceId, status, dueDate }: { invoiceId: string; status: string; dueDate: string | null }) {
   const router = useRouter()
   const [, startTransition] = useTransition()
   const [current, setCurrent] = useState(status)
@@ -89,7 +95,7 @@ function StatusCell({ invoiceId, eventId, status, dueDate }: { invoiceId: string
   function handleChange(val: string) {
     setCurrent(val)
     startTransition(async () => {
-      await updateInvoiceStatus(invoiceId, val, eventId)
+      await updateInvoiceStatus(invoiceId, val)
       router.refresh()
     })
   }
@@ -116,7 +122,7 @@ function StatusCell({ invoiceId, eventId, status, dueDate }: { invoiceId: string
   )
 }
 
-function PaidDateCell({ invoiceId, eventId, date }: { invoiceId: string; eventId?: string | null; date: string | null }) {
+function PaidDateCell({ invoiceId, date }: { invoiceId: string; date: string | null }) {
   const router = useRouter()
   const [, startTransition] = useTransition()
   const [current, setCurrent] = useState(date ?? '')
@@ -124,7 +130,7 @@ function PaidDateCell({ invoiceId, eventId, date }: { invoiceId: string; eventId
   function handleChange(val: string) {
     setCurrent(val)
     startTransition(async () => {
-      await updateInvoicePaidDate(invoiceId, val || null, eventId)
+      await updateInvoicePaidDate(invoiceId, val || null)
       router.refresh()
     })
   }
@@ -139,7 +145,7 @@ function PaidDateCell({ invoiceId, eventId, date }: { invoiceId: string; eventId
   )
 }
 
-function AmountReceivedCell({ invoiceId, eventId, amount, total }: { invoiceId: string; eventId?: string | null; amount: number | null; total: number }) {
+function AmountReceivedCell({ invoiceId, amount, total }: { invoiceId: string; amount: number | null; total: number }) {
   const router = useRouter()
   const [, startTransition] = useTransition()
   const [current, setCurrent] = useState(amount != null ? String(amount) : '')
@@ -150,7 +156,7 @@ function AmountReceivedCell({ invoiceId, eventId, amount, total }: { invoiceId: 
     const value = parsed != null && Number.isNaN(parsed) ? null : parsed
     setCurrent(value != null ? String(value) : '')
     startTransition(async () => {
-      await updateInvoiceAmountReceived(invoiceId, value, eventId)
+      await updateInvoiceAmountReceived(invoiceId, value)
       router.refresh()
     })
   }
@@ -184,14 +190,14 @@ function AmountReceivedCell({ invoiceId, eventId, amount, total }: { invoiceId: 
   )
 }
 
-function NotesCell({ invoiceId, eventId, notes }: { invoiceId: string; eventId?: string | null; notes: string | null }) {
+function NotesCell({ invoiceId, notes }: { invoiceId: string; notes: string | null }) {
   const router = useRouter()
   const [, startTransition] = useTransition()
   const [value, setValue] = useState(notes ?? '')
 
   function commit() {
     startTransition(async () => {
-      await updateInvoiceNotes(invoiceId, value.trim() || null, eventId)
+      await updateInvoiceNotes(invoiceId, value.trim() || null)
       router.refresh()
     })
   }
@@ -228,7 +234,7 @@ export default function InvoicesClient({
     }
   }
 
-  const isDue = (i: InvoiceRow) => i.status === 'sent' && isPastDue(i.due_date)
+  const isDue = (i: InvoiceRow) => i.status === 'sent' && isPastDue(i.due_date ?? computeDefaultDueDate(i.event?.event_date ?? null))
 
   const unpaid = invoices.filter(i => i.status !== 'paid' && i.status !== 'paid_incorrect_amount')
   const paid = invoices.filter(i => i.status === 'paid' || i.status === 'paid_incorrect_amount')
@@ -463,6 +469,8 @@ export default function InvoicesClient({
                 const label = event?.agency_name
                   ? (event.agent_name ? `${event.agent_name} / ${event.agency_name}` : event.agency_name)
                   : (event?.agent_name ?? '—')
+                const effectiveDueDate = inv.due_date ?? computeDefaultDueDate(event?.event_date ?? null)
+                const dueDateIsDefault = !inv.due_date && !!effectiveDueDate
 
                 return (
                   <tr key={inv.id} style={{ borderBottom: '0.5px solid var(--border)' }}>
@@ -479,22 +487,27 @@ export default function InvoicesClient({
                     <td style={{ padding: '10px 12px', fontSize: 13, color: 'var(--text-secondary)' }}>{client?.name ?? '—'}</td>
                     <td style={{ padding: '10px 12px', fontSize: 13, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{formatDate(event?.event_date ?? null)}</td>
                     <td style={{ padding: '10px 12px', fontSize: 13, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{formatDate(inv.issue_date)}</td>
-                    <td style={{ padding: '10px 12px', fontSize: 13, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{formatDate(inv.due_date)}</td>
+                    <td
+                      style={{ padding: '10px 12px', fontSize: 13, color: dueDateIsDefault ? 'var(--text-tertiary)' : 'var(--text-secondary)', fontStyle: dueDateIsDefault ? 'italic' : 'normal', whiteSpace: 'nowrap' }}
+                      title={dueDateIsDefault ? 'Defaulted to 30 days after the event date — not explicitly set' : undefined}
+                    >
+                      {formatDate(effectiveDueDate)}
+                    </td>
                     <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 500, textAlign: 'right', whiteSpace: 'nowrap' }}>{fmt(total)}</td>
                     <td style={{ padding: '10px 12px' }}>
-                      <StatusCell invoiceId={inv.id} eventId={event?.id} status={inv.status} dueDate={inv.due_date} />
+                      <StatusCell invoiceId={inv.id} status={inv.status} dueDate={effectiveDueDate} />
                     </td>
                     <td style={{ padding: '10px 12px', fontSize: 12, color: inv.sent_at ? 'var(--pill-stc-text)' : 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
                       {inv.sent_at ? `✓ ${formatDate(inv.sent_at)}` : '—'}
                     </td>
                     <td style={{ padding: '10px 12px' }}>
-                      <AmountReceivedCell invoiceId={inv.id} eventId={event?.id} amount={inv.amount_received} total={total} />
+                      <AmountReceivedCell invoiceId={inv.id} amount={inv.amount_received} total={total} />
                     </td>
                     <td style={{ padding: '10px 12px' }}>
-                      <PaidDateCell invoiceId={inv.id} eventId={event?.id} date={inv.paid_date} />
+                      <PaidDateCell invoiceId={inv.id} date={inv.paid_date} />
                     </td>
                     <td style={{ padding: '10px 12px' }}>
-                      <NotesCell invoiceId={inv.id} eventId={event?.id} notes={inv.notes} />
+                      <NotesCell invoiceId={inv.id} notes={inv.notes} />
                     </td>
                   </tr>
                 )
