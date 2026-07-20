@@ -6,6 +6,22 @@ import { redirect } from 'next/navigation'
 import { EVENT_STATUSES } from '@/lib/event-statuses'
 import type { EventStatus } from '@/lib/event-statuses'
 import { logEventActivity } from '@/lib/event-activity'
+import { findPotentialDuplicateEvents } from '@/lib/duplicate-events'
+import type { DuplicateEventMatch } from '@/lib/duplicate-events'
+
+export type { DuplicateEventMatch }
+
+export async function checkPotentialDuplicateEvents(formData: FormData): Promise<DuplicateEventMatch[]> {
+  const str = (key: string) => (formData.get(key) as string)?.trim() || null
+  return findPotentialDuplicateEvents({
+    event_date: str('event_date'),
+    venue_name: str('venue_name'),
+    venue_postcode: str('venue_postcode'),
+    client_email: str('client_email'),
+    agency_name: str('agency_name'),
+    agent_name: str('agent_name'),
+  })
+}
 
 export async function addEventComment(eventId: string, text: string) {
   const trimmed = text.trim()

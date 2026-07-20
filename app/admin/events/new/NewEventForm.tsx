@@ -1,11 +1,13 @@
 'use client'
 
 import { useState, useTransition, useRef, useEffect } from 'react'
-import { createEvent } from '../actions'
+import { createEvent, checkPotentialDuplicateEvents } from '../actions'
+import type { DuplicateEventMatch } from '../actions'
 import type { DressCodeTemplate } from '../../dress-codes/actions'
 import { EVENT_STATUSES } from '@/lib/event-statuses'
 import type { EventStatus } from '@/lib/event-statuses'
 import ContractStatusModal from '../ContractStatusModal'
+import DuplicateWarningModal from '../DuplicateWarningModal'
 
 function Field({ label, hint, children, span2 }: { label: string; hint?: string; children: React.ReactNode; span2?: boolean }) {
   return (
@@ -98,6 +100,8 @@ export default function NewEventForm({ dressCodeTemplates }: { dressCodeTemplate
   const [parseError, setParseError] = useState<string | null>(null)
   const [status, setStatus] = useState<EventStatus>('enquiry')
   const [showStatusPrompt, setShowStatusPrompt] = useState(false)
+  const [duplicates, setDuplicates] = useState<DuplicateEventMatch[] | null>(null)
+  const pendingFormDataRef = useRef<FormData | null>(null)
 
   async function handleContractUpload(file: File) {
     setParsing(true)
@@ -166,6 +170,22 @@ export default function NewEventForm({ dressCodeTemplates }: { dressCodeTemplate
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
     fd.set('is_agency', String(isAgency))
+    startTransition(async () => {
+      const matches = await checkPotentialDuplicateEvents(fd)
+      if (matches.length > 0) {
+        pendingFormDataRef.current = fd
+        setDuplicates(matches)
+        return
+      }
+      submittedRef.current = true
+      await createEvent(fd)
+    })
+  }
+
+  function handleConfirmCreateAnyway() {
+    const fd = pendingFormDataRef.current
+    if (!fd) return
+    setDuplicates(null)
     submittedRef.current = true
     startTransition(async () => {
       await createEvent(fd)
@@ -460,6 +480,13 @@ export default function NewEventForm({ dressCodeTemplates }: { dressCodeTemplate
       </form>
 
       {showStatusPrompt && <ContractStatusModal onSelect={handleStatusSelect} />}
+      {duplicates && (
+        <DuplicateWarningModal
+          matches={duplicates}
+          onCancel={() => { setDuplicates(null); pendingFormDataRef.current = null }}
+          onConfirm={handleConfirmCreateAnyway}
+        />
+      )}
     </div>
   )
 }

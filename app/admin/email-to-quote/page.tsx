@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { extractFromEmail, saveEvent } from './actions'
-import type { EmailExtractResult, ExtractedAutoFill } from './actions'
+import { extractFromEmail, saveEvent, checkDuplicateEvents } from './actions'
+import type { EmailExtractResult, ExtractedAutoFill, DuplicateEventMatch } from './actions'
 import type { RequestDetails } from '@/types/quote'
+import DuplicateWarningModal from '../events/DuplicateWarningModal'
 
 const DEFAULT_SOURCES = ['Encore', 'Poptop', 'Last Minute Musicians', 'Website']
 
@@ -33,6 +34,7 @@ export default function EmailToQuotePage() {
   const [requestDetails, setRequestDetails] = useState<RequestDetails | null>(null)
   const [originalParse, setOriginalParse] = useState<EmailExtractResult | null>(null)
   const [sources, setSources] = useState<string[]>(DEFAULT_SOURCES)
+  const [duplicates, setDuplicates] = useState<DuplicateEventMatch[] | null>(null)
 
   useEffect(() => {
     fetch('/api/admin/invoice-settings')
@@ -60,8 +62,15 @@ export default function EmailToQuotePage() {
     }
   }
 
-  async function handleSaveEvent() {
+  async function handleSaveEvent(force = false) {
     if (!autoFill || !requestDetails) return
+    if (!force) {
+      const matches = await checkDuplicateEvents(autoFill)
+      if (matches.length > 0) {
+        setDuplicates(matches)
+        return
+      }
+    }
     setState('creating')
     try {
       const { eventId } = await saveEvent({ auto_fill: autoFill, request_details: requestDetails }, emailText, originalParse!)
@@ -401,7 +410,7 @@ export default function EmailToQuotePage() {
               ← Try again
             </button>
             <button
-              onClick={handleSaveEvent}
+              onClick={() => handleSaveEvent()}
               style={{
                 padding: '10px 24px', fontSize: 13, fontWeight: 500,
                 background: 'var(--text)', color: 'var(--bg)',
@@ -414,6 +423,13 @@ export default function EmailToQuotePage() {
           </div>
           </div>{/* end parsed fields column */}
         </div>
+      )}
+      {duplicates && (
+        <DuplicateWarningModal
+          matches={duplicates}
+          onCancel={() => setDuplicates(null)}
+          onConfirm={() => { setDuplicates(null); handleSaveEvent(true) }}
+        />
       )}
     </div>
   )

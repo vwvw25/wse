@@ -5,6 +5,10 @@ import { createServiceClient } from '@/lib/supabase'
 import type { RequestDetails, BookingType, TravelType } from '@/types/quote'
 import fs from 'fs'
 import path from 'path'
+import { findPotentialDuplicateEvents } from '@/lib/duplicate-events'
+import type { DuplicateEventMatch } from '@/lib/duplicate-events'
+
+export type { DuplicateEventMatch }
 
 // Turbopack dev workaround: env vars not always available in server actions
 function getAnthropicKey(): string {
@@ -114,6 +118,17 @@ export async function extractFromEmail(emailText: string): Promise<EmailExtractR
   const text = message.content[0].type === 'text' ? message.content[0].text : ''
   const cleaned = text.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim()
   return JSON.parse(cleaned) as EmailExtractResult
+}
+
+export async function checkDuplicateEvents(autoFill: ExtractedAutoFill): Promise<DuplicateEventMatch[]> {
+  return findPotentialDuplicateEvents({
+    event_date: autoFill.event_date,
+    venue_name: autoFill.venue_name,
+    venue_postcode: autoFill.venue_postcode,
+    client_email: autoFill.client_email,
+    agency_name: autoFill.agency_name,
+    agent_name: autoFill.agent_name,
+  })
 }
 
 export async function saveEvent(
