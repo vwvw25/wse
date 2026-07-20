@@ -136,6 +136,13 @@ export default function QuotesTable({ quotes }: { quotes: QuoteRecord[] }) {
                     >
                       Quote ↗
                     </a>
+                    {' '}
+                    <a
+                      href={`/quote/new/details?edit=${q.id}`}
+                      style={{ fontSize: 12, color: 'var(--text-secondary)', textDecoration: 'none', marginLeft: 8 }}
+                    >
+                      Edit
+                    </a>
                   </td>
                 </tr>
               )

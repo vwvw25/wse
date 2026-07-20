@@ -9,6 +9,7 @@ export type MusicianFeeKey =
 // Line-up description shown on quote (e.g. "Vocals, Guitar, Bass, Drums")
 export const LINE_UP_LABELS: Record<BandType, Partial<Record<BandSize, string>>> = {
   electric: {
+    solo:       'Vocals, Guitar',
     duo:        'Vocals, Guitar',
     trio:       'Vocals, Guitar, Drums',
     quartet:    'Vocals, Guitar, Bass, Drums',
@@ -18,6 +19,7 @@ export const LINE_UP_LABELS: Record<BandType, Partial<Record<BandSize, string>>>
     eight_piece:'Vocals, Guitar, Bass, Keys, Drums, Sax, Trumpet, Trombone',
   },
   acoustic: {
+    solo:       'Vocals, Guitar',
     duo:        'Vocals, Guitar',
     trio:       'Vocals, Guitar, Drums or Bass',
     quartet:    'Vocals, Guitar, Bass, Drums',
@@ -31,6 +33,7 @@ export const LINE_UP_LABELS: Record<BandType, Partial<Record<BandSize, string>>>
     six_piece:  'Vocals, Guitar 1, Guitar 2, Upright Bass, Drums, Sax',
   },
   jazz_keys: {
+    solo:       'Vocals, Piano',
     duo:        'Vocals, Piano',
     trio:       'Vocals, Piano, Drums or Upright Bass',
     quartet:    'Vocals, Piano, Upright Bass, Drums',
@@ -38,6 +41,7 @@ export const LINE_UP_LABELS: Record<BandType, Partial<Record<BandSize, string>>>
     six_piece:  'Vocals, Piano, Guitar, Sax, Upright Bass, Drums',
   },
   jazz_guitar: {
+    solo:       'Vocals, Guitar',
     duo:        'Vocals, Guitar',
     trio:       'Vocals, Guitar, Drums or Upright Bass',
     quartet:    'Vocals, Guitar, Upright Bass, Drums',
@@ -49,6 +53,7 @@ export const LINE_UP_LABELS: Record<BandType, Partial<Record<BandSize, string>>>
 // Which fee fields (in order) apply to each size for each band type
 export const MUSICIAN_FEE_KEYS: Record<BandType, Partial<Record<BandSize, MusicianFeeKey[]>>> = {
   electric: {
+    solo:       ['singer_fee'],
     duo:        ['singer_fee', 'guitarist_fee'],
     trio:       ['singer_fee', 'guitarist_fee', 'drummer_fee'],
     quartet:    ['singer_fee', 'guitarist_fee', 'drummer_fee', 'bass_fee'],
@@ -58,6 +63,7 @@ export const MUSICIAN_FEE_KEYS: Record<BandType, Partial<Record<BandSize, Musici
     eight_piece:['singer_fee', 'guitarist_fee', 'drummer_fee', 'bass_fee', 'keys_fee', 'sax_fee', 'trombone_fee', 'trumpet_fee'],
   },
   acoustic: {
+    solo:       ['singer_fee'],
     duo:        ['singer_fee', 'guitarist_fee'],
     trio:       ['singer_fee', 'guitarist_fee', 'drummer_fee'],
     quartet:    ['singer_fee', 'guitarist_fee', 'bass_fee', 'drummer_fee'],
@@ -71,6 +77,7 @@ export const MUSICIAN_FEE_KEYS: Record<BandType, Partial<Record<BandSize, Musici
     six_piece:  ['singer_fee', 'guitarist_fee', 'singer_2_fee', 'bass_fee', 'drummer_fee', 'sax_fee'],
   },
   jazz_keys: {
+    solo:       ['singer_fee'],
     duo:        ['singer_fee', 'keys_fee'],
     trio:       ['singer_fee', 'keys_fee', 'drummer_fee'],
     quartet:    ['singer_fee', 'keys_fee', 'bass_fee', 'drummer_fee'],
@@ -78,6 +85,7 @@ export const MUSICIAN_FEE_KEYS: Record<BandType, Partial<Record<BandSize, Musici
     six_piece:  ['singer_fee', 'keys_fee', 'guitarist_fee', 'bass_fee', 'drummer_fee', 'sax_fee'],
   },
   jazz_guitar: {
+    solo:       ['singer_fee'],
     duo:        ['singer_fee', 'guitarist_fee'],
     trio:       ['singer_fee', 'guitarist_fee', 'drummer_fee'],
     quartet:    ['singer_fee', 'guitarist_fee', 'bass_fee', 'drummer_fee'],
@@ -96,10 +104,11 @@ export const BAND_TYPE_LABELS: Record<BandType, string> = {
 
 // Band sizes in display order
 export const BAND_SIZES_ORDERED: BandSize[] = [
-  'duo', 'trio', 'quartet', 'five_piece', 'six_piece', 'seven_piece', 'eight_piece'
+  'solo', 'duo', 'trio', 'quartet', 'five_piece', 'six_piece', 'seven_piece', 'eight_piece'
 ]
 
 export const BAND_SIZE_LABELS: Record<BandSize, string> = {
+  solo:       'Solo',
   duo:        'Duo',
   trio:       'Trio',
   quartet:    'Quartet',

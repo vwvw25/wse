@@ -14,9 +14,12 @@ export function optionLineItems(opt: PriceOption, inp: QuoteInputs, s: Settings,
   const items: OptionLineItem[] = []
 
   // Performance fee
+  const setMultiplier = (s as unknown as Record<string, number>)['set_multiplier_' + (SET_MULTIPLIER_KEY[opt.set_config] ?? opt.set_config)] ?? '?'
   items.push({
     label: 'Performance fee',
-    formula: `£${Math.round(opt.sum_musician_fees)} × ${(s as unknown as Record<string, number>)['set_multiplier_' + (SET_MULTIPLIER_KEY[opt.set_config] ?? opt.set_config)] ?? '?'} × ${s.business_margin}`,
+    formula: opt.band_size === 'solo'
+      ? `£${Math.round(opt.sum_musician_fees)} × ${setMultiplier} × ${s.business_margin} × ${s.solo_rate_multiple}`
+      : `£${Math.round(opt.sum_musician_fees)} × ${setMultiplier} × ${s.business_margin}`,
     value: opt.performance_fee,
   })
 

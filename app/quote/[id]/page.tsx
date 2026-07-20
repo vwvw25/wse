@@ -137,10 +137,9 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
               </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 <a href={`/quote/builder?prefill=${id}`} style={headerBtnStyle}>Live builder →</a>
-                {quote.event_id && quote.status !== 'superseded' ? (
+                <a href={`/quote/new/details?edit=${id}`} style={headerBtnStyle}>Edit →</a>
+                {quote.event_id && quote.status !== 'superseded' && (
                   <NewVersionButton quoteId={id} />
-                ) : (
-                  <a href={`/quote/new/details?edit=${id}`} style={headerBtnStyle}>Edit →</a>
                 )}
                 <a href={`/quote/new/details?prefill=${id}`} style={headerBtnStyle}>Duplicate →</a>
                 <a href={`/quote/${id}/text`} style={headerBtnStyle}>Email version →</a>

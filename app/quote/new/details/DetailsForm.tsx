@@ -27,6 +27,7 @@ function DetailsFormInner({ eventPrefill }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [submitting, setSubmitting] = useState(false)
+  const [showValidation, setShowValidation] = useState(false)
   const [addOns, setAddOns] = useState<AddOn[]>([])
   const [selectedAddOns, setSelectedAddOns] = useState<Map<string, SelectedAddOn>>(new Map())
 
@@ -368,7 +369,16 @@ function DetailsFormInner({ eventPrefill }: Props) {
     })
   }
 
+  const bookingTypesMissingSets = Array.from(activeBookingTypes).filter(
+    bt => !(setConfigsByType[bt]?.size)
+  )
+  const canSubmit = activeBookingTypes.size > 0 && bookingTypesMissingSets.length === 0
+
   async function handleSubmit() {
+    if (!canSubmit) {
+      setShowValidation(true)
+      return
+    }
     setSubmitting(true)
     try {
       const primaryType = [...activeBookingTypes][0] as BookingType | undefined
@@ -640,17 +650,35 @@ function DetailsFormInner({ eventPrefill }: Props) {
                 </BoolGrid>
               </div>
               <div style={{ marginTop: 14 }}>
-                <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Number of sets</div>
-                <BoolGrid>
-                  {(['1x60', '2x45', '3x45', '4x45', '5x45'] as SetConfig[]).map(cfg => (
-                    <BoolTile
-                      key={cfg}
-                      label={cfg === '3x45' ? '3×45 or 2×60' : cfg.replace('x', '×')}
-                      active={setConfigsByType[bt]?.has(cfg) ?? false}
-                      onClick={() => toggleSetConfig(bt, cfg)}
-                    />
-                  ))}
-                </BoolGrid>
+                {(() => {
+                  const setsMissing = showValidation && !(setConfigsByType[bt]?.size)
+                  return (
+                    <>
+                      <div style={{
+                        fontSize: 11, fontWeight: 500,
+                        color: setsMissing ? 'var(--text-error, #c0392b)' : 'var(--text-secondary)',
+                        textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10,
+                      }}>
+                        Number of sets{setsMissing ? ' — required' : ''}
+                      </div>
+                      <BoolGrid>
+                        {(['1x60', '2x45', '3x45', '4x45', '5x45'] as SetConfig[]).map(cfg => (
+                          <BoolTile
+                            key={cfg}
+                            label={cfg === '3x45' ? '3×45 or 2×60' : cfg.replace('x', '×')}
+                            active={setConfigsByType[bt]?.has(cfg) ?? false}
+                            onClick={() => toggleSetConfig(bt, cfg)}
+                          />
+                        ))}
+                      </BoolGrid>
+                      {setsMissing && (
+                        <p style={{ fontSize: 12, color: 'var(--text-error, #c0392b)', marginTop: 8 }}>
+                          Select at least one set option for {BOOKING_TYPE_LABELS[bt]}.
+                        </p>
+                      )}
+                    </>
+                  )
+                })()}
               </div>
             </Card>
           )
@@ -887,17 +915,24 @@ function DetailsFormInner({ eventPrefill }: Props) {
           </button>
           <button
             onClick={handleSubmit}
-            disabled={submitting}
+            disabled={submitting || (showValidation && !canSubmit)}
             style={{
               padding: '8px 20px', fontSize: 13, fontFamily: 'var(--font)',
-              borderRadius: 'var(--radius-md)', cursor: submitting ? 'not-allowed' : 'pointer',
+              borderRadius: 'var(--radius-md)', cursor: (submitting || (showValidation && !canSubmit)) ? 'not-allowed' : 'pointer',
               background: 'var(--text)', border: 'none',
-              color: 'var(--bg)', fontWeight: 500, opacity: submitting ? 0.6 : 1,
+              color: 'var(--bg)', fontWeight: 500, opacity: (submitting || (showValidation && !canSubmit)) ? 0.6 : 1,
             }}
           >
             {submitting ? (editId ? 'Saving…' : 'Generating…') : (editId ? 'Save changes' : 'Generate quote')}
           </button>
         </div>
+        {showValidation && !canSubmit && (
+          <p style={{ fontSize: 12, color: 'var(--text-error, #c0392b)', textAlign: 'right', marginTop: 8 }}>
+            {activeBookingTypes.size === 0
+              ? 'Select at least one booking type.'
+              : 'Select at least one "Number of sets" option above for each booking type.'}
+          </p>
+        )}
       </div>
     </div>
   )

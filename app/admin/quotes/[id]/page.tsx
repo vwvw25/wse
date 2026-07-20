@@ -16,7 +16,7 @@ const fmtDate = (iso: string) => {
 }
 
 const BAND_SIZE_LABELS: Record<string, string> = {
-  duo: 'Duo', trio: 'Trio', quartet: 'Quartet', five_piece: 'Five-piece',
+  solo: 'Solo', duo: 'Duo', trio: 'Trio', quartet: 'Quartet', five_piece: 'Five-piece',
   six_piece: 'Six-piece', seven_piece: 'Seven-piece', eight_piece: 'Eight-piece',
 }
 

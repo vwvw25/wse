@@ -1,7 +1,7 @@
 export type BookingType = 'background' | 'dancing_under_40' | 'dancing_over_40' | 'wedding'
 export type TravelType = 'london_based' | 'uk' | 'domestic_overnight' | 'international'
 export type SetConfig = '1x60' | '2x45' | '3x45' | '4x45' | '5x45'
-export type BandSize = 'duo' | 'trio' | 'quartet' | 'five_piece' | 'six_piece' | 'seven_piece' | 'eight_piece'
+export type BandSize = 'solo' | 'duo' | 'trio' | 'quartet' | 'five_piece' | 'six_piece' | 'seven_piece' | 'eight_piece'
 export type BandType = 'electric' | 'acoustic' | 'roaming' | 'jazz_keys' | 'jazz_guitar'
 export type PricingType = 'fixed' | 'per_musician'
 

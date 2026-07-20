@@ -3,7 +3,7 @@ import { MUSICIAN_FEE_KEYS, LINE_UP_LABELS, BAND_SIZES_ORDERED } from './lineups
 import type { BandType } from './lineups'
 
 const BAND_SIZE_ORDER: BandSize[] = [
-  'duo', 'trio', 'quartet', 'five_piece', 'six_piece', 'seven_piece', 'eight_piece'
+  'solo', 'duo', 'trio', 'quartet', 'five_piece', 'six_piece', 'seven_piece', 'eight_piece'
 ]
 
 function isQuartetOrLarger(size: BandSize | null): boolean {
@@ -296,7 +296,8 @@ export function calculate(inputs: QuoteInputs, settings: Settings): QuoteCalcula
       const orderedConfigs = SET_CONFIG_ORDER.filter(cfg => rawConfigs.includes(cfg))
       for (const cfg of orderedConfigs) {
         const mult = SET_MULTIPLIER_MAP[cfg]
-        const perf_fee = sumFees * mult * settings.business_margin
+        const soloMultiplier = size === 'solo' ? settings.solo_rate_multiple : 1
+        const perf_fee = sumFees * mult * settings.business_margin * soloMultiplier
 
         // Per-option waiting time:
         // total_package_hours = this option's package hours + pre_start_time

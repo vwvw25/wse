@@ -260,6 +260,9 @@ export default function EventQuotesClient({
               <a href={`/quote/${q.id}`} style={{ fontSize: 12, color: 'var(--accent)', textDecoration: 'none', fontWeight: 500 }}>
                 View quote →
               </a>
+              <a href={`/quote/new/details?edit=${q.id}`} style={{ fontSize: 12, color: 'var(--text-secondary)', textDecoration: 'none' }}>
+                Edit
+              </a>
               <a href={`/admin/quotes/${q.id}`} style={{ fontSize: 12, color: 'var(--text-secondary)', textDecoration: 'none' }}>
                 Audit
               </a>
