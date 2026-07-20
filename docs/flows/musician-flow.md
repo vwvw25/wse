@@ -44,7 +44,7 @@ Separate from availability. `POST /api/musicians/send-onboard` ([route.ts](../..
 
 ## Band templates and preferences
 
-- **Band templates** ([app/admin/band-builder](../../app/admin/band-builder/page.tsx)) — reusable instrument line-ups (`band_templates` + `band_template_slots`), applied to an event via `applyTemplateToEvent`.
+- **Band templates** ([app/admin/band-builder](../../app/admin/band-builder/page.tsx), nav item "Band builder") — reusable instrument line-ups (`band_templates` + `band_template_slots`), applied to an event via `applyTemplateToEvent`. The per-event assignment matrix (which musician is filling which instrument, across all upcoming events) lives as a view on the Events page instead ([app/admin/events/BandBuilderView.tsx](../../app/admin/events/BandBuilderView.tsx), `/admin/events?view=band-builder`).
 - **Cascade templates** (`cascade_template_musicians`) — per-instrument ranked musician lists used by `triggerCascade`, managed from [app/admin/musicians/cascade-actions.ts](../../app/admin/musicians/cascade-actions.ts).
 - **Preference orders** (`preference_orders`) — the older, simpler per-instrument ranking, still used as a fallback when a slot has no cascade template.
 

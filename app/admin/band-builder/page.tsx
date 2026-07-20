@@ -1,29 +1,21 @@
 import { createServiceClient } from '@/lib/supabase'
-import type { EventRecord } from '@/types/quote'
-import type { EventMusician, Musician } from '@/types/musicians'
-import BandBuilderClient from './BandBuilderClient'
+import type { BandTemplate, BandTemplateSlot } from '@/types/musicians'
+import BandTemplatesClient from './BandTemplatesClient'
 
 export default async function BandBuilderPage() {
   const supabase = createServiceClient()
 
-  const [{ data: eventsData }, { data: slotsData }, { data: musiciansData }] = await Promise.all([
-    supabase
-      .from('events')
-      .select('id, agency_name, agent_name, event_date, status')
-      .not('status', 'in', '(client_declined,cancelled)')
-      .order('event_date', { ascending: true }),
-    supabase.from('event_musicians').select('*').order('date_added'),
-    supabase.from('musicians').select('*').order('first_name,last_name'),
+  const [{ data: templatesData }, { data: slotsData }] = await Promise.all([
+    supabase.from('band_templates').select('*').order('created_at'),
+    supabase.from('band_template_slots').select('*').order('sort_order'),
   ])
 
-  const allEvents = (eventsData ?? []) as Pick<EventRecord, 'id' | 'agency_name' | 'agent_name' | 'event_date' | 'status'>[]
-  const allSlots = (slotsData ?? []) as EventMusician[]
-  const musicians = (musiciansData ?? []) as Musician[]
+  const templates = (templatesData ?? []) as BandTemplate[]
+  const slots = (slotsData ?? []) as BandTemplateSlot[]
 
-  // Show all upcoming events — slots will be empty for events with no assignments yet
-  const events = allEvents.map(ev => ({
-    ...ev,
-    slots: allSlots.filter(s => s.event_id === ev.id),
+  const templatesWithSlots = templates.map(t => ({
+    ...t,
+    slots: slots.filter(s => s.template_id === t.id),
   }))
 
   return (
@@ -32,11 +24,11 @@ export default async function BandBuilderPage() {
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0 0 4px', color: 'var(--text)' }}>Band Builder</h1>
           <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>
-            Overview of musician assignments across upcoming events.
+            Reusable instrument line-ups you can apply to an event in one click.
           </p>
         </div>
         <a
-          href="/admin/musicians"
+          href="/admin/events?view=band-builder"
           style={{
             display: 'inline-block', padding: '7px 16px', fontSize: 13,
             background: 'var(--bg-secondary)', color: 'var(--text)',
@@ -44,11 +36,11 @@ export default async function BandBuilderPage() {
             textDecoration: 'none',
           }}
         >
-          Manage roster &amp; templates
+          View assignments overview
         </a>
       </div>
 
-      <BandBuilderClient events={events} musicians={musicians} />
+      <BandTemplatesClient templates={templatesWithSlots} />
     </div>
   )
 }

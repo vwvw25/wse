@@ -6,7 +6,7 @@ import type { MusicianAvailability } from '@/types/musicians'
 
 function paths(eventId: string) {
   revalidatePath(`/admin/events/${eventId}/musicians`)
-  revalidatePath('/admin/band-builder')
+  revalidatePath('/admin/events')
 }
 
 // Apply a band template to an event — adds slots not already present

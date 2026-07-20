@@ -39,7 +39,7 @@ function instrumentSortKey(name: string): number {
   return idx >= 0 ? idx : INSTRUMENT_ORDER.length
 }
 
-export default function BandBuilderClient({ events, musicians }: Props) {
+export default function BandBuilderView({ events, musicians }: Props) {
   const [search, setSearch] = useState('')
 
   // Derive sorted column list from all slots across all events

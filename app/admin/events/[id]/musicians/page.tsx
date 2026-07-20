@@ -87,7 +87,7 @@ export default async function EventMusiciansPage({ params }: { params: Promise<{
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <a
-            href="/admin/band-builder"
+            href="/admin/events?view=band-builder"
             style={{
               display: 'inline-block', padding: '7px 14px', fontSize: 13,
               background: 'var(--bg-secondary)', color: 'var(--text)',

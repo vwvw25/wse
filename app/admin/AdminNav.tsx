@@ -115,6 +115,7 @@ const navLinks: NavItem[] = [
   { href: '/admin/triage/not-an-issue',    label: 'Not an issue',  icon: null, indent: true },
   { href: '/admin/issues',                 label: 'Issues',        icon: <IssuesIcon /> },
   { href: '/admin/musicians',         label: 'Musicians',         icon: <UserIcon /> },
+  { href: '/admin/band-builder',      label: 'Band builder',      icon: <PeopleIcon /> },
   { href: '/admin/musician-invoices', label: 'Musician invoices', icon: <ReceiptIcon /> },
   { href: '/admin/quotes',            label: 'Quotes',            icon: <QuoteIcon /> },
   { href: '/admin/set-lists',         label: 'Set lists',         icon: <ListMusicIcon /> },
