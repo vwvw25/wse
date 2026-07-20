@@ -8,8 +8,6 @@ import path from 'path'
 import { findPotentialDuplicateEvents } from '@/lib/duplicate-events'
 import type { DuplicateEventMatch } from '@/lib/duplicate-events'
 
-export type { DuplicateEventMatch }
-
 // Turbopack dev workaround: env vars not always available in server actions
 function getAnthropicKey(): string {
   if (process.env.ANTHROPIC_API_KEY) return process.env.ANTHROPIC_API_KEY

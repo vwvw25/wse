@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef, useEffect } from 'react'
 import { createEvent, checkPotentialDuplicateEvents } from '../actions'
-import type { DuplicateEventMatch } from '../actions'
+import type { DuplicateEventMatch } from '@/lib/duplicate-events'
 import type { DressCodeTemplate } from '../../dress-codes/actions'
 import { EVENT_STATUSES } from '@/lib/event-statuses'
 import type { EventStatus } from '@/lib/event-statuses'

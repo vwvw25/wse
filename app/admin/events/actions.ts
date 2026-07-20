@@ -9,8 +9,6 @@ import { logEventActivity } from '@/lib/event-activity'
 import { findPotentialDuplicateEvents } from '@/lib/duplicate-events'
 import type { DuplicateEventMatch } from '@/lib/duplicate-events'
 
-export type { DuplicateEventMatch }
-
 export async function checkPotentialDuplicateEvents(formData: FormData): Promise<DuplicateEventMatch[]> {
   const str = (key: string) => (formData.get(key) as string)?.trim() || null
   return findPotentialDuplicateEvents({

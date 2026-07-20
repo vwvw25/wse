@@ -2,7 +2,7 @@
 
 import { STATUS_MAP } from '@/lib/event-statuses'
 import type { EventStatus } from '@/lib/event-statuses'
-import type { DuplicateEventMatch } from './actions'
+import type { DuplicateEventMatch } from '@/lib/duplicate-events'
 
 export default function DuplicateWarningModal({
   matches,

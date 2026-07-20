@@ -3,7 +3,8 @@
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { extractFromEmail, saveEvent, checkDuplicateEvents } from './actions'
-import type { EmailExtractResult, ExtractedAutoFill, DuplicateEventMatch } from './actions'
+import type { EmailExtractResult, ExtractedAutoFill } from './actions'
+import type { DuplicateEventMatch } from '@/lib/duplicate-events'
 import type { RequestDetails } from '@/types/quote'
 import DuplicateWarningModal from '../events/DuplicateWarningModal'
 
