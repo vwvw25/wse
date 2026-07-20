@@ -34,7 +34,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await supabase.storage.createBucket(BUCKET, { public: false }).catch(() => {/* already exists */})
 
     // Upload PDF to storage — use a timestamp prefix so multiple uploads don't overwrite each other
-    const filePath = `${eventId}/${Date.now()}-${file.name}`
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const filePath = `${eventId}/${Date.now()}-${safeName}`
     const { error: uploadError } = await supabase.storage
       .from(BUCKET)
       .upload(filePath, bytes, { contentType: 'application/pdf', upsert: false })

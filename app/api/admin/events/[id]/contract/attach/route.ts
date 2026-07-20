@@ -18,7 +18,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     await supabase.storage.createBucket(BUCKET, { public: false }).catch(() => {})
 
-    const filePath = `${eventId}/${Date.now()}-${file.name}`
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const filePath = `${eventId}/${Date.now()}-${safeName}`
     const { error: uploadError } = await supabase.storage
       .from(BUCKET)
       .upload(filePath, bytes, { contentType: file.type || 'application/octet-stream', upsert: false })

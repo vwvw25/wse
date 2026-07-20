@@ -30,7 +30,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slo
       await supabase.storage.from(BUCKET).remove([existing.musician_invoice_path]).catch(() => {})
     }
 
-    const filePath = `${slotId}/${Date.now()}-${file.name}`
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const filePath = `${slotId}/${Date.now()}-${safeName}`
     const { error: uploadError } = await supabase.storage
       .from(BUCKET)
       .upload(filePath, bytes, { contentType: file.type || 'application/octet-stream', upsert: false })

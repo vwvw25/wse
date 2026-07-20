@@ -156,7 +156,8 @@ export async function POST(req: NextRequest) {
   try {
     const accessToken = await getGmailAccessToken()
     pdfBuffer = await fetchAttachment(gmailMessageId, attachment.attachmentId, accessToken)
-    filename = attachment.filename || `invoice-${Date.now()}.pdf`
+    const rawFilename = attachment.filename || `invoice-${Date.now()}.pdf`
+    filename = rawFilename
 
     // Remove existing invoice if present
     const { data: existingSlot } = await supabase
@@ -168,7 +169,8 @@ export async function POST(req: NextRequest) {
       await supabase.storage.from(BUCKET).remove([existingSlot.musician_invoice_path]).catch(() => {})
     }
 
-    storagePath = `${slot.id}/${Date.now()}-${filename}`
+    const safeFilename = rawFilename.replace(/[^a-zA-Z0-9._-]/g, '_')
+    storagePath = `${slot.id}/${Date.now()}-${safeFilename}`
     await supabase.storage.from(BUCKET).upload(storagePath, pdfBuffer, {
       contentType: attachment.mimeType || 'application/pdf',
       upsert: false,
