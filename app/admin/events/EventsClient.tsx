@@ -1,10 +1,18 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useSearchParams } from 'next/navigation'
 import type { EventRecord } from '@/types/quote'
+import type { EventMusician, Musician } from '@/types/musicians'
 import { EVENT_STATUSES, STATUS_MAP } from '@/lib/event-statuses'
 import type { EventStatus } from '@/lib/event-statuses'
 import { updateEventStatus } from './actions'
+import BandBuilderView from './BandBuilderView'
+import InvoiceSummaryCards from '../InvoiceSummaryCards'
+
+interface EventWithMusicians extends Pick<EventRecord, 'id' | 'agency_name' | 'agent_name' | 'event_date' | 'status'> {
+  slots: EventMusician[]
+}
 
 function formatDate(d: string | null) {
   if (!d) return '—'
@@ -147,8 +155,24 @@ const CONFIRMED_STATUSES: EventStatus[] = ['confirmed_stc', 'contract_received',
 
 type FilterMode = 'all' | 'confirmed'
 
-export default function EventsClient({ events }: { events: EventRecord[] }) {
-  const [view, setView] = useState<'list' | 'kanban'>('list')
+interface InvoiceSummary {
+  totalOutstanding: number
+  unpaidCount: number
+  totalUninvoiced: number
+  uninvoicedCount: number
+  totalOutstandingScoped: number
+  scopedOwingCount: number
+}
+
+export default function EventsClient({ events, bandBuilderEvents, musicians, invoiceSummary }: {
+  events: EventRecord[]
+  bandBuilderEvents: EventWithMusicians[]
+  musicians: Musician[]
+  invoiceSummary: InvoiceSummary
+}) {
+  const searchParams = useSearchParams()
+  const initialView = searchParams.get('view') === 'band-builder' ? 'band-builder' : 'list'
+  const [view, setView] = useState<'list' | 'kanban' | 'band-builder'>(initialView)
   const [filter, setFilter] = useState<FilterMode>('all')
   const [includePast, setIncludePast] = useState(true)
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
@@ -185,6 +209,15 @@ export default function EventsClient({ events }: { events: EventRecord[] }) {
 
   return (
     <div>
+      <InvoiceSummaryCards
+        totalOutstanding={invoiceSummary.totalOutstanding}
+        unpaidCount={invoiceSummary.unpaidCount}
+        totalUninvoiced={invoiceSummary.totalUninvoiced}
+        uninvoicedCount={invoiceSummary.uninvoicedCount}
+        totalOutstandingScoped={invoiceSummary.totalOutstandingScoped}
+        scopedOwingCount={invoiceSummary.scopedOwingCount}
+      />
+
       {/* Controls row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
         {/* Filter */}
@@ -235,10 +268,18 @@ export default function EventsClient({ events }: { events: EventRecord[] }) {
           >
             Kanban
           </button>
+          <button
+            onClick={() => setView('band-builder')}
+            style={{ ...btnBase, background: view === 'band-builder' ? 'var(--text)' : 'var(--bg)', color: view === 'band-builder' ? 'var(--bg)' : 'var(--text-secondary)' }}
+          >
+            Band builder
+          </button>
         </div>
       </div>
 
-      {view === 'list' ? (
+      {view === 'band-builder' ? (
+        <BandBuilderView events={bandBuilderEvents} musicians={musicians} />
+      ) : view === 'list' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
           <div style={{
             display: 'grid', gridTemplateColumns: '140px 1fr 1fr 120px 120px 90px 110px',

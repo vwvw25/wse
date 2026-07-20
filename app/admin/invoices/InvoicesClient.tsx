@@ -4,7 +4,9 @@ import { useState, useMemo, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { invoiceTotal } from '@/types/invoice'
 import type { InvoiceLineItem } from '@/types/invoice'
+import type { ScopedEvent } from '@/lib/invoice-scope'
 import { updateInvoiceStatus, updateInvoicePaidDate, updateInvoiceAmountReceived, updateInvoiceNotes } from './actions'
+import InvoiceSummaryCards from '../InvoiceSummaryCards'
 
 function fmt(n: number) {
   return `£${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`
@@ -48,15 +50,7 @@ export type InvoiceRow = {
   } | null
 }
 
-export type UninvoicedEvent = {
-  id: string
-  agency_name: string | null
-  agent_name: string | null
-  event_date: string | null
-  status: string
-  booked_fee: number | null
-  client: { name: string; email: string | null } | null
-}
+export type { ScopedEvent }
 
 function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
   return (
@@ -215,10 +209,10 @@ function NotesCell({ invoiceId, notes }: { invoiceId: string; notes: string | nu
 
 export default function InvoicesClient({
   invoices,
-  uninvoicedEvents,
+  scopedEvents,
 }: {
   invoices: InvoiceRow[]
-  uninvoicedEvents: UninvoicedEvent[]
+  scopedEvents: ScopedEvent[]
 }) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [sortKey, setSortKey] = useState<SortKey>('event_date')
@@ -240,7 +234,12 @@ export default function InvoicesClient({
   const paid = invoices.filter(i => i.status === 'paid' || i.status === 'paid_incorrect_amount')
   const totalOutstanding = unpaid.reduce((sum, i) => sum + invoiceTotal(i.line_items), 0)
   const totalPaid = paid.reduce((sum, i) => sum + invoiceTotal(i.line_items), 0)
-  const totalUninvoiced = uninvoicedEvents.reduce((sum, e) => sum + (e.booked_fee ?? 0), 0)
+
+  // Past, confirmed_stc/contracted gigs — scope for the Total outstanding / Uninvoiced cards
+  const uninvoicedEvents = scopedEvents.filter(e => e.isUninvoiced)
+  const totalOutstandingScoped = scopedEvents.reduce((sum, e) => sum + e.amount, 0)
+  const scopedOwingCount = scopedEvents.filter(e => e.amount > 0.005).length
+  const totalUninvoiced = uninvoicedEvents.reduce((sum, e) => sum + e.amount, 0)
 
   const rows = useMemo(() => {
     const filtered = statusFilter === 'all'
@@ -310,67 +309,17 @@ export default function InvoicesClient({
   return (
     <div style={{ fontFamily: 'var(--font)' }}>
       {/* Dashboard cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
-
-        {/* Card 1: Unpaid invoices — clickable */}
-        <div
-          onClick={() => setStatusFilter(f => f === 'sent' ? 'all' : 'sent')}
-          style={{
-            padding: '20px 20px 16px', borderRadius: 'var(--radius-lg)', cursor: 'pointer',
-            border: `0.5px solid ${statusFilter === 'sent' ? 'var(--text)' : 'var(--border)'}`,
-            background: statusFilter === 'sent' ? 'var(--text)' : 'var(--bg)',
-            transition: 'all 0.15s',
-          }}
-        >
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 10, color: statusFilter === 'sent' ? 'rgba(255,255,255,0.55)' : 'var(--text-secondary)' }}>
-            Unpaid invoices
-          </div>
-          <div style={{ fontSize: 28, fontWeight: 700, color: statusFilter === 'sent' ? '#fff' : 'var(--text)', lineHeight: 1 }}>
-            {fmt(totalOutstanding)}
-          </div>
-          <div style={{ fontSize: 12, marginTop: 8, color: statusFilter === 'sent' ? 'rgba(255,255,255,0.45)' : 'var(--text-tertiary)' }}>
-            {unpaid.length} invoice{unpaid.length !== 1 ? 's' : ''}
-          </div>
-        </div>
-
-        {/* Card 2: Uninvoiced — clickable */}
-        {(() => {
-          const hasAny = uninvoicedEvents.length > 0
-          const isActive = statusFilter === 'not_invoiced'
-          const bg = isActive ? '#ff3b5c' : hasAny ? '#ff5470' : 'var(--bg)'
-          const labelCol = isActive || hasAny ? 'rgba(255,255,255,0.65)' : 'var(--text-secondary)'
-          const amountCol = isActive || hasAny ? '#fff' : 'var(--text)'
-          const subCol = isActive || hasAny ? 'rgba(255,255,255,0.55)' : 'var(--text-tertiary)'
-          const borderCol = isActive ? '#cc1f40' : hasAny ? '#ff3b5c' : 'var(--border)'
-          return (
-            <div
-              onClick={() => setStatusFilter(f => f === 'not_invoiced' ? 'all' : 'not_invoiced')}
-              style={{ padding: '20px 20px 16px', borderRadius: 'var(--radius-lg)', cursor: 'pointer', border: `0.5px solid ${borderCol}`, background: bg, transition: 'all 0.15s' }}
-            >
-              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 10, color: labelCol }}>Uninvoiced</div>
-              <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1, color: amountCol }}>{fmt(totalUninvoiced)}</div>
-              <div style={{ fontSize: 12, marginTop: 8, color: subCol }}>{uninvoicedEvents.length} gig{uninvoicedEvents.length !== 1 ? 's' : ''} without invoice</div>
-            </div>
-          )
-        })()}
-
-        {/* Card 3: Total outstanding (unpaid + uninvoiced combined) */}
-        <div style={{
-          padding: '20px 20px 16px', borderRadius: 'var(--radius-lg)',
-          border: '0.5px solid var(--border)', background: 'var(--bg-secondary)',
-        }}>
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 10, color: 'var(--text-secondary)' }}>
-            Total outstanding
-          </div>
-          <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--text)', lineHeight: 1 }}>
-            {fmt(totalOutstanding + totalUninvoiced)}
-          </div>
-          <div style={{ fontSize: 12, marginTop: 8, color: 'var(--text-tertiary)' }}>
-            {unpaid.length + uninvoicedEvents.length} unpaid or uninvoiced
-          </div>
-        </div>
-
-      </div>
+      <InvoiceSummaryCards
+        totalOutstanding={totalOutstanding}
+        unpaidCount={unpaid.length}
+        totalUninvoiced={totalUninvoiced}
+        uninvoicedCount={uninvoicedEvents.length}
+        totalOutstandingScoped={totalOutstandingScoped}
+        scopedOwingCount={scopedOwingCount}
+        activeFilter={statusFilter === 'sent' ? 'unpaid' : statusFilter === 'not_invoiced' ? 'uninvoiced' : null}
+        onSelectUnpaid={() => setStatusFilter(f => f === 'sent' ? 'all' : 'sent')}
+        onSelectUninvoiced={() => setStatusFilter(f => f === 'not_invoiced' ? 'all' : 'not_invoiced')}
+      />
 
       {/* Filter row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end', marginBottom: 16, flexWrap: 'wrap' }}>
@@ -387,7 +336,7 @@ export default function InvoicesClient({
       {statusFilter === 'not_invoiced' ? (
         uninvoicedEvents.length === 0 ? (
           <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 13, border: '0.5px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
-            All contracted gigs have been invoiced.
+            All past contracted gigs have been invoiced.
           </div>
         ) : (
           <div style={{ border: '0.5px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
@@ -429,7 +378,7 @@ export default function InvoicesClient({
                           </span>
                         </td>
                         <td style={{ padding: '10px 12px' }}>
-                          <a href={`/admin/events/${ev.id}?tab=invoices`} style={{ fontSize: 12, color: 'var(--accent)', textDecoration: 'none' }}>Create invoice →</a>
+                          <a href={`/admin/events/${ev.id}?tab=invoices`} style={{ fontSize: 12, color: 'var(--accent)', textDecoration: 'none' }}>Manage invoices →</a>
                         </td>
                       </tr>
                     )
