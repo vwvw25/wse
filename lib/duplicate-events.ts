@@ -41,7 +41,7 @@ export async function findPotentialDuplicateEvents(input: DuplicateCheckInput): 
     .from('events')
     .select('id, event_date, event_type, venue_name, venue_postcode, agency_name, agent_name, client_email, status')
     .eq('event_date', input.event_date)
-    .not('status', 'in', '(cancelled,client_declined)')
+    .not('status', 'in', '(cancelled,client_declined,not_booked)')
 
   if (input.excludeEventId) query = query.neq('id', input.excludeEventId)
 

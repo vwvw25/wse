@@ -29,6 +29,7 @@
   --pill-paid-bg:       #22e07a; --pill-paid-text:       #0c2417;
   --pill-outstanding-bg:#ffe3e8; --pill-outstanding-text:#b53a52;
   --pill-cancelled-bg:  #ffd6db; --pill-cancelled-text:  #8c1f33;
+  --pill-not-booked-bg: #eeeeee; --pill-not-booked-text: #6b6b6b;
   --pill-uninvoiced-bg: #f0f0f0; --pill-uninvoiced-text: #5a5a5a;
 }
 
@@ -56,6 +57,7 @@
     --pill-paid-bg:       #22e07a; --pill-paid-text:       #0c2417;
     --pill-outstanding-bg:#3a1f26; --pill-outstanding-text:#ff8fa3;
     --pill-cancelled-bg:  #2e0f14; --pill-cancelled-text:  #ff3b5c;
+    --pill-not-booked-bg: #2a2a2a; --pill-not-booked-text: #9a9a9a;
     --pill-uninvoiced-bg: #2a2a2a; --pill-uninvoiced-text: #a0a0a0;
   }
 }

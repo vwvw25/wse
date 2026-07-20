@@ -285,7 +285,7 @@ export interface EventRecord {
   booked_band_size: string | null
   booked_fee: number | null
   raw_email: string | null
-  status: 'enquiry' | 'quoted' | 'pencil_hold' | 'client_declined' | 'cancelled' | 'confirmed_stc' | 'contracted' | 'pending' | 'confirmed'
+  status: 'enquiry' | 'quoted' | 'pencil_hold' | 'client_declined' | 'not_booked' | 'cancelled' | 'confirmed_stc' | 'contracted' | 'pending' | 'confirmed'
   contract: ContractData | null
   invoices?: { id: string; status: string }[] | null
   event_musicians?: { id: string; musician_id: string | null }[] | null
