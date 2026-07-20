@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import type { EventRecord } from '@/types/quote'
 import type { EventMusician, Musician } from '@/types/musicians'
@@ -164,7 +164,7 @@ interface InvoiceSummary {
   scopedOwingCount: number
 }
 
-export default function EventsClient({ events, bandBuilderEvents, musicians, invoiceSummary }: {
+function EventsClientInner({ events, bandBuilderEvents, musicians, invoiceSummary }: {
   events: EventRecord[]
   bandBuilderEvents: EventWithMusicians[]
   musicians: Musician[]
@@ -348,5 +348,18 @@ export default function EventsClient({ events, bandBuilderEvents, musicians, inv
         </div>
       )}
     </div>
+  )
+}
+
+export default function EventsClient(props: {
+  events: EventRecord[]
+  bandBuilderEvents: EventWithMusicians[]
+  musicians: Musician[]
+  invoiceSummary: InvoiceSummary
+}) {
+  return (
+    <Suspense fallback={null}>
+      <EventsClientInner {...props} />
+    </Suspense>
   )
 }
