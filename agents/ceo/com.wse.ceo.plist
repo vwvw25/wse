@@ -11,8 +11,13 @@
     <string>/Users/victoriaward/Projects/wse/agents/ceo/run.sh</string>
   </array>
 
-  <key>StartInterval</key>
-  <integer>1800</integer>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>6</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
 
   <key>StandardOutPath</key>
   <string>/Users/victoriaward/Projects/wse/agents/ceo/logs/output.log</string>

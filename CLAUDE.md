@@ -89,6 +89,12 @@ Note: copies of these files are also stored in the `agents` table in Supabase (`
 - `app/api/agents/ceo/route.ts` — a fallback Next.js route that can run a simpler version of the CEO via HTTP (used by the admin UI "Run" button). This does not use Claude Code — it calls the Anthropic API directly with a tool loop.
 - `app/api/cron/process-inbox` — this route no longer exists. Email processing is now a tool at `app/api/agents/ceo/tools/process-inbox/route.ts`, called by the CEO agent.
 
+## Flow documentation
+
+Before making a non-trivial change to the quote, event, invoicing, musician-booking, or email/agent pipelines, read the relevant doc in `docs/flows/` first — each traces the flow's entry points, files touched in order, and tables written, so you don't have to re-derive it by reading every file cold. See `docs/flows/README.md` for the index. `docs/decisions/` holds the *why* (ADRs) behind the data model; flow docs link out to these rather than repeating them.
+
+**After** making a change that alters a flow's core logic — a new status, a new table or column a flow writes to, a new entry point, a step added/removed/reordered — update the relevant `docs/flows/*.md` file as part of that same change, not as a follow-up. Treat an out-of-date flow doc as an incomplete change, the same way you'd treat a missing `logEventActivity` call.
+
 ## Key conventions
 
 - Inline styles only (no Tailwind, no CSS modules)

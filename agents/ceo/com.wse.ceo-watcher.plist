@@ -7,10 +7,16 @@
 
   <key>ProgramArguments</key>
   <array>
-    <string>/usr/local/bin/npx</string>
+    <string>/Users/victoriaward/.nvm/versions/node/v20.20.0/bin/npx</string>
     <string>tsx</string>
     <string>/Users/victoriaward/Projects/wse/agents/ceo/watcher.ts</string>
   </array>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/Users/victoriaward/.nvm/versions/node/v20.20.0/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
 
   <key>RunAtLoad</key>
   <true/>

@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { execSync } from 'child_process'
 import * as fs from 'fs'
 import * as path from 'path'
+import WebSocket from 'ws'
 
 const envFile = fs.readFileSync(path.join(__dirname, '../../.env.local'), 'utf8')
 function getEnv(key: string) {
@@ -30,7 +31,9 @@ function triggerAccounts(reason: string) {
 }
 
 function connect() {
-  const supabase = createClient(getEnv('NEXT_PUBLIC_SUPABASE_URL'), getEnv('SUPABASE_SERVICE_ROLE_KEY'))
+  const supabase = createClient(getEnv('NEXT_PUBLIC_SUPABASE_URL'), getEnv('SUPABASE_SERVICE_ROLE_KEY'), {
+    realtime: { transport: WebSocket as any },
+  })
 
   console.log('[watcher] Connecting to Supabase realtime...')
 

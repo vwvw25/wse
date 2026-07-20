@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { execSync } from 'child_process'
 import * as fs from 'fs'
 import * as path from 'path'
+import WebSocket from 'ws'
 
 const envFile = fs.readFileSync(path.join(__dirname, '../../.env.local'), 'utf8')
 function getEnv(key: string) {
@@ -9,7 +10,9 @@ function getEnv(key: string) {
   return match?.[1]?.trim() ?? ''
 }
 
-const supabase = createClient(getEnv('NEXT_PUBLIC_SUPABASE_URL'), getEnv('SUPABASE_SERVICE_ROLE_KEY'))
+const supabase = createClient(getEnv('NEXT_PUBLIC_SUPABASE_URL'), getEnv('SUPABASE_SERVICE_ROLE_KEY'), {
+  realtime: { transport: WebSocket as any },
+})
 
 const RUN_SCRIPT = path.join(__dirname, 'run.sh')
 let running = false
