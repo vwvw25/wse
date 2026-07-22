@@ -42,6 +42,7 @@ export interface Musician {
   passport_number: string | null
   covid_vaccinated: boolean | null
   covid_booster: boolean | null
+  no_invoice_required: boolean
 }
 
 export function musicianFullName(m: Pick<Musician, 'first_name' | 'last_name'>): string {
