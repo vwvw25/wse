@@ -36,6 +36,8 @@ Not a separate table — status lives directly on `event_musicians` (the per-slo
 
 **Payment reminders** — `/api/cron/musician-payment-reminders` chases overdue musician invoices; it isn't a standalone Vercel cron entry — see Infrastructure note below.
 
+**Non-invoicing musicians** — `musicians.no_invoice_required` (checkbox in the musician edit modal, [app/admin/musicians/MusicianClient.tsx](../../app/admin/musicians/MusicianClient.tsx)) marks a performer who never actually invoices WSE (e.g. the business owner performing as vocalist). Slots for flagged musicians are hidden by default from [app/admin/musician-invoices](../../app/admin/musician-invoices/MusicianInvoicesClient.tsx) (togglable via "Show internal") and excluded from that page's unpaid totals, and are skipped entirely by `/api/cron/musician-payment-reminders`. New views or queries over `event_musicians`/`musicians` that surface unpaid-invoice state should filter on this flag too, or they'll silently resurface the same "why am I being chased for my own invoice" issue.
+
 ## Infrastructure note: the 2-cron-job constraint
 
 Vercel's Hobby plan caps cron jobs at 2, each at most daily (see project `CLAUDE.md`). [vercel.json](../../vercel.json) only declares `/api/cron/hourly` (9am) and `/api/cron/invoices` (8am). Every other "cron job" in the codebase — `reminders`, `onboarding-reminders`, `email-health`, `musician-payment-reminders`, `cascade`, Gmail inbox processing, Gmail watch renewal — is **not** independently scheduled; `/api/cron/hourly` ([route.ts](../../app/api/cron/hourly/route.ts)) fans out to all of them via internal `fetch` calls on each run. If you add a new time-based job, add it to this fan-out rather than to `vercel.json`, or you'll exceed the plan limit.

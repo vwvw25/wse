@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, useTransition } from 'react'
+import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { updateMusicianInvoiceStatus, updateMusicianPaymentDate, updateMusicianInvoiceDueDate, removeMusicianInvoice } from './actions'
 
@@ -23,7 +23,7 @@ export type MusicianInvoiceRow = {
   musician_payment_date: string | null
   musician_invoice_due_date: string | null
   event: { id: string; event_date: string | null; agency_name: string | null; agent_name: string | null } | null
-  musician: { id: string; first_name: string; last_name: string } | null
+  musician: { id: string; first_name: string; last_name: string; no_invoice_required: boolean } | null
 }
 
 function computeDefaultDueDate(eventDate: string | null): string {
@@ -59,6 +59,10 @@ function StatusCell({ slotId, status, dueDate, eventDate }: { slotId: string; st
   const [current, setCurrent] = useState(status ?? '')
   const [open, setOpen] = useState(false)
   const selectRef = useRef<HTMLSelectElement>(null)
+
+  useEffect(() => {
+    setCurrent(status ?? '')
+  }, [status])
 
   function handleChange(val: string) {
     setCurrent(val)
@@ -134,6 +138,10 @@ function PaymentDateCell({ slotId, date }: { slotId: string; date: string | null
   const [, startTransition] = useTransition()
   const [current, setCurrent] = useState(date ?? '')
 
+  useEffect(() => {
+    setCurrent(date ?? '')
+  }, [date])
+
   function handleChange(val: string) {
     setCurrent(val)
     startTransition(async () => {
@@ -157,6 +165,10 @@ function DueDateCell({ slotId, date, eventDate }: { slotId: string; date: string
   const [, startTransition] = useTransition()
   const defaultVal = date ?? computeDefaultDueDate(eventDate)
   const [current, setCurrent] = useState(defaultVal)
+
+  useEffect(() => {
+    setCurrent(date ?? computeDefaultDueDate(eventDate))
+  }, [date, eventDate])
 
   function handleChange(val: string) {
     setCurrent(val)
@@ -273,13 +285,17 @@ export default function MusicianInvoicesClient({ rows }: { rows: MusicianInvoice
   const [sortKey, setSortKey] = useState<SortKey>('event_date')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [showInternal, setShowInternal] = useState(false)
 
   function handleSort(key: SortKey) {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setSortKey(key); setSortDir('asc') }
   }
 
-  const filtered = rows.filter(r => {
+  const internalCount = rows.filter(r => r.musician?.no_invoice_required).length
+  const visibleRows = showInternal ? rows : rows.filter(r => !r.musician?.no_invoice_required)
+
+  const filtered = visibleRows.filter(r => {
     if (statusFilter === 'all') return true
     if (statusFilter === 'none') return !r.musician_invoice_status
     if (statusFilter === 'received_due') return r.musician_invoice_status === 'received' && isPastDue(r.musician_invoice_due_date ?? computeDefaultDueDate(r.event?.event_date ?? null))
@@ -329,15 +345,15 @@ export default function MusicianInvoicesClient({ rows }: { rows: MusicianInvoice
   )
 
   // Stats
-  const received        = rows.filter(r => r.musician_invoice_status === 'received').length
-  const queried         = rows.filter(r => r.musician_invoice_status === 'queried').length
-  const paid            = rows.filter(r => r.musician_invoice_status === 'paid').length
-  const none            = rows.filter(r => !r.musician_invoice_status).length
+  const received        = visibleRows.filter(r => r.musician_invoice_status === 'received').length
+  const queried         = visibleRows.filter(r => r.musician_invoice_status === 'queried').length
+  const paid            = visibleRows.filter(r => r.musician_invoice_status === 'paid').length
+  const none            = visibleRows.filter(r => !r.musician_invoice_status).length
   const effectiveDue = (r: MusicianInvoiceRow) => isPastDue(r.musician_invoice_due_date ?? computeDefaultDueDate(r.event?.event_date ?? null))
-  const receivedDue     = rows.filter(r => r.musician_invoice_status === 'received' && effectiveDue(r)).length
-  const notReceivedDue  = rows.filter(r => !r.musician_invoice_status && effectiveDue(r)).length
+  const receivedDue     = visibleRows.filter(r => r.musician_invoice_status === 'received' && effectiveDue(r)).length
+  const notReceivedDue  = visibleRows.filter(r => !r.musician_invoice_status && effectiveDue(r)).length
 
-  const unpaid = rows.filter(r => r.musician_invoice_status !== 'paid')
+  const unpaid = visibleRows.filter(r => r.musician_invoice_status !== 'paid')
   const totalUnpaidDue    = unpaid.filter(r => effectiveDue(r)).reduce((s, r) => s + r.fee, 0)
   const totalUnpaidNotDue = unpaid.filter(r => !effectiveDue(r)).reduce((s, r) => s + r.fee, 0)
 
@@ -359,7 +375,7 @@ export default function MusicianInvoicesClient({ rows }: { rows: MusicianInvoice
 
       {/* Summary */}
       <div style={{ display: 'flex', gap: 20, marginBottom: 20, fontSize: 13, color: 'var(--text-secondary)' }}>
-        <span>{rows.length} slots total</span>
+        <span>{visibleRows.length} slots total</span>
         <span style={{ color: 'var(--pill-enquiry-text)' }}>{received} received</span>
         <span style={{ color: 'var(--pill-outstanding-text)' }}>{queried} queried</span>
         <span style={{ color: 'var(--pill-paid-bg)' }}>{paid} paid</span>
@@ -369,7 +385,7 @@ export default function MusicianInvoicesClient({ rows }: { rows: MusicianInvoice
       </div>
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
         {filterBtn('all', 'All')}
         {filterBtn('none', 'Awaiting')}
         {filterBtn('received', 'Received')}
@@ -377,6 +393,12 @@ export default function MusicianInvoicesClient({ rows }: { rows: MusicianInvoice
         {filterBtn('paid', 'Paid')}
         {filterBtn('received_due', `Received – overdue${receivedDue > 0 ? ` (${receivedDue})` : ''}`)}
         {filterBtn('not_received_due', `Not received – overdue${notReceivedDue > 0 ? ` (${notReceivedDue})` : ''}`)}
+        {internalCount > 0 && (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)', marginLeft: 12, cursor: 'pointer' }}>
+            <input type="checkbox" checked={showInternal} onChange={e => setShowInternal(e.target.checked)} />
+            Show internal ({internalCount})
+          </label>
+        )}
       </div>
 
       {sorted.length === 0 ? (

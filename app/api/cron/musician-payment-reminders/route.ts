@@ -96,7 +96,7 @@ export async function GET(req: NextRequest) {
       id, instrument, fee,
       musician_invoice_due_date, musician_payment_date,
       event:events(id, event_date, agency_name, agent_name),
-      musician:musicians(id, first_name, last_name)
+      musician:musicians(id, first_name, last_name, no_invoice_required)
     `)
     .in('musician_invoice_due_date', [today, tomorrow])
     .is('musician_payment_date', null)
@@ -110,9 +110,9 @@ export async function GET(req: NextRequest) {
   const errors: string[] = []
 
   for (const slot of slots) {
-    const musician = slot.musician as unknown as { first_name: string; last_name: string } | null
+    const musician = slot.musician as unknown as { first_name: string; last_name: string; no_invoice_required: boolean } | null
     const event = slot.event as unknown as { id: string; event_date: string | null; agency_name: string | null; agent_name: string | null } | null
-    if (!musician) continue
+    if (!musician || musician.no_invoice_required) continue
 
     const musicianName = `${musician.first_name} ${musician.last_name}`
     const evLabel = eventLabel(event)

@@ -88,6 +88,7 @@ function MusicianModal({ musician, onClose }: { musician: Partial<Musician> | nu
   const [phone, setPhone] = useState(musician?.phone ?? '')
   const [fee, setFee] = useState(String(musician?.default_fee ?? 0))
   const [notes, setNotes] = useState(musician?.notes ?? '')
+  const [noInvoiceRequired, setNoInvoiceRequired] = useState(musician?.no_invoice_required ?? false)
 
   // Additional info
   const [homeCity, setHomeCity] = useState(musician?.home_city ?? '')
@@ -155,6 +156,7 @@ function MusicianModal({ musician, onClose }: { musician: Partial<Musician> | nu
         passport_number: passport.trim() || null,
         covid_vaccinated: covidVaccinated === 'yes' ? true : covidVaccinated === 'no' ? false : null,
         covid_booster: covidBooster === 'yes' ? true : covidBooster === 'no' ? false : null,
+        no_invoice_required: noInvoiceRequired,
       })
       onClose()
     })
@@ -207,6 +209,10 @@ function MusicianModal({ musician, onClose }: { musician: Partial<Musician> | nu
           <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Default fee (£)</label>
           <input style={{ ...inputStyle, width: 140 }} type="number" min="0" step="0.01" value={fee} onChange={e => setFee(e.target.value)} />
         </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text)', cursor: 'pointer' }}>
+          <input type="checkbox" checked={noInvoiceRequired} onChange={e => setNoInvoiceRequired(e.target.checked)} />
+          No invoice required (internal — excluded from musician invoices and payment reminders)
+        </label>
         <div>
           <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Notes</label>
           <input style={inputStyle} value={notes} onChange={e => setNotes(e.target.value)} />

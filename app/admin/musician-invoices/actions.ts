@@ -48,9 +48,11 @@ export async function updateMusicianInvoiceStatus(slotId: string, status: string
 export async function updateMusicianPaymentDate(slotId: string, date: string | null) {
   const supabase = createServiceClient()
   const ctx = await getSlotContext(supabase, slotId)
+  const update: { musician_payment_date: string | null; musician_invoice_status?: string } = { musician_payment_date: date || null }
+  if (date) update.musician_invoice_status = 'paid'
   await supabase
     .from('event_musicians')
-    .update({ musician_payment_date: date || null })
+    .update(update)
     .eq('id', slotId)
   revalidatePath('/admin/musician-invoices')
   if (ctx) {
