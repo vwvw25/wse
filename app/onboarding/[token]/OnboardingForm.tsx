@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import type { Musician, OnboardingType } from '@/types/musicians'
 import { INSTRUMENTS } from '@/types/musicians'
+import DateInput from '@/app/components/DateInput'
 
 interface Props {
   token: string
@@ -341,7 +342,7 @@ export default function OnboardingForm({ token, musician, type, fieldsRequested 
                 <SectionTitle>Identity</SectionTitle>
                 {req.has('date_of_birth') && (
                   <Field label="Date of birth">
-                    <input style={inputStyle} type="date" value={dob} onChange={e => setDob(e.target.value)} required />
+                    <DateInput style={inputStyle} value={dob} onChange={setDob} required />
                   </Field>
                 )}
                 {req.has('passport_number') && (

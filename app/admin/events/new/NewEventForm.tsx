@@ -8,6 +8,7 @@ import { EVENT_STATUSES } from '@/lib/event-statuses'
 import type { EventStatus } from '@/lib/event-statuses'
 import ContractStatusModal from '../ContractStatusModal'
 import DuplicateWarningModal from '../DuplicateWarningModal'
+import DateInput from '@/app/components/DateInput'
 
 function Field({ label, hint, children, span2 }: { label: string; hint?: string; children: React.ReactNode; span2?: boolean }) {
   return (
@@ -309,7 +310,7 @@ export default function NewEventForm({ dressCodeTemplates }: { dressCodeTemplate
           <div style={sectionLabel}>Event</div>
           <div style={grid}>
             <Field label="Event date">
-              <input name="event_date" type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} style={inputBase} />
+              <DateInput name="event_date" value={eventDate} onChange={setEventDate} style={inputBase} />
             </Field>
             <Field label="Event type" hint="optional">
               <Select name="event_type" value={eventType} onChange={setEventType}>

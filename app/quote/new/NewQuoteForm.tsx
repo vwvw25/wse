@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { BookingType, TravelType } from '@/types/quote'
 import type { EventCardData } from './RequestDetailsCard'
 import RequestDetailsCard from './RequestDetailsCard'
+import DateInput from '@/app/components/DateInput'
 
 interface Props {
   eventId: string | null
@@ -24,7 +25,6 @@ export default function NewQuoteForm({ eventId, requestId, prefill }: Props) {
   const [multiDay, setMultiDay] = useState<boolean | null>(null)
   const [eventDate, setEventDate] = useState(prefill?.eventDate ?? '')
   const [clientType, setClientType] = useState<'direct' | 'agency' | null>(prefill?.clientType ?? null)
-  const dateInputRef = useRef<HTMLInputElement>(null)
 
   const eventCardData = prefill?.eventCardData ?? null
 
@@ -54,17 +54,15 @@ export default function NewQuoteForm({ eventId, requestId, prefill }: Props) {
 
         {eventCardData && <RequestDetailsCard data={eventCardData} />}
 
-        <Card label="Event date" onClick={() => dateInputRef.current?.showPicker()}>
-          <input
-            ref={dateInputRef}
-            type="date"
+        <Card label="Event date">
+          <DateInput
             value={eventDate}
-            onChange={e => setEventDate(e.target.value)}
+            onChange={setEventDate}
             style={{
               width: '100%', height: 36, padding: '0 10px', fontSize: 13,
               color: 'var(--text)', background: 'var(--bg)',
               border: '0.5px solid var(--border)', borderRadius: 'var(--radius-md)',
-              outline: 'none', fontFamily: 'var(--font)', cursor: 'pointer',
+              outline: 'none', fontFamily: 'var(--font)',
             }}
           />
         </Card>

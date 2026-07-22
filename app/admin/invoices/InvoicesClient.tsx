@@ -7,6 +7,7 @@ import type { InvoiceLineItem } from '@/types/invoice'
 import type { ScopedEvent } from '@/lib/invoice-scope'
 import { updateInvoiceStatus, updateInvoicePaidDate, updateInvoiceAmountReceived, updateInvoiceNotes } from './actions'
 import InvoiceSummaryCards from '../InvoiceSummaryCards'
+import DateInput from '@/app/components/DateInput'
 
 function fmt(n: number) {
   return `£${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`
@@ -130,11 +131,10 @@ function PaidDateCell({ invoiceId, date }: { invoiceId: string; date: string | n
   }
 
   return (
-    <input
-      type="date"
+    <DateInput
       value={current}
-      onChange={e => handleChange(e.target.value)}
-      style={{ ...inputStyle, width: 130, colorScheme: 'light' }}
+      onChange={handleChange}
+      style={{ ...inputStyle, width: 130 }}
     />
   )
 }

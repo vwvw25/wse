@@ -6,6 +6,7 @@ import type { BandTemplate, BandTemplateSlot } from '@/types/musicians'
 import type { DressCodeTemplate } from '../../../dress-codes/actions'
 import { updateEvent, deleteEvent } from '../../actions'
 import type { UpdateEventData } from '../../actions'
+import DateInput from '@/app/components/DateInput'
 
 const SETS_OPTIONS = ['2 × 45 min', '2 × 60 min', '3 × 45 min', '4 × 45 min']
 
@@ -270,7 +271,7 @@ export default function EditEventForm({ event, templates, dressCodeTemplates, so
       <SectionCard label="Event">
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           <Field label="Event date">
-            <input name="event_date" type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} style={inputBase} />
+            <DateInput name="event_date" value={eventDate} onChange={setEventDate} style={inputBase} />
           </Field>
           <Field label="Guests" hint="optional">
             <input name="guests" type="number" min={0} value={guests} onChange={e => setGuests(e.target.value)}

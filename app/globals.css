@@ -68,3 +68,9 @@ body {
   color: var(--text);
   min-height: 100vh;
 }
+
+/* Date inputs: the whole box opens the picker on click (see DateInput.tsx),
+   so the built-in calendar icon button is redundant — hide it everywhere. */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  display: none;
+}

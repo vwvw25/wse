@@ -11,6 +11,7 @@ import {
   createCascadeTemplate, renameCascadeTemplate, deleteCascadeTemplate,
   addMusicianToCascadeTemplate, removeMusicianFromCascadeTemplate, reorderCascadeTemplate,
 } from './cascade-actions'
+import DateInput from '@/app/components/DateInput'
 
 type Tab = 'roster' | 'cascade' | 'onboarding'
 
@@ -294,7 +295,7 @@ function MusicianModal({ musician, onClose }: { musician: Partial<Musician> | nu
         <div style={{ display: 'flex', gap: 10 }}>
           <div style={{ flex: 1 }}>
             <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Date of birth</label>
-            <input style={inputStyle} type="date" value={dob} onChange={e => setDob(e.target.value)} />
+            <DateInput style={inputStyle} value={dob} onChange={setDob} />
           </div>
           <div style={{ flex: 1 }}>
             <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Passport number</label>

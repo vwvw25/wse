@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { updateMusicianInvoiceStatus, updateMusicianPaymentDate, updateMusicianInvoiceDueDate, removeMusicianInvoice } from './actions'
+import DateInput from '@/app/components/DateInput'
 
 function fmt(n: number) {
   return `£${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`
@@ -151,11 +152,10 @@ function PaymentDateCell({ slotId, date }: { slotId: string; date: string | null
   }
 
   return (
-    <input
-      type="date"
+    <DateInput
       value={current}
-      onChange={e => handleChange(e.target.value)}
-      style={{ ...inputStyle, width: 130, colorScheme: 'light' }}
+      onChange={handleChange}
+      style={{ ...inputStyle, width: 130 }}
     />
   )
 }
@@ -179,11 +179,10 @@ function DueDateCell({ slotId, date, eventDate }: { slotId: string; date: string
   }
 
   return (
-    <input
-      type="date"
+    <DateInput
       value={current}
-      onChange={e => handleChange(e.target.value)}
-      style={{ ...inputStyle, width: 130, colorScheme: 'light' }}
+      onChange={handleChange}
+      style={{ ...inputStyle, width: 130 }}
     />
   )
 }

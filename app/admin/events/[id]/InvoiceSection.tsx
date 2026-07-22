@@ -9,6 +9,7 @@ import {
   upsertLineItem, deleteLineItem, markInvoiceSent,
 } from './invoice-actions'
 import InvoiceEmailModal from './InvoiceEmailModal'
+import DateInput from '@/app/components/DateInput'
 
 const inputStyle: React.CSSProperties = {
   height: 30, padding: '0 8px', fontSize: 12,
@@ -222,12 +223,12 @@ function InvoiceCard({
             {/* Issue date */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Issue date</span>
-              <input type="date" style={{ ...inputStyle, width: 140 }} value={invoice.issue_date ?? ''} onChange={e => startTransition(async () => updateInvoice(invoice.id, eventId, { issue_date: e.target.value || null }))} />
+              <DateInput style={{ ...inputStyle, width: 140 }} value={invoice.issue_date ?? ''} onChange={v => startTransition(async () => updateInvoice(invoice.id, eventId, { issue_date: v || null }))} />
             </div>
             {/* Due date */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Due date</span>
-              <input type="date" style={{ ...inputStyle, width: 140 }} value={invoice.due_date ?? ''} onChange={e => startTransition(async () => updateInvoice(invoice.id, eventId, { due_date: e.target.value || null }))} />
+              <DateInput style={{ ...inputStyle, width: 140 }} value={invoice.due_date ?? ''} onChange={v => startTransition(async () => updateInvoice(invoice.id, eventId, { due_date: v || null }))} />
             </div>
             {/* PO number */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -253,13 +254,12 @@ function InvoiceCard({
               <option value="date">Specific date</option>
             </select>
             {autoSendType === 'date' && (
-              <input
-                type="date"
+              <DateInput
                 style={{ ...inputStyle, width: 140 }}
                 value={autoSendDate}
-                onChange={e => {
-                  setAutoSendDate(e.target.value)
-                  if (e.target.value) handleAutoSend('date', e.target.value)
+                onChange={v => {
+                  setAutoSendDate(v)
+                  if (v) handleAutoSend('date', v)
                 }}
               />
             )}
