@@ -48,6 +48,37 @@ function toDisplayHtml(body: string): string {
   return body.replace(/\n/g, '<br>')
 }
 
+function CopyIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="9" width="13" height="13" rx="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  )
+}
+
+function CopyIconButton({ onClick, copied, style }: { onClick: () => void; copied: boolean; style?: React.CSSProperties }) {
+  return (
+    <button
+      onClick={onClick}
+      title="Copy to clipboard"
+      style={{
+        display: 'flex', alignItems: 'center', gap: 6,
+        padding: '6px 10px', fontSize: 12, fontWeight: 500,
+        background: copied ? '#276749' : 'var(--bg-secondary)',
+        color: copied ? '#fff' : 'var(--text-secondary)',
+        border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)',
+        cursor: 'pointer', fontFamily: 'var(--font)',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+        ...style,
+      }}
+    >
+      <CopyIcon />
+      {copied ? 'Copied!' : 'Copy'}
+    </button>
+  )
+}
+
 export default function EmailComposer({ templates, event, quoteHtml, bookingDetailsHtml, quoteId }: Props) {
   const [selected, setSelected] = useState<EmailTemplate | null>(templates[0] ?? null)
   const [search, setSearch] = useState('')
@@ -170,16 +201,24 @@ export default function EmailComposer({ templates, event, quoteHtml, bookingDeta
 
             {/* Email preview */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '32px 40px' }}>
-              <div
-                style={{
-                  maxWidth: 680, background: '#fff', border: '0.5px solid var(--border)',
-                  borderRadius: 'var(--radius-lg)', padding: '32px 40px',
-                  fontSize: 14, lineHeight: 1.7, color: '#111',
-                  fontFamily: 'Georgia, serif',
-                  boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-                }}
-                dangerouslySetInnerHTML={{ __html: filledHtml }}
-              />
+              <div style={{ maxWidth: 680, position: 'relative' }}>
+                <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 1 }}>
+                  <CopyIconButton onClick={handleCopy} copied={copied} />
+                </div>
+                <div
+                  style={{
+                    background: '#fff', border: '0.5px solid var(--border)',
+                    borderRadius: 'var(--radius-lg)', padding: '32px 40px',
+                    fontSize: 14, lineHeight: 1.7, color: '#111',
+                    fontFamily: 'Georgia, serif',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+                  }}
+                  dangerouslySetInnerHTML={{ __html: filledHtml }}
+                />
+                <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: 12 }}>
+                  <CopyIconButton onClick={handleCopy} copied={copied} />
+                </div>
+              </div>
             </div>
           </>
         )}
