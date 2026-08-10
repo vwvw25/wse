@@ -310,7 +310,7 @@ export default function NewEventForm({ dressCodeTemplates }: { dressCodeTemplate
           <div style={sectionLabel}>Event</div>
           <div style={grid}>
             <Field label="Event date">
-              <DateInput name="event_date" value={eventDate} onChange={setEventDate} style={inputBase} />
+              <DateInput name="event_date" value={eventDate} onChange={setEventDate} required style={inputBase} />
             </Field>
             <Field label="Event type" hint="optional">
               <Select name="event_type" value={eventType} onChange={setEventType}>

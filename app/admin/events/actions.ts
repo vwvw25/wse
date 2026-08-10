@@ -276,6 +276,10 @@ export interface UpdateEventData {
 // Autosaves the full edit form — called on every debounced field change, so it
 // must not redirect (the caller stays on the edit page for the whole session).
 export async function updateEvent(eventId: string, data: UpdateEventData) {
+  if (!data.event_date) {
+    throw new Error('Event date is required')
+  }
+
   const supabase = createServiceClient()
 
   const requestDetails = (data.band_size_requested || data.sets_requested || data.special_requirements || data.sound_requirements || data.notes || data.roaming_requested)
@@ -334,6 +338,10 @@ export async function createEvent(formData: FormData) {
 
   const str = (key: string) => (formData.get(key) as string)?.trim() || null
   const time = (key: string) => (formData.get(key) as string) || null
+
+  if (!time('event_date')) {
+    throw new Error('Event date is required')
+  }
 
   const isAgency = formData.get('is_agency') === 'true'
   const guestsRaw = formData.get('guests') as string

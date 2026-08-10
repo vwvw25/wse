@@ -166,6 +166,7 @@ export default function EditEventForm({ event, templates, dressCodeTemplates, so
       isFirstRender.current = false
       return
     }
+    if (!eventDate) return
     const timeout = setTimeout(() => {
       startSaveTransition(async () => {
         await updateEvent(event.id, JSON.parse(payloadJson))
@@ -271,7 +272,10 @@ export default function EditEventForm({ event, templates, dressCodeTemplates, so
       <SectionCard label="Event">
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           <Field label="Event date">
-            <DateInput name="event_date" value={eventDate} onChange={setEventDate} style={inputBase} />
+            <DateInput name="event_date" value={eventDate} onChange={setEventDate} required style={inputBase} />
+            {!eventDate && (
+              <div style={{ fontSize: 11, color: '#b91c1c', marginTop: 4 }}>Required — changes won&apos;t save until a date is set</div>
+            )}
           </Field>
           <Field label="Guests" hint="optional">
             <input name="guests" type="number" min={0} value={guests} onChange={e => setGuests(e.target.value)}
