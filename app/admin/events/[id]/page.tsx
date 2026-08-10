@@ -663,6 +663,7 @@ export default async function EventDetailPage({
             invoiceSettings={invoiceSettings}
             clientEmail={linkedClient?.email ?? null}
             clientName={linkedClient?.name ?? null}
+            hasClient={!!linkedClient}
             adminEmail={adminEmail}
           />
         </div>

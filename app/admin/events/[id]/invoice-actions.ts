@@ -55,6 +55,11 @@ export async function createInvoice(
   prefillLineItems: { description: string; cost: number }[],
 ) {
   const supabase = createServiceClient()
+  const { data: eventCheck } = await supabase.from('events').select('client_id').eq('id', eventId).single()
+  if (!eventCheck?.client_id) {
+    throw new Error('Link a client before creating an invoice')
+  }
+
   const [{ number, year, sequence }, { data: event }] = await Promise.all([
     nextInvoiceNumber(supabase),
     supabase.from('events').select('event_date').eq('id', eventId).single(),

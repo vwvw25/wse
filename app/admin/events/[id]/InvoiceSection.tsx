@@ -460,6 +460,7 @@ export default function InvoiceSection({
   invoiceSettings,
   clientEmail,
   clientName,
+  hasClient,
   adminEmail,
 }: {
   eventId: string
@@ -469,6 +470,7 @@ export default function InvoiceSection({
   invoiceSettings: InvoiceSettings | null
   clientEmail: string | null
   clientName: string | null
+  hasClient: boolean
   adminEmail: string | null
 }) {
   const [localInvoices, setLocalInvoices] = useState(invoices)
@@ -480,6 +482,7 @@ export default function InvoiceSection({
   const secondaryBankLabel = invoiceSettings?.bank_details_2_label || 'secondary bank details'
 
   function handleCreate() {
+    if (!hasClient) return
     startTransition(async () => {
       await createInvoice(eventId, prefillItems)
     })
@@ -511,14 +514,23 @@ export default function InvoiceSection({
 
       <button
         onClick={handleCreate}
+        disabled={!hasClient}
+        title={hasClient ? undefined : 'Link a client on the Information tab first'}
         style={{
           padding: '7px 16px', fontSize: 13, fontWeight: 500,
-          background: 'var(--accent)', color: 'var(--accent-text-on)', border: 'none',
-          borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'var(--font)',
+          background: hasClient ? 'var(--accent)' : 'var(--bg-secondary)',
+          color: hasClient ? 'var(--accent-text-on)' : 'var(--text-tertiary)',
+          border: hasClient ? 'none' : '0.5px solid var(--border)',
+          borderRadius: 'var(--radius-sm)', cursor: hasClient ? 'pointer' : 'not-allowed', fontFamily: 'var(--font)',
         }}
       >
         + Create invoice
       </button>
+      {!hasClient && (
+        <p style={{ fontSize: 12, color: 'var(--text-tertiary)', margin: '6px 0 0' }}>
+          Link a client on the Information tab before creating an invoice.
+        </p>
+      )}
     </div>
   )
 }

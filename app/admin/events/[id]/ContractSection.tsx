@@ -473,27 +473,34 @@ export default function ContractSection({
             })}
 
             {/* Fee */}
-            {savedContract.parsed.fee != null && (
+            {savedContract.parsed.fee != null && (() => {
+              const savedFeeMatch = quotePrice != null
+                ? Math.round(Number(savedContract.parsed.fee)) === Math.round(quotePrice)
+                : null
+              return (
               <div style={{
                 display: 'grid', gridTemplateColumns: '20px 130px 1fr 1fr',
                 gap: '0 12px', padding: '8px 14px', alignItems: 'center',
                 borderTop: '0.5px solid var(--border)',
-                background: quotePrice != null
-                  ? Math.round(Number(savedContract.parsed.fee)) === Math.round(quotePrice) ? '#f0fdf4' : '#fffbeb'
-                  : undefined,
+                background: savedFeeMatch === true ? '#f0fdf4' : savedFeeMatch === false ? '#fffbeb' : undefined,
               }}>
                 <div style={{ fontSize: 13, textAlign: 'center' }}>
-                  {quotePrice != null
-                    ? Math.round(Number(savedContract.parsed.fee)) === Math.round(quotePrice)
-                      ? <span style={{ color: '#16a34a' }}>✓</span>
-                      : <span style={{ color: '#d97706' }}>⚠</span>
+                  {savedFeeMatch === true
+                    ? <span style={{ color: '#16a34a' }}>✓</span>
+                    : savedFeeMatch === false
+                    ? <span style={{ color: '#d97706' }}>⚠</span>
                     : null}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Fee</div>
-                <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{quotePrice != null ? `£${Math.round(quotePrice).toLocaleString('en-GB')}` : '—'}</div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>£{Number(savedContract.parsed.fee).toLocaleString('en-GB')}</div>
+                <div style={{ fontSize: 13, color: savedFeeMatch === true ? '#15803d' : savedFeeMatch === false ? '#b45309' : 'var(--text-secondary)' }}>
+                  {quotePrice != null ? `£${Math.round(quotePrice).toLocaleString('en-GB')}` : '—'}
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: savedFeeMatch === true ? '#166534' : savedFeeMatch === false ? '#92400e' : 'var(--text)' }}>
+                  £{Number(savedContract.parsed.fee).toLocaleString('en-GB')}
+                </div>
               </div>
-            )}
+              )
+            })()}
           </div>
 
           {parseError && <p style={{ fontSize: 13, color: '#b91c1c', marginBottom: 8 }}>{parseError}</p>}
@@ -546,15 +553,24 @@ export default function ContractSection({
               <div style={{ fontSize: 12, fontWeight: 600, color: feeMatch === false ? '#92400e' : feeMatch === true ? '#166534' : 'var(--text)', marginBottom: 2 }}>
                 {feeMatch === false ? '⚠ Fee mismatch' : feeMatch === true ? '✓ Fee matches' : 'Fee (manual check)'}
               </div>
-              <div style={{ fontSize: 13, color: 'var(--text)' }}>
+              <div style={{
+                fontSize: 13,
+                color: feeMatch === false ? '#92400e' : feeMatch === true ? '#166534' : 'var(--text)',
+              }}>
                 Contract: <strong>£{Number(contractFee).toLocaleString('en-GB')}</strong>
                 {quotePrice != null && (
-                  <span style={{ marginLeft: 12, color: 'var(--text-secondary)' }}>
+                  <span style={{
+                    marginLeft: 12,
+                    color: feeMatch === false ? '#b45309' : feeMatch === true ? '#15803d' : 'var(--text-secondary)',
+                  }}>
                     Quote: <strong>£{Math.round(quotePrice).toLocaleString('en-GB')}</strong>
                   </span>
                 )}
                 {quotePrice == null && (
-                  <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--text-tertiary)' }}>
+                  <span style={{
+                    marginLeft: 8, fontSize: 12,
+                    color: feeMatch === false ? '#b45309' : feeMatch === true ? '#15803d' : 'var(--text-tertiary)',
+                  }}>
                     (no linked quote to compare)
                   </span>
                 )}
@@ -599,10 +615,17 @@ export default function ContractSection({
                     }
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{f.label}</div>
-                  <div style={{ fontSize: 13, color: diff ? 'var(--text-secondary)' : 'var(--text)' }}>
+                  <div style={{
+                    fontSize: 13,
+                    color: d === 'flag' ? '#b45309' : d === 'accept' ? '#15803d' : diff ? 'var(--text-secondary)' : 'var(--text)',
+                  }}>
                     {eventVal || <em style={{ color: 'var(--text-tertiary)', fontStyle: 'normal' }}>—</em>}
                   </div>
-                  <div style={{ fontSize: 13, fontWeight: diff ? 600 : 400, color: diff ? 'var(--text)' : 'var(--text-secondary)' }}>
+                  <div style={{
+                    fontSize: 13,
+                    fontWeight: diff ? 600 : 400,
+                    color: d === 'flag' ? '#92400e' : d === 'accept' ? '#166534' : diff ? 'var(--text)' : 'var(--text-secondary)',
+                  }}>
                     {String(contractVal ?? '')}
                   </div>
                   <div style={{ display: 'flex', gap: 5, justifyContent: 'flex-end', minWidth: 120 }}>
