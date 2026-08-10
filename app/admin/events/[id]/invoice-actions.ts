@@ -103,6 +103,7 @@ export async function updateInvoice(
     sent_at?: string | null
     auto_send_at?: string | null
     auto_send_day_of_event?: boolean
+    use_secondary_bank_details?: boolean
   },
 ) {
   const supabase = createServiceClient()
@@ -117,6 +118,7 @@ export async function updateInvoice(
   if ('notes' in data) changes.push('notes updated')
   if ('po_number' in data) changes.push(`PO number set to ${data.po_number || 'none'}`)
   if ('auto_send_at' in data || 'auto_send_day_of_event' in data) changes.push('auto-send settings updated')
+  if ('use_secondary_bank_details' in data) changes.push(`bank details set to ${data.use_secondary_bank_details ? 'secondary' : 'primary'}`)
 
   if (changes.length > 0) {
     await logEventActivity(eventId, { type: 'invoice_change', summary: `Invoice ${invoice?.number ?? ''} ${changes.join(', ')}`.trim() })

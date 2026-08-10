@@ -14,6 +14,8 @@ One event can have multiple invoices (e.g. deposit + balance). Core tables: `cli
 
 **PDF** — `GET /api/admin/invoices/[id]/pdf` ([route.tsx](../../app/api/admin/invoices/[id]/pdf/route.tsx)) renders server-side with `@react-pdf/renderer` (no headless browser — works on Vercel serverless). Bill-to is always pulled from the linked `clients` record, never from loose event fields, so it stays consistent between invoice, PDF, and auto-send email.
 
+**Secondary bank details** — `invoice_settings` holds a second, optional account (`*_2` columns + `bank_details_2_label`), configured in Settings → Invoicing alongside the primary account. Each `invoices` row has `use_secondary_bank_details` (checkbox in [InvoiceSection.tsx](../../app/admin/events/[id]/InvoiceSection.tsx), only shown once a secondary account is configured); both the PDF route and the send route pick primary vs. secondary fields per-invoice from that flag. Useful for e.g. a foreign-currency account for international clients — this is per-invoice, not per-event, so a deposit and balance invoice on the same event can use different accounts.
+
 **Sending** — manual send via `POST /api/admin/invoices/[id]/send` ([route.tsx](../../app/api/admin/invoices/[id]/send/route.tsx)), or automatic via the daily `/api/cron/invoices` job ([route.tsx](../../app/api/cron/invoices/route.tsx)), which checks two trigger modes per invoice: `auto_send_at` (specific datetime passed) or `auto_send_day_of_event` (event date is today). Sends through Resend with the PDF attached, sets `sent_at` to prevent re-sending.
 
 ### Dashboard: "Total outstanding" and "Uninvoiced" cards
@@ -49,7 +51,7 @@ Vercel's Hobby plan caps cron jobs at 2, each at most daily (see project `CLAUDE
 | `clients` | client invoicing — linked from `events.client_id` |
 | `invoices` | create/update/delete/send actions, cron auto-send |
 | `invoice_line_items` | line item CRUD |
-| `invoice_settings` | Settings page (numbering counters, VAT, bank details) |
+| `invoice_settings` | Settings page (numbering counters, VAT, primary + secondary bank details) |
 | `event_musicians` | musician invoice status/dates/file path |
 | Storage `musician-invoices` bucket | manual upload, accounts-agent ingestion |
 | `event_activity_log` | every mutation above, via `logEventActivity` |

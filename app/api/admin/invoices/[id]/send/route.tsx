@@ -165,16 +165,25 @@ async function buildPdfBuffer(
             <Text style={styles.grandTotalValue}>{fmt(total)}</Text>
           </View>
         </View>
-        {((settings?.account_name as string | null) || (settings?.sort_code as string | null)) && (
+        {(() => {
+          const useSecondary = !!invoice.use_secondary_bank_details
+          const bankName = (useSecondary ? settings?.bank_name_2 : settings?.bank_name) as string | null
+          const accountName = (useSecondary ? settings?.account_name_2 : settings?.account_name) as string | null
+          const sortCode = (useSecondary ? settings?.sort_code_2 : settings?.sort_code) as string | null
+          const accountNumber = (useSecondary ? settings?.account_number_2 : settings?.account_number) as string | null
+          const ibanVal = (useSecondary ? settings?.iban_2 : settings?.iban) as string | null
+          const swiftVal = (useSecondary ? settings?.swift_2 : settings?.swift) as string | null
+          if (!accountName && !sortCode && !accountNumber) return null
+          return (
           <View style={styles.bankBox}>
             <Text style={styles.bankTitle}>Payment details</Text>
             {([
-              (settings?.bank_name as string | null) ? ['Bank', settings!.bank_name as string] : null,
-              (settings?.account_name as string | null) ? ['Account name', settings!.account_name as string] : null,
-              (settings?.sort_code as string | null) ? ['Sort code', settings!.sort_code as string] : null,
-              (settings?.account_number as string | null) ? ['Account no.', settings!.account_number as string] : null,
-              (settings?.iban as string | null) ? ['IBAN', settings!.iban as string] : null,
-              (settings?.swift as string | null) ? ['SWIFT', settings!.swift as string] : null,
+              bankName ? ['Bank', bankName] : null,
+              accountName ? ['Account name', accountName] : null,
+              sortCode ? ['Sort code', sortCode] : null,
+              accountNumber ? ['Account no.', accountNumber] : null,
+              ibanVal ? ['IBAN', ibanVal] : null,
+              swiftVal ? ['SWIFT', swiftVal] : null,
             ] as ([string, string] | null)[]).filter((r): r is [string, string] => r !== null).map(([label, value], i) => (
               <View key={i} style={styles.bankRow}>
                 <Text style={[styles.metaLabel, { width: 90 }]}>{label}</Text>
@@ -182,7 +191,8 @@ async function buildPdfBuffer(
               </View>
             ))}
           </View>
-        )}
+          )
+        })()}
         {((invoice.notes as string | null) || (settings?.default_notes as string | null)) && (
           <View style={styles.notesBox}>
             <Text style={[styles.bankTitle, { marginBottom: 4 }]}>Notes</Text>

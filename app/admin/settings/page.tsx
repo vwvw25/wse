@@ -757,6 +757,28 @@ export default function SettingsPage() {
                 </div>
               ))}
 
+              <div style={sectionHeaderStyle}>Secondary bank details</div>
+              <p style={{ fontSize: 12, color: 'var(--text-tertiary)', margin: '0 0 10px' }}>
+                An alternate account you can switch an invoice to using — e.g. a foreign currency account. Tick &quot;Use secondary bank details&quot; on an invoice to use these instead of the details above.
+              </p>
+              <div style={rowStyle}>
+                <span style={labelStyle}>Label <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>(optional, shown on the invoice checkbox)</span></span>
+                <input type="text" style={inputStyle} value={invSettings.bank_details_2_label ?? ''} onChange={e => handleInvChange('bank_details_2_label', e.target.value || null)} placeholder="e.g. USD account" />
+              </div>
+              {([
+                ['bank_name_2', 'Bank name', 'e.g. Wise'],
+                ['account_name_2', 'Account name', 'e.g. Ward Smith Entertainment'],
+                ['sort_code_2', 'Sort code', 'XX-XX-XX'],
+                ['account_number_2', 'Account number', ''],
+                ['iban_2', 'IBAN', 'Optional'],
+                ['swift_2', 'SWIFT / BIC', 'Optional'],
+              ] as [keyof InvoiceSettings, string, string][]).map(([key, label, placeholder]) => (
+                <div key={key} style={rowStyle}>
+                  <span style={labelStyle}>{label}</span>
+                  <input type="text" style={inputStyle} value={(invSettings[key] as string | null) ?? ''} onChange={e => handleInvChange(key, e.target.value || null)} placeholder={placeholder} />
+                </div>
+              ))}
+
               <div style={sectionHeaderStyle}>Email template</div>
               <p style={{ fontSize: 12, color: 'var(--text-tertiary)', margin: '0 0 10px' }}>
                 Tokens: <code>{'{{client_name}}'}</code> <code>{'{{invoice_number}}'}</code> <code>{'{{event_date}}'}</code> <code>{'{{total}}'}</code> <code>{'{{due_date}}'}</code>

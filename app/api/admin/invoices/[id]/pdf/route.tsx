@@ -187,16 +187,25 @@ export async function GET(
         </View>
 
         {/* Bank details */}
-        {(settings?.account_name || settings?.sort_code || settings?.account_number) && (
+        {(() => {
+          const useSecondary = !!invoice.use_secondary_bank_details
+          const bankName = useSecondary ? settings?.bank_name_2 : settings?.bank_name
+          const accountName = useSecondary ? settings?.account_name_2 : settings?.account_name
+          const sortCode = useSecondary ? settings?.sort_code_2 : settings?.sort_code
+          const accountNumber = useSecondary ? settings?.account_number_2 : settings?.account_number
+          const ibanVal = useSecondary ? settings?.iban_2 : settings?.iban
+          const swiftVal = useSecondary ? settings?.swift_2 : settings?.swift
+          if (!accountName && !sortCode && !accountNumber) return null
+          return (
           <View style={styles.bankBox}>
             <Text style={styles.bankTitle}>Payment details</Text>
             {([
-              settings?.bank_name ? ['Bank', settings.bank_name] : null,
-              settings?.account_name ? ['Account name', settings.account_name] : null,
-              settings?.sort_code ? ['Sort code', settings.sort_code] : null,
-              settings?.account_number ? ['Account no.', settings.account_number] : null,
-              settings?.iban ? ['IBAN', settings.iban] : null,
-              settings?.swift ? ['SWIFT', settings.swift] : null,
+              bankName ? ['Bank', bankName] : null,
+              accountName ? ['Account name', accountName] : null,
+              sortCode ? ['Sort code', sortCode] : null,
+              accountNumber ? ['Account no.', accountNumber] : null,
+              ibanVal ? ['IBAN', ibanVal] : null,
+              swiftVal ? ['SWIFT', swiftVal] : null,
             ] as ([string, string] | null)[]).filter((r): r is [string, string] => r !== null).map(([label, value], i) => (
               <View key={i} style={styles.bankRow}>
                 <Text style={[styles.metaLabel, { width: 90 }]}>{label}</Text>
@@ -204,7 +213,8 @@ export async function GET(
               </View>
             ))}
           </View>
-        )}
+          )
+        })()}
 
         {/* Notes */}
         {(invoice.notes || settings?.default_notes) && (

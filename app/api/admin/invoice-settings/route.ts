@@ -16,6 +16,7 @@ export async function POST(req: NextRequest) {
   const allowed = [
     'vat_registered', 'vat_number',
     'bank_name', 'account_name', 'sort_code', 'account_number', 'iban', 'swift',
+    'bank_name_2', 'account_name_2', 'sort_code_2', 'account_number_2', 'iban_2', 'swift_2', 'bank_details_2_label',
     'logo_url', 'default_notes', 'invoice_email_subject', 'invoice_email_body',
     'account_owner_email',
     'booking_sources',

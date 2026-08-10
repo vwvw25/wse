@@ -21,6 +21,13 @@ export interface InvoiceSettings {
   account_number: string | null
   iban: string | null
   swift: string | null
+  bank_name_2: string | null
+  account_name_2: string | null
+  sort_code_2: string | null
+  account_number_2: string | null
+  iban_2: string | null
+  swift_2: string | null
+  bank_details_2_label: string | null
   logo_url: string | null
   default_notes: string | null
   year_counters: Record<string, number>
@@ -60,6 +67,7 @@ export interface Invoice {
   amount_received: number | null
   notes: string | null
   po_number: string | null
+  use_secondary_bank_details: boolean
   created_at: string
   line_items?: InvoiceLineItem[]
 }

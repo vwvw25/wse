@@ -109,6 +109,8 @@ function InvoiceCard({
   subjectTemplate,
   bodyTemplate,
   clientName,
+  hasSecondaryBankDetails,
+  secondaryBankLabel,
 }: {
   invoice: Invoice & { line_items: InvoiceLineItem[] }
   eventId: string
@@ -117,6 +119,8 @@ function InvoiceCard({
   onDelete: () => void
   clientEmail: string | null
   adminEmail: string | null
+  hasSecondaryBankDetails: boolean
+  secondaryBankLabel: string
   subjectTemplate: string
   bodyTemplate: string
   clientName: string | null
@@ -235,6 +239,20 @@ function InvoiceCard({
               <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>PO</span>
               <input style={{ ...inputStyle, width: 100 }} placeholder="Optional" defaultValue={invoice.po_number ?? ''} onBlur={e => startTransition(async () => updateInvoice(invoice.id, eventId, { po_number: e.target.value || null }))} />
             </div>
+            {/* Secondary bank details */}
+            {hasSecondaryBankDetails && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={invoice.use_secondary_bank_details}
+                  onChange={e => startTransition(async () => updateInvoice(invoice.id, eventId, { use_secondary_bank_details: e.target.checked }))}
+                  style={{ width: 14, height: 14, accentColor: 'var(--accent)' }}
+                />
+                <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Use {secondaryBankLabel}
+                </span>
+              </label>
+            )}
           </div>
 
           {/* Auto-send */}
@@ -458,6 +476,8 @@ export default function InvoiceSection({
   const vatRegistered = invoiceSettings?.vat_registered ?? false
   const subjectTemplate = invoiceSettings?.invoice_email_subject ?? DEFAULT_SUBJECT
   const bodyTemplate = invoiceSettings?.invoice_email_body ?? DEFAULT_BODY
+  const hasSecondaryBankDetails = !!(invoiceSettings?.account_name_2 || invoiceSettings?.sort_code_2 || invoiceSettings?.account_number_2)
+  const secondaryBankLabel = invoiceSettings?.bank_details_2_label || 'secondary bank details'
 
   function handleCreate() {
     startTransition(async () => {
@@ -483,6 +503,8 @@ export default function InvoiceSection({
           adminEmail={adminEmail}
           subjectTemplate={subjectTemplate}
           bodyTemplate={bodyTemplate}
+          hasSecondaryBankDetails={hasSecondaryBankDetails}
+          secondaryBankLabel={secondaryBankLabel}
           onDelete={() => startTransition(async () => { await deleteInvoice(inv.id, eventId); setLocalInvoices(prev => prev.filter(i => i.id !== inv.id)) })}
         />
       ))}
