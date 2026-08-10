@@ -1,7 +1,7 @@
 import { createServiceClient } from '@/lib/supabase'
 import { notFound } from 'next/navigation'
 import type { EventRecord, QuoteRecord } from '@/types/quote'
-import type { EventMusician, Musician, BandTemplate, BandTemplateSlot } from '@/types/musicians'
+import type { EventMusician, Musician, BandTemplate, BandTemplateSlot, CascadeTemplate } from '@/types/musicians'
 import { musicianFullName } from '@/types/musicians'
 import type { Invoice, InvoiceLineItem, InvoiceSettings, Client } from '@/types/invoice'
 import StatusSelect from '../StatusSelect'
@@ -177,13 +177,15 @@ export default async function EventDetailPage({
   let slots: EventMusician[] = []
   let musicians: Musician[] = []
   let templates: (BandTemplate & { slots: BandTemplateSlot[] })[] = []
+  let cascadeTemplates: CascadeTemplate[] = []
 
   if (tab === 'musicians') {
-    const [{ data: slotsData }, { data: musiciansData }, { data: templatesData }, { data: templateSlotsData }] = await Promise.all([
+    const [{ data: slotsData }, { data: musiciansData }, { data: templatesData }, { data: templateSlotsData }, { data: cascadeTemplatesData }] = await Promise.all([
       supabase.from('event_musicians').select('*, invites:musician_invites(*)').eq('event_id', id).order('date_added').order('id'),
       supabase.from('musicians').select('*').order('first_name').order('last_name'),
       supabase.from('band_templates').select('*').order('name'),
       supabase.from('band_template_slots').select('*').order('sort_order'),
+      supabase.from('cascade_templates').select('*').order('instrument').order('name'),
     ])
 
     slots = (slotsData ?? []) as EventMusician[]
@@ -191,6 +193,7 @@ export default async function EventDetailPage({
     const rawTemplates = (templatesData ?? []) as BandTemplate[]
     const templateSlots = (templateSlotsData ?? []) as BandTemplateSlot[]
     templates = rawTemplates.map(t => ({ ...t, slots: templateSlots.filter(s => s.template_id === t.id) }))
+    cascadeTemplates = (cascadeTemplatesData ?? []) as CascadeTemplate[]
 
     // Enrich slots with musician data + latest invite for current musician
     slots = slots.map(s => {
@@ -623,6 +626,7 @@ export default async function EventDetailPage({
           slots={slots}
           musicians={musicians}
           templates={templates}
+          cascadeTemplates={cascadeTemplates}
         />
       )}
 
