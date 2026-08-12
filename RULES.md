@@ -19,7 +19,7 @@ This document captures all pricing logic, display rules, and quote generation be
 
 | Size | Electric | Acoustic | Roaming | Jazz (keys) | Jazz (guitar) |
 |---|---|---|---|---|---|
-| Duo | Singer, Guitar | Singer, Guitar | — | Singer, Keys | Singer, Guitar |
+| Duo | Singer, Guitar | Singer, Guitar | Singer, Guitar | Singer, Keys | Singer, Guitar |
 | Trio | Singer, Guitar, Drums | Singer, Guitar, Drums | Singer, Guitar, Drums | Singer, Keys, Drums | Singer, Guitar, Drums |
 | Quartet | Singer, Guitar, Drums, Bass | Singer, Guitar, Bass, Drums | Singer, Guitar, Bass, Drums | Singer, Keys, Bass, Drums | Singer, Guitar, Bass, Drums |
 | Five piece | Singer, Guitar, Drums, Bass, Keys | Singer, Guitar, Bass, Keys, Drums | Singer, Guitar, Bass, Drums, Sax | Singer, Keys, Guitar, Bass, Drums | Singer, Guitar, Bass, Keys, Drums |
@@ -31,7 +31,7 @@ This document captures all pricing logic, display rules, and quote generation be
 
 | Size | Electric | Acoustic | Roaming | Jazz (keys) | Jazz (guitar) |
 |---|---|---|---|---|---|
-| Duo | Vocals, Guitar | Vocals, Guitar | — | Vocals, Piano | Vocals, Guitar |
+| Duo | Vocals, Guitar | Vocals, Guitar | Vocals, Guitar | Vocals, Piano | Vocals, Guitar |
 | Trio | Vocals, Guitar, Drums | Vocals, Guitar, Drums or Bass | Vocals, Guitar, Drums | Vocals, Piano, Drums or Upright Bass | Vocals, Guitar, Drums or Upright Bass |
 | Quartet | Vocals, Guitar, Bass, Drums | Vocals, Guitar, Bass, Drums | Vocals, Guitar, Upright Bass, Drums | Vocals, Piano, Upright Bass, Drums | Vocals, Guitar, Upright Bass, Drums |
 | Five piece | Vocals, Guitar, Bass, Keys, Drums | Vocals, Guitar, Bass, Keys, Drums | Vocals, Guitar, Upright Bass, Drums, Sax | Vocals, Piano, Guitar, Upright Bass, Drums | Vocals, Guitar, Piano, Upright Bass, Drums |

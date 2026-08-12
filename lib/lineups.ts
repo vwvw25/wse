@@ -27,6 +27,7 @@ export const LINE_UP_LABELS: Record<BandType, Partial<Record<BandSize, string>>>
     six_piece:  'Vocals, Guitar, Bass, Keys, Drums, Sax',
   },
   roaming: {
+    duo:        'Vocals, Guitar',
     trio:       'Vocals, Guitar, Drums',
     quartet:    'Vocals, Guitar, Upright Bass, Drums',
     five_piece: 'Vocals, Guitar, Upright Bass, Drums, Sax',
@@ -71,6 +72,7 @@ export const MUSICIAN_FEE_KEYS: Record<BandType, Partial<Record<BandSize, Musici
     six_piece:  ['singer_fee', 'guitarist_fee', 'bass_fee', 'keys_fee', 'drummer_fee', 'sax_fee'],
   },
   roaming: {
+    duo:        ['singer_fee', 'guitarist_fee'],
     trio:       ['singer_fee', 'guitarist_fee', 'drummer_fee'],
     quartet:    ['singer_fee', 'guitarist_fee', 'bass_fee', 'drummer_fee'],
     five_piece: ['singer_fee', 'guitarist_fee', 'bass_fee', 'drummer_fee', 'sax_fee'],
