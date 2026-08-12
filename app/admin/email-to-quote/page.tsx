@@ -2,10 +2,11 @@
 
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { extractFromEmail, saveEvent, checkDuplicateEvents } from './actions'
+import { extractFromEmail, saveEvent, checkDuplicateEvents, matchClient, listClients } from './actions'
 import type { EmailExtractResult, ExtractedAutoFill } from './actions'
 import type { DuplicateEventMatch } from '@/lib/duplicate-events'
 import type { RequestDetails } from '@/types/quote'
+import type { Client } from '@/types/invoice'
 import DuplicateWarningModal from '../events/DuplicateWarningModal'
 
 const DEFAULT_SOURCES = ['Encore', 'Poptop', 'Last Minute Musicians', 'Website']
@@ -36,6 +37,9 @@ export default function EmailToQuotePage() {
   const [originalParse, setOriginalParse] = useState<EmailExtractResult | null>(null)
   const [sources, setSources] = useState<string[]>(DEFAULT_SOURCES)
   const [duplicates, setDuplicates] = useState<DuplicateEventMatch[] | null>(null)
+  const [allClients, setAllClients] = useState<Client[]>([])
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
+  const [clientMatchedAutomatically, setClientMatchedAutomatically] = useState(false)
 
   useEffect(() => {
     fetch('/api/admin/invoice-settings')
@@ -46,6 +50,7 @@ export default function EmailToQuotePage() {
         }
       })
       .catch(() => {})
+    listClients().then(setAllClients).catch(() => {})
   }, [])
 
   async function handleExtract() {
@@ -57,6 +62,15 @@ export default function EmailToQuotePage() {
       setAutoFill(result.auto_fill)
       setRequestDetails(result.request_details)
       setState('review')
+
+      const matched = await matchClient(result.auto_fill)
+      if (matched) {
+        setSelectedClientId(matched.id)
+        setClientMatchedAutomatically(true)
+      } else {
+        setSelectedClientId(null)
+        setClientMatchedAutomatically(false)
+      }
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : 'Extraction failed')
       setState('error')
@@ -74,7 +88,7 @@ export default function EmailToQuotePage() {
     }
     setState('creating')
     try {
-      const { eventId } = await saveEvent({ auto_fill: autoFill, request_details: requestDetails }, emailText, originalParse!)
+      const { eventId } = await saveEvent({ auto_fill: autoFill, request_details: requestDetails }, emailText, originalParse!, selectedClientId)
       router.push(`/quote/new?event=${eventId}`)
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : 'Failed to save event')
@@ -241,6 +255,39 @@ export default function EmailToQuotePage() {
                   </Field>
                 </>
               )}
+
+              <Field label="Linked client" style={{ gridColumn: '1 / -1' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <select
+                    value={selectedClientId ?? ''}
+                    onChange={e => {
+                      setSelectedClientId(e.target.value || null)
+                      setClientMatchedAutomatically(false)
+                    }}
+                    style={{
+                      flex: 1, minWidth: 0, height: 34, padding: '0 10px', fontSize: 13,
+                      background: 'var(--bg)', color: selectedClientId ? 'var(--text)' : 'var(--text-tertiary)',
+                      border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)',
+                      outline: 'none', fontFamily: 'var(--font)', boxSizing: 'border-box' as const,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <option value="">— No client (link later) —</option>
+                    {allClients.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}{c.email ? ` — ${c.email}` : ''}</option>
+                    ))}
+                  </select>
+                  {selectedClientId && clientMatchedAutomatically && (
+                    <span style={{
+                      flexShrink: 0, fontSize: 11, fontWeight: 500,
+                      color: '#16a34a', background: 'rgba(22,163,74,0.12)',
+                      padding: '3px 8px', borderRadius: 'var(--radius-sm)',
+                    }}>
+                      ✓ Matched from email
+                    </span>
+                  )}
+                </div>
+              </Field>
 
               <Field label="Source" style={{ gridColumn: '1 / -1' }}>
                 <select

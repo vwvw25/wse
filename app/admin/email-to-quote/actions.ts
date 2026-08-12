@@ -3,10 +3,12 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createServiceClient } from '@/lib/supabase'
 import type { RequestDetails, BookingType, TravelType } from '@/types/quote'
+import type { Client } from '@/types/invoice'
 import fs from 'fs'
 import path from 'path'
 import { findPotentialDuplicateEvents } from '@/lib/duplicate-events'
 import type { DuplicateEventMatch } from '@/lib/duplicate-events'
+import { findMatchingClient } from '@/lib/match-client'
 
 // Turbopack dev workaround: env vars not always available in server actions
 function getAnthropicKey(): string {
@@ -129,10 +131,28 @@ export async function checkDuplicateEvents(autoFill: ExtractedAutoFill): Promise
   })
 }
 
+export async function matchClient(autoFill: ExtractedAutoFill): Promise<Client | null> {
+  return findMatchingClient({
+    client_email: autoFill.client_email,
+    is_agency: autoFill.is_agency,
+    agency_name: autoFill.agency_name,
+    agent_name: autoFill.agent_name,
+    agent_first_name: autoFill.agent_first_name,
+    agent_surname: autoFill.agent_surname,
+  })
+}
+
+export async function listClients(): Promise<Client[]> {
+  const supabase = createServiceClient()
+  const { data } = await supabase.from('clients').select('*').order('name')
+  return (data ?? []) as Client[]
+}
+
 export async function saveEvent(
   result: EmailExtractResult,
   rawEmail: string,
   originalParse: EmailExtractResult,
+  clientId: string | null = null,
 ): Promise<{ eventId: string; quoteRequestId: string | null }> {
   const supabase = createServiceClient()
   const af = result.auto_fill
@@ -141,6 +161,7 @@ export async function saveEvent(
   const { data, error } = await supabase
     .from('events')
     .insert({
+      client_id: clientId,
       agency_name: af.agency_name,
       agent_name: af.agent_name,
       agent_first_name: af.agent_first_name,
