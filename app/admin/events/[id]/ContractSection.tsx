@@ -133,9 +133,7 @@ export default function ContractSection({
   quotePrice: number | null
 }) {
   const mainFileRef = useRef<HTMLInputElement>(null)
-  const attachFileRef = useRef<HTMLInputElement>(null)
   const [parsing, setParsing] = useState(false)
-  const [attaching, setAttaching] = useState(false)
   const [parsed, setParsed] = useState<ParsedContract | null>(null)
   const [parseError, setParseError] = useState<string | null>(null)
   const [decisions, setDecisions] = useState<Record<string, 'accept' | 'flag'>>({})
@@ -198,35 +196,6 @@ export default function ContractSection({
   function handleStatusSelect(status: 'contract_received' | 'contracted') {
     setShowStatusPrompt(false)
     startSaving(async () => { await updateEventStatus(event.id, status) })
-  }
-
-  async function handleAttach(file: File) {
-    setAttaching(true)
-    try {
-      const fd = new FormData()
-      fd.append('file', file)
-      const res = await fetch(`/api/admin/events/${event.id}/contract/attach`, {
-        method: 'POST',
-        body: fd,
-      })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error ?? 'Upload failed')
-      setLocalContract(c => {
-        if (!c) {
-          return {
-            parsed: {},
-            flags: [],
-            uploaded_at: new Date().toISOString(),
-            attachments: [json.attachment],
-          }
-        }
-        return { ...c, attachments: [...(c.attachments ?? []), json.attachment] }
-      })
-    } catch (e: unknown) {
-      setParseError(e instanceof Error ? e.message : 'Failed to attach file')
-    } finally {
-      setAttaching(false)
-    }
   }
 
   function decide(key: string, d: 'accept' | 'flag') {
@@ -341,18 +310,6 @@ export default function ContractSection({
           e.target.value = ''
         }}
       />
-      <input
-        ref={attachFileRef}
-        type="file"
-        accept="application/pdf,.doc,.docx"
-        style={{ display: 'none' }}
-        onChange={e => {
-          const f = e.target.files?.[0]
-          if (f) handleAttach(f)
-          e.target.value = ''
-        }}
-      />
-
       {/* Saved contract view */}
       {showSaved && (
         <div>
@@ -409,18 +366,6 @@ export default function ContractSection({
               borderTop: (savedContract.file_path || attachments.length > 0) ? '0.5px solid var(--border)' : 'none',
               display: 'flex', gap: 8,
             }}>
-              <button
-                onClick={() => attachFileRef.current?.click()}
-                disabled={attaching}
-                style={{
-                  padding: '4px 10px', fontSize: 12, fontWeight: 500,
-                  background: 'transparent', border: '0.5px solid var(--border)',
-                  color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)',
-                  cursor: attaching ? 'wait' : 'pointer', fontFamily: 'var(--font)',
-                }}
-              >
-                {attaching ? 'Uploading…' : '+ Add file'}
-              </button>
               {savedContract.file_path && (
                 <button
                   onClick={() => mainFileRef.current?.click()}
@@ -522,19 +467,6 @@ export default function ContractSection({
             }}
           >
             {parsing ? 'Parsing…' : 'Upload contract PDF'}
-          </button>
-          <button
-            onClick={() => attachFileRef.current?.click()}
-            disabled={attaching}
-            style={{
-              padding: '8px 16px', fontSize: 13, fontWeight: 500,
-              background: 'transparent', color: 'var(--text-secondary)',
-              border: '0.5px solid var(--border)',
-              borderRadius: 'var(--radius-sm)', cursor: attaching ? 'wait' : 'pointer',
-              fontFamily: 'var(--font)',
-            }}
-          >
-            {attaching ? 'Uploading…' : 'Attach file'}
           </button>
           {parseError && <p style={{ fontSize: 13, color: '#b91c1c', margin: 0 }}>{parseError}</p>}
         </div>

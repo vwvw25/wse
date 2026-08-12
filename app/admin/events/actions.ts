@@ -412,16 +412,6 @@ export interface ContractFileAttachment {
   uploaded_at: string
 }
 
-export async function addContractAttachment(eventId: string, attachment: ContractFileAttachment) {
-  const supabase = createServiceClient()
-  const { data } = await supabase.from('events').select('contract').eq('id', eventId).single()
-  const contract = data?.contract ?? {}
-  const attachments = [...(contract.attachments ?? []), attachment]
-  await supabase.from('events').update({ contract: { ...contract, attachments } }).eq('id', eventId)
-  await logEventActivity(eventId, { type: 'contract_change', summary: `Attached ${attachment.name}` })
-  revalidatePath(`/admin/events/${eventId}`)
-}
-
 export async function deleteContractAttachment(eventId: string, filePath: string) {
   const supabase = createServiceClient()
   await supabase.storage.from('contracts').remove([filePath]).catch(() => {})
