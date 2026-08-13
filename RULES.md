@@ -1,6 +1,6 @@
 # WSE Quoting System — Business Rules
 
-Last updated: 2026-04-07
+Last updated: 2026-08-13
 
 This document captures all pricing logic, display rules, and quote generation behaviour built into the system. Update it whenever a rule changes.
 
@@ -11,7 +11,8 @@ This document captures all pricing logic, display rules, and quote generation be
 ### Band types
 - **Electric** — standard full-band setup with drums
 - **Acoustic** — same as electric but without amplified sound
-- **Roaming** — portable, no drum kit, upright bass
+- **Roaming** — walkabout band, body-mounted battery-powered PA, no hired PA/loading/parking logistics
+- **Roaming Lite** (2x Bose S1) — same lineup as Roaming, but the PA is 2x floor-standing Bose S1 speakers instead of body-mounted; less mobile than Roaming, but the Bose S1 can carry background/interval music, which Roaming can't. Same lineup/musician-fee tables as Roaming (not repeated below). See [ADR-012](docs/decisions/ADR-012-roaming-pa-tiers.md) for the full reasoning behind what's included/excluded on the quote for each.
 - **Jazz (keys)** — jazz with piano as lead instrument
 - **Jazz (guitar)** — jazz with guitar as lead instrument
 
@@ -176,10 +177,12 @@ These items appear in the "What's included" section on the quote. Each only show
 
 | Item | Shows when |
 |---|---|
-| Background PA | Not extended PA + sound engineer, client NOT providing PA, booking type is Background or Dancing under 40 |
-| Extended PA + sound engineer | Any option in this booking type has extended PA + sound engineer |
+| Background PA | Not extended PA + sound engineer, client NOT providing PA, booking type is Background or Dancing under 40, band type is NOT Roaming (Roaming Lite still shows this — see below) |
+| Extended PA + sound engineer | Any option in this booking type has extended PA + sound engineer, AND band type is NOT Roaming or Roaming Lite |
+| If dancefloor focus with more than 40 guests, full PA + sound engineer required — add £X | Booking type is Background, client NOT providing PA, `pa_sound_engineer_rate` > 0, AND band type is NOT Roaming or Roaming Lite (see [ADR-004](docs/decisions/ADR-004-pa-upgrade-note.md)) |
+| If client is providing PA please ask for a requote… | Would otherwise show Extended PA + sound engineer OR Background PA (regular/extended), AND band type is NOT Roaming or Roaming Lite |
 | Based on a finish of 11pm or earlier | No finish time provided |
-| Music via iPad/PA during intervals | Not acoustic, not roaming, client not providing PA, no "Roaming set" add-on |
+| Music via iPad/PA during intervals | Not acoustic, not Roaming (Roaming Lite still shows this — Bose S1 can carry it), client not providing PA, no "Roaming set" add-on |
 | Arrival one hour before performance start (1.5hrs if Extended PA + sound engineer) | Arrival time is NOT custom AND load-out does NOT differ from finish |
 | Arrival: [time] | Arrival time is custom (manually overridden from the default start − 1h) |
 | Start: [time] | Start time is provided |
@@ -192,10 +195,11 @@ These items appear in the "What's included" section on the quote. Each only show
 | Airport transfers | International, outgoing UK or destination transfer cost > 0 |
 | Local transport | International, local transport cost > 0 |
 | Visa costs | International, visa cost > 0 |
-| If dancing and 40+ guests — book quartet or larger | Booking type is Dancing over 40 or Wedding |
 | Does not include client use of mic… | Mic hire add-on NOT selected |
 | Includes mic hire for use during agreed performance times… | Mic hire add-on IS selected |
 | [Add-on inclusion text] | Add-on is selected and has inclusion_text set |
+
+**Roaming / Roaming Lite exclusions:** none of the PA-hire copy above (Background PA except for Roaming Lite, Extended PA + sound engineer, the dancefloor/sound-engineer upsell, or the "ask for a requote" note) applies to a walkabout booking — see [ADR-012](docs/decisions/ADR-012-roaming-pa-tiers.md) for why.
 
 ---
 
@@ -206,17 +210,17 @@ Items appear in the "Requirements" section. The rider item always appears first 
 | Item | Shows when |
 |---|---|
 | Client to provide full rider (link to Google Drive folder) | International OR client provides PA is ticked — **always shown first** |
-| 2 × 13amp plug sockets (with powerless caveat) | NOT powerless AND NOT acoustic |
+| 2 × 13amp plug sockets (with powerless caveat) | NOT powerless AND NOT acoustic AND band type is NOT Roaming (Roaming Lite unaffected — still governed by the powerless checkbox, see [ADR-012](docs/decisions/ADR-012-roaming-pa-tiers.md)) |
 | Food clause (same menu or £20 buyout per performer) | Buyout add-on NOT selected |
 | Lockable indoor exclusive green room | Always |
 | Soft drinks and mineral water | Always |
 | Being able to pack down at end of final set | Load-out does NOT differ from finish time |
-| Full loading information required 2 weeks in advance | Always |
-| Based on being able to park within 25 metres… | Always |
-| If the venue isn't easily accessible by car… | Always |
+| Full loading information required 2 weeks in advance | Band type is NOT Roaming or Roaming Lite |
+| Based on being able to park within 25 metres… | Band type is NOT Roaming or Roaming Lite |
+| If the venue isn't easily accessible by car… | Band type is NOT Roaming or Roaming Lite |
 | Client to hire drum kit locally if drummer is booked | International AND drummer_fee > 0 |
 | Client to provide keyboard or piano on-site if pianist is booked | International AND keys_fee > 0 |
-| Client to provide double bass on site if upright double bass is booked (alternatively bassist can bring electric bass) | International AND bass_fee > 0 AND band type is Roaming, Jazz (keys), or Jazz (guitar) |
+| Client to provide double bass on site if upright double bass is booked (alternatively bassist can bring electric bass) | International AND bass_fee > 0 AND band type is Roaming, Roaming Lite, Jazz (keys), or Jazz (guitar) |
 | [Add-on requirement text] | Add-on is selected and has requirement_text set |
 
 ---

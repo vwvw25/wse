@@ -36,21 +36,30 @@ export function getQuoteItems(
   const hasBuyout = (inputs.selected_add_ons ?? []).some(a => a.name.toLowerCase().includes('buyout'))
   const hasMicHire = (inputs.selected_add_ons ?? []).some(a => a.name.toLowerCase().includes('mic hire'))
 
-  const hasExtendedPaEngineer = btOptions.some(o => o.has_extended_pa_engineer)
+  const btBandType = (inputs.band_types_by_type as Record<string, string> | undefined)?.[bt] ?? inputs.band_type ?? 'electric'
+  // Roaming = body-mounted, battery-powered rig; Roaming Lite = 2x Bose S1 on the floor.
+  // Neither is a hired PA system, so the PA-hire/upsell copy below doesn't apply to either —
+  // except Roaming Lite's Bose S1 is a real (if compact) PA and can still carry background
+  // music, so it alone keeps "Background PA". See ADR-012 for the full reasoning.
+  const isRoaming = btBandType === 'roaming'
+  const isRoamingLite = btBandType === 'roaming_lite'
+  const isAnyRoaming = isRoaming || isRoamingLite
+
+  const hasExtendedPaEngineer = btOptions.some(o => o.has_extended_pa_engineer) && !isAnyRoaming
   const hasExtendedBackgroundPA = !inputs.client_provides_pa
     && (bt === 'background' || bt === 'dancing_under_40')
     && btOptions.some(o => o.has_extended_background_pa)
+    && !isAnyRoaming
   const hasRegularBackgroundPA = !hasExtendedPaEngineer && !inputs.client_provides_pa
     && (bt === 'background' || bt === 'dancing_under_40')
     && btOptions.some(o => !o.has_extended_background_pa && !o.has_extended_pa_engineer)
+    && !isRoaming
   const hasBackgroundInQuote = allBookingTypes.some(t => t === 'background' || t === 'dancing_under_40')
 
-  const btBandType = (inputs.band_types_by_type as Record<string, string> | undefined)?.[bt] ?? inputs.band_type ?? 'electric'
-  const isRoaming = btBandType === 'roaming'
   const showIpadMusic = !inputs.is_acoustic && !isRoaming && !inputs.client_provides_pa
     && !(inputs.selected_add_ons ?? []).some(a => a.name === 'Roaming set')
 
-  const paNote: QuoteItem | null = hasExtendedPaEngineer
+  const paNote: QuoteItem | null = isAnyRoaming ? null : hasExtendedPaEngineer
     ? {
         show: true,
         text: hasBackgroundInQuote
@@ -66,7 +75,7 @@ export function getQuoteItems(
     { show: hasRegularBackgroundPA, text: 'Background PA' },
     { show: false, text: 'Extended Background PA' },
     { show: hasExtendedPaEngineer, text: 'Extended PA + sound engineer' },
-    { show: bt === 'background' && !inputs.client_provides_pa && paEngineerRate > 0, text: `If dancefloor focus with more than 40 guests, full PA + sound engineer required — add ${fmt(paEngineerRate)}` },
+    { show: bt === 'background' && !inputs.client_provides_pa && paEngineerRate > 0 && !isAnyRoaming, text: `If dancefloor focus with more than 40 guests, full PA + sound engineer required — add ${fmt(paEngineerRate)}` },
     { show: !inputs.finish_time, text: 'Based on a finish of 11pm or earlier' },
     { show: showIpadMusic, text: 'Music via iPad/PA during intervals (if applicable)' },
     { show: !showSpecificTimes, text: 'Arrival one hour before performance start (1.5hrs if Extended PA + sound engineer)' },
@@ -98,17 +107,17 @@ export function getQuoteItems(
 
   const requirements: QuoteItem[] = [
     { show: isInternational || !!inputs.client_provides_pa, text: 'Client to provide full rider (for riders please see ', link: { text: 'this folder', href: RIDER_LINK }, linkSuffix: ')' },
-    { show: !inputs.is_powerless && !inputs.is_acoustic, text: '2 x 13amp plug sockets (although powerless set-ups can be provided — please ask for a quote)' },
+    { show: !inputs.is_powerless && !inputs.is_acoustic && !isRoaming, text: '2 x 13amp plug sockets (although powerless set-ups can be provided — please ask for a quote)' },
     { show: !hasBuyout, text: 'For bookings of 2×45 or more the following needs to be stated on the contract: same main choices as guests, choice from a menu or a buyout of £20 per performer' },
     { show: true, text: 'A lockable, indoor green room that is exclusive to the band and not shared with any other artists, suppliers or staff' },
     { show: true, text: 'Soft drinks and mineral water' },
     { show: !loadOutDiffersFromFinish, text: 'Being able to pack down/load out at the end of the final set' },
-    { show: true, text: 'Full loading information required 2 weeks in advance' },
-    { show: true, text: 'Based on being able to park within 25 metres of an entrance to load. Please advise of any loading restrictions at the venue' },
-    { show: true, text: "If the venue isn't easily accessible by car then this may impact the quote and the equipment we're able to supply" },
+    { show: !isAnyRoaming, text: 'Full loading information required 2 weeks in advance' },
+    { show: !isAnyRoaming, text: 'Based on being able to park within 25 metres of an entrance to load. Please advise of any loading restrictions at the venue' },
+    { show: !isAnyRoaming, text: "If the venue isn't easily accessible by car then this may impact the quote and the equipment we're able to supply" },
     { show: isInternational && (inputs.drummer_fee ?? 0) > 0, text: 'Client to hire drum kit locally if drummer is booked' },
     { show: isInternational && (inputs.keys_fee ?? 0) > 0, text: 'Client to provide keyboard or piano on-site if pianist is booked' },
-    { show: isInternational && (inputs.bass_fee ?? 0) > 0 && ['roaming', 'jazz_keys', 'jazz_guitar'].includes(btBandType), text: 'Client to provide double bass on site if upright double bass is booked (alternatively bassist can bring electric bass)' },
+    { show: isInternational && (inputs.bass_fee ?? 0) > 0 && ['roaming', 'roaming_lite', 'jazz_keys', 'jazz_guitar'].includes(btBandType), text: 'Client to provide double bass on site if upright double bass is booked (alternatively bassist can bring electric bass)' },
   ]
 
   return { inclusions, requirements }

@@ -1,6 +1,6 @@
 import type { BandSize } from '@/types/quote'
 
-export type BandType = 'electric' | 'acoustic' | 'roaming' | 'jazz_keys' | 'jazz_guitar'
+export type BandType = 'electric' | 'acoustic' | 'roaming' | 'roaming_lite' | 'jazz_keys' | 'jazz_guitar'
 
 export type MusicianFeeKey =
   | 'singer_fee' | 'guitarist_fee' | 'drummer_fee' | 'bass_fee'
@@ -27,6 +27,15 @@ export const LINE_UP_LABELS: Record<BandType, Partial<Record<BandSize, string>>>
     six_piece:  'Vocals, Guitar, Bass, Keys, Drums, Sax',
   },
   roaming: {
+    duo:        'Vocals, Guitar',
+    trio:       'Vocals, Guitar, Drums',
+    quartet:    'Vocals, Guitar, Upright Bass, Drums',
+    five_piece: 'Vocals, Guitar, Upright Bass, Drums, Sax',
+    six_piece:  'Vocals, Guitar 1, Guitar 2, Upright Bass, Drums, Sax',
+  },
+  // Same band/lineup as Roaming — only the PA rig differs (2x Bose S1 vs body-mounted).
+  // See ADR-012 for why that's a separate band type rather than a flag on Roaming.
+  roaming_lite: {
     duo:        'Vocals, Guitar',
     trio:       'Vocals, Guitar, Drums',
     quartet:    'Vocals, Guitar, Upright Bass, Drums',
@@ -78,6 +87,13 @@ export const MUSICIAN_FEE_KEYS: Record<BandType, Partial<Record<BandSize, Musici
     five_piece: ['singer_fee', 'guitarist_fee', 'bass_fee', 'drummer_fee', 'sax_fee'],
     six_piece:  ['singer_fee', 'guitarist_fee', 'singer_2_fee', 'bass_fee', 'drummer_fee', 'sax_fee'],
   },
+  roaming_lite: {
+    duo:        ['singer_fee', 'guitarist_fee'],
+    trio:       ['singer_fee', 'guitarist_fee', 'drummer_fee'],
+    quartet:    ['singer_fee', 'guitarist_fee', 'bass_fee', 'drummer_fee'],
+    five_piece: ['singer_fee', 'guitarist_fee', 'bass_fee', 'drummer_fee', 'sax_fee'],
+    six_piece:  ['singer_fee', 'guitarist_fee', 'singer_2_fee', 'bass_fee', 'drummer_fee', 'sax_fee'],
+  },
   jazz_keys: {
     solo:       ['singer_fee'],
     duo:        ['singer_fee', 'keys_fee'],
@@ -97,11 +113,12 @@ export const MUSICIAN_FEE_KEYS: Record<BandType, Partial<Record<BandSize, Musici
 }
 
 export const BAND_TYPE_LABELS: Record<BandType, string> = {
-  electric:    'Electric',
-  acoustic:    'Acoustic',
-  roaming:     'Roaming',
-  jazz_keys:   'Jazz (keys)',
-  jazz_guitar: 'Jazz (guitar)',
+  electric:     'Electric',
+  acoustic:     'Acoustic',
+  roaming:      'Roaming',
+  roaming_lite: 'Roaming Lite (2x Bose S1)',
+  jazz_keys:    'Jazz (keys)',
+  jazz_guitar:  'Jazz (guitar)',
 }
 
 // Band sizes in display order
