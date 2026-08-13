@@ -15,7 +15,7 @@ export default async function EventsPage() {
   ] = await Promise.all([
     supabase
       .from('events')
-      .select('*, invoices(id, status), event_musicians(id, musician_id)')
+      .select('*, invoices(id, status), event_musicians(id, musician_id, musician_invites(availability))')
       .order('event_date', { ascending: false, nullsFirst: false }),
     supabase.from('event_musicians').select('*').order('date_added'),
     supabase.from('musicians').select('*').order('first_name').order('last_name'),

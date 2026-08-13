@@ -24,6 +24,16 @@ Full rationale for the pipeline (and why it replaced an earlier 4-status model) 
 
 `BOOKING_STATUSES = ['confirmed_stc', 'contract_received', 'contracted']` drives the separate **Bookings** view ([app/admin/bookings](../../app/admin/bookings/page.tsx)) — a filtered, future-first subset of Events for the operationally-relevant bookings.
 
+### Band status badge (Events list)
+
+The **Band** column on the list view ([EventsClient.tsx](../../app/admin/events/EventsClient.tsx), `BandStatusBadge`) only renders once an event is in `confirmed_stc` / `contract_received` / `contracted` — the same three statuses as `BOOKING_STATUSES` above (a booking isn't "band-ready" as a concept before it's confirmed). For those events, it reads each `event_musicians` slot plus its joined `musician_invites` (see [musician-flow.md](musician-flow.md) for the slot/invite data model) and shows:
+
+- **Booked** — every slot has a `musician_id` assigned.
+- **In progress** — not fully booked, but at least one slot has an invite currently out (`musician_invites.availability` is `email_sent` or `reminder_sent` — sent and not yet resolved).
+- **Not booked** — not fully booked and no invite is currently out, i.e. either no invite has been sent for any open slot, or every invite sent so far ended in `no` (declined) or `deadline_expired`.
+
+Deliberately excluded from "open": `tbc`, which `musician_invites` rows are inserted with before the invite email actually sends (see `POST /api/musicians/send-availability`) — a row stuck on `tbc` means the send failed, not that an invite is out with the musician, so it should read as "Not booked" rather than "In progress".
+
 **Known gotcha:** `EventRecord.status` in [types/quote.ts:288](../../types/quote.ts) is a *different, stale* union — it's missing `contract_received` and still lists legacy `pending`/`confirmed` values that ADR-005's migration renamed away. `lib/event-statuses.ts`'s `EventStatus` type is the current source of truth; don't trust the one in `types/quote.ts`.
 
 ## The event detail page

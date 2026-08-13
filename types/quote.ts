@@ -288,7 +288,7 @@ export interface EventRecord {
   status: 'enquiry' | 'quoted' | 'pencil_hold' | 'client_declined' | 'not_booked' | 'cancelled' | 'confirmed_stc' | 'contracted' | 'pending' | 'confirmed'
   contract: ContractData | null
   invoices?: { id: string; status: string }[] | null
-  event_musicians?: { id: string; musician_id: string | null }[] | null
+  event_musicians?: { id: string; musician_id: string | null; musician_invites?: { availability: string }[] | null }[] | null
 }
 
 export interface EmailTemplate {

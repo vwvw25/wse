@@ -34,14 +34,29 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-function BandStatusBadge({ eventMusicians }: { eventMusicians?: { id: string; musician_id: string | null }[] | null }) {
+// Band column only applies once a booking is confirmed — see docs/flows/event-flow.md
+// ("Band status badge (Events list)") for the full rule this codifies.
+const BAND_STATUS_STATUSES: string[] = ['confirmed_stc', 'contract_received', 'contracted']
+const OPEN_INVITE_AVAILABILITY: string[] = ['email_sent', 'reminder_sent']
+
+function BandStatusBadge({ eventMusicians, status }: {
+  eventMusicians?: { id: string; musician_id: string | null; musician_invites?: { availability: string }[] | null }[] | null
+  status: string
+}) {
+  if (!BAND_STATUS_STATUSES.includes(status)) return null
   const slots = eventMusicians ?? []
   if (slots.length === 0) return null
+
   const allFilled = slots.every(s => s.musician_id)
-  if (!allFilled) return null
+  const anyOpenInvite = slots.some(s => (s.musician_invites ?? []).some(i => OPEN_INVITE_AVAILABILITY.includes(i.availability)))
+
+  const label = allFilled ? 'Booked' : anyOpenInvite ? 'In progress' : 'Not booked'
+  const bg = allFilled ? 'var(--pill-stc-bg)' : anyOpenInvite ? 'var(--pill-contract-received-bg)' : 'var(--pill-not-booked-bg)'
+  const color = allFilled ? 'var(--pill-stc-text)' : anyOpenInvite ? 'var(--pill-contract-received-text)' : 'var(--pill-not-booked-text)'
+
   return (
-    <span style={{ fontSize: 11, fontWeight: 500, padding: '4px 12px', borderRadius: 6, background: 'var(--pill-stc-bg)', color: 'var(--pill-stc-text)', whiteSpace: 'nowrap' }}>
-      Booked
+    <span style={{ fontSize: 11, fontWeight: 500, padding: '4px 12px', borderRadius: 6, background: bg, color, whiteSpace: 'nowrap' }}>
+      {label}
     </span>
   )
 }
@@ -95,7 +110,7 @@ function EventRow({ ev }: { ev: EventRecord }) {
       <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 400 }}>{ev.venue_name || '—'}</div>
       <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{times}</div>
       <div><StatusBadge status={ev.status} /></div>
-      <div><BandStatusBadge eventMusicians={ev.event_musicians} /></div>
+      <div><BandStatusBadge eventMusicians={ev.event_musicians} status={ev.status} /></div>
       <div><InvoiceBadge invoices={ev.invoices} status={ev.status} /></div>
     </a>
   )
