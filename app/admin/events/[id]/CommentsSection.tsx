@@ -3,16 +3,27 @@
 import { useState, useTransition, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { addEventComment } from '../actions'
+import { COMMENT_CATEGORIES } from '@/lib/event-activity'
 
-type Comment = { id: string; summary: string | null; actor: string; changed_at: string }
+type Comment = { id: string; summary: string | null; actor: string; changed_at: string; category: string | null }
+
+const CATEGORY_LABELS: Record<string, string> = Object.fromEntries(COMMENT_CATEGORIES.map(c => [c.value, c.label]))
 
 function draftKey(eventId: string) {
   return `wse-comment-draft-${eventId}`
 }
 
+const selectStyle: React.CSSProperties = {
+  height: 34, padding: '0 10px', fontSize: 13,
+  background: 'var(--bg)', color: 'var(--text)',
+  border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)',
+  fontFamily: 'var(--font)', outline: 'none',
+}
+
 export default function CommentsSection({ eventId, comments }: { eventId: string; comments: Comment[] }) {
   const router = useRouter()
   const [text, setText] = useState('')
+  const [category, setCategory] = useState<string>(COMMENT_CATEGORIES[COMMENT_CATEGORIES.length - 1].value)
   const [saving, startTransition] = useTransition()
   const draftTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -40,7 +51,7 @@ export default function CommentsSection({ eventId, comments }: { eventId: string
   function handleSubmit() {
     if (!text.trim()) return
     startTransition(async () => {
-      await addEventComment(eventId, text)
+      await addEventComment(eventId, text, category)
       setText('')
       window.localStorage.removeItem(draftKey(eventId))
       router.refresh()
@@ -62,7 +73,12 @@ export default function CommentsSection({ eventId, comments }: { eventId: string
             fontFamily: 'var(--font)', outline: 'none', resize: 'vertical', boxSizing: 'border-box',
           }}
         />
-        <div style={{ marginTop: 8 }}>
+        <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
+          <select value={category} onChange={e => setCategory(e.target.value)} style={selectStyle}>
+            {COMMENT_CATEGORIES.map(c => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </select>
           <button
             onClick={handleSubmit}
             disabled={saving || !text.trim()}
@@ -81,18 +97,31 @@ export default function CommentsSection({ eventId, comments }: { eventId: string
       {comments.length === 0 ? (
         <div style={{ padding: '16px 0', fontSize: 13, color: 'var(--text-tertiary)' }}>No comments yet.</div>
       ) : (
-        <div style={{ border: '0.5px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '0 16px' }}>
+        <div style={{ background: 'var(--bg)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '0 16px' }}>
           {comments.map((c, i) => (
             <div key={c.id} style={{
-              padding: '12px 0',
+              display: 'grid', gridTemplateColumns: '110px 150px 1fr', gap: '0 12px',
+              padding: '10px 0', alignItems: 'start',
               borderTop: i === 0 ? 'none' : '0.5px solid var(--border)',
             }}>
-              <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
-                {c.summary}
+              <div>
+                <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+                  {new Date(c.changed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 2 }}>
+                  {new Date(c.changed_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} · {c.actor}
+                </div>
               </div>
-              <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 6 }}>
-                {c.actor} · {new Date(c.changed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                {' '}{new Date(c.changed_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+              <div>
+                <span style={{
+                  display: 'inline-block', padding: '2px 8px', fontSize: 10, fontWeight: 500,
+                  borderRadius: 5, background: 'var(--pill-enquiry-bg)', color: 'var(--pill-enquiry-text)', whiteSpace: 'nowrap',
+                }}>
+                  {c.category ? (CATEGORY_LABELS[c.category] ?? c.category) : 'Comment'}
+                </span>
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--text)', whiteSpace: 'pre-wrap' }}>
+                {c.summary}
               </div>
             </div>
           ))}

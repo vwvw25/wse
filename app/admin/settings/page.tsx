@@ -85,7 +85,7 @@ function FieldRow({
   )
 }
 
-type Section = 'pricing' | 'invoicing' | 'email' | 'pages' | 'general' | 'dress-codes' | 'tools' | 'style'
+type Section = 'pricing' | 'invoicing' | 'email' | 'pages' | 'general' | 'dress-codes' | 'av' | 'tools' | 'style'
 
 const NAV_GROUPS: { heading: string; items: { key: Section; label: string }[] }[] = [
   {
@@ -97,6 +97,7 @@ const NAV_GROUPS: { heading: string; items: { key: Section; label: string }[] }[
       { key: 'pages',        label: 'Pages' },
       { key: 'general',      label: 'General' },
       { key: 'dress-codes',  label: 'Dress codes' },
+      { key: 'av',           label: 'AV' },
     ],
   },
   {
@@ -1177,6 +1178,29 @@ export default function SettingsPage() {
               </>
             )
           })()}
+
+          {/* ── AV ── */}
+          {section === 'av' && (
+            <>
+              <div style={sectionHeaderStyle}>Riders</div>
+              <div style={rowStyle}>
+                <span style={labelStyle}>
+                  Manage riders
+                  <span style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>Name, an attached file (PDF/DOC/DOCX), and a link — selectable on an event&apos;s AV tab</span>
+                </span>
+                <a href="/admin/av-riders" style={{ padding: '6px 14px', fontSize: 13, fontWeight: 500, background: 'var(--bg)', color: 'var(--text)', border: '0.5px solid var(--border-hover)', borderRadius: 'var(--radius-sm)', textDecoration: 'none', flexShrink: 0 }}>Open →</a>
+              </div>
+
+              <div style={{ ...sectionHeaderStyle, marginTop: 28 }}>Set ups</div>
+              <div style={{ ...rowStyle, borderBottom: 'none' }}>
+                <span style={labelStyle}>
+                  Manage AV set ups
+                  <span style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>Named set ups (e.g. &quot;Full dancefloor&quot;) selectable as &quot;AV required&quot; on an event</span>
+                </span>
+                <a href="/admin/av-setups" style={{ padding: '6px 14px', fontSize: 13, fontWeight: 500, background: 'var(--bg)', color: 'var(--text)', border: '0.5px solid var(--border-hover)', borderRadius: 'var(--radius-sm)', textDecoration: 'none', flexShrink: 0 }}>Open →</a>
+              </div>
+            </>
+          )}
 
           {/* ── Tools ── */}
           {section === 'tools' && (

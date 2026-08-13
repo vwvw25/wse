@@ -21,10 +21,10 @@ export async function checkPotentialDuplicateEvents(formData: FormData): Promise
   })
 }
 
-export async function addEventComment(eventId: string, text: string) {
+export async function addEventComment(eventId: string, text: string, category: string) {
   const trimmed = text.trim()
   if (!trimmed) return
-  await logEventActivity(eventId, { type: 'comment', summary: trimmed })
+  await logEventActivity(eventId, { type: 'comment', summary: trimmed, category })
   revalidatePath(`/admin/events/${eventId}`)
 }
 
@@ -221,6 +221,20 @@ export async function resolveContractFlag(eventId: string, fieldKey: string) {
 export async function updateBookingDetails(
   eventId: string,
   data: { booked_band_size: string | null; booked_sets: string | null; booked_fee: number | null }
+) {
+  const supabase = createServiceClient()
+  await supabase.from('events').update(data).eq('id', eventId)
+  revalidatePath(`/admin/events/${eventId}`)
+}
+
+export async function updateEventAv(
+  eventId: string,
+  data: {
+    av_provided_by: 'us' | 'client' | 'venue' | null
+    av_rider_id: string | null
+    rider_status: 'sent' | 'unsent' | null
+    av_setup_id: string | null
+  }
 ) {
   const supabase = createServiceClient()
   await supabase.from('events').update(data).eq('id', eventId)

@@ -252,6 +252,19 @@ export interface ContractData {
   attachments?: ContractFile[]
 }
 
+export interface AvRiderSummary {
+  id: string
+  name: string
+  file_path: string | null
+  file_name: string | null
+  link_url: string | null
+}
+
+export interface AvSetupSummary {
+  id: string
+  name: string
+}
+
 export interface EventRecord {
   id: string
   created_at: string
@@ -289,6 +302,10 @@ export interface EventRecord {
   contract: ContractData | null
   invoices?: { id: string; status: string }[] | null
   event_musicians?: { id: string; musician_id: string | null; musician_invites?: { availability: string }[] | null }[] | null
+  av_provided_by: 'us' | 'client' | 'venue' | null
+  av_rider_id: string | null
+  rider_status: 'sent' | 'unsent' | null
+  av_setup_id: string | null
 }
 
 export interface EmailTemplate {

@@ -74,3 +74,10 @@ body {
 input[type="date"]::-webkit-calendar-picker-indicator {
   display: none;
 }
+
+/* Checkboxes: native controls default to an opaque white box, which stands
+   out against dark-theme cards — keep the interior transparent everywhere. */
+input[type="checkbox"] {
+  background-color: transparent;
+  accent-color: var(--border-info);
+}

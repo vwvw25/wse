@@ -12,6 +12,22 @@ export type EventActivityType =
   | 'ai_agent_action'
   | 'comment'
 
+export const COMMENT_CATEGORIES = [
+  { value: 'av', label: 'AV' },
+  { value: 'timings', label: 'Timings' },
+  { value: 'set_list_repertoire', label: 'Set List & Repertoire' },
+  { value: 'id_security', label: 'ID & Security' },
+  { value: 'parking_load', label: 'Parking & Load In/Out' },
+  { value: 'dress_code', label: 'Dress Code' },
+  { value: 'food_drink', label: 'Food & Drink' },
+  { value: 'contact_info', label: 'Contact Information' },
+  { value: 'invoicing', label: 'Invoicing' },
+  { value: 'accommodation_travel', label: 'Accommodation & Travel' },
+  { value: 'general', label: 'General' },
+] as const
+
+export type CommentCategory = typeof COMMENT_CATEGORIES[number]['value']
+
 export async function logEventActivity(
   eventId: string,
   opts: {
@@ -24,6 +40,7 @@ export async function logEventActivity(
     newValue?: string | null
     source?: string
     actor?: string
+    category?: string
   },
 ) {
   const supabase = createServiceClient()
@@ -38,5 +55,6 @@ export async function logEventActivity(
     new_value: opts.newValue ?? null,
     source: opts.source ?? 'app',
     actor: opts.actor ?? 'admin',
+    category: opts.category ?? null,
   })
 }

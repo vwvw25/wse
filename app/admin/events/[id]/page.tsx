@@ -1,6 +1,6 @@
 import { createServiceClient } from '@/lib/supabase'
 import { notFound } from 'next/navigation'
-import type { EventRecord, QuoteRecord } from '@/types/quote'
+import type { EventRecord, QuoteRecord, AvRiderSummary, AvSetupSummary } from '@/types/quote'
 import type { EventMusician, Musician, BandTemplate, BandTemplateSlot, CascadeTemplate } from '@/types/musicians'
 import { musicianFullName } from '@/types/musicians'
 import type { Invoice, InvoiceLineItem, InvoiceSettings, Client } from '@/types/invoice'
@@ -13,6 +13,7 @@ import InvoiceSection from './InvoiceSection'
 import ClientLinkSection from './ClientLinkSection'
 import EventQuotesClient from './EventQuotesClient'
 import RequestsSection from './RequestsSection'
+import AvSection from './AvSection'
 import CommentsSection from './CommentsSection'
 import CalendarNotesSection from './CalendarNotesSection'
 import TravelDetailsForm from './TravelDetailsForm'
@@ -76,7 +77,7 @@ function FullRow({ label, value }: { label: string; value: string | null | undef
   )
 }
 
-type Tab = 'information' | 'musicians' | 'quotes' | 'requests' | 'set-lists' | 'contract' | 'invoices' | 'calendar' | 'travel' | 'activity' | 'comments'
+type Tab = 'information' | 'musicians' | 'quotes' | 'requests' | 'set-lists' | 'contract' | 'invoices' | 'calendar' | 'travel' | 'av' | 'activity' | 'comments'
 
 type ActivityEntry = {
   id: string
@@ -90,6 +91,7 @@ type ActivityEntry = {
   actor: string
   source: string
   changed_at: string
+  category: string | null
 }
 
 const ACTIVITY_FILTERS: { value: string; label: string }[] = [
@@ -128,7 +130,7 @@ export default async function EventDetailPage({
 }) {
   const { id } = await params
   const { tab: tabParam, activityType: activityTypeParam } = await searchParams
-  const tab: Tab = tabParam === 'musicians' ? 'musicians' : tabParam === 'quotes' ? 'quotes' : tabParam === 'requests' ? 'requests' : tabParam === 'set-lists' ? 'set-lists' : tabParam === 'contract' ? 'contract' : tabParam === 'invoices' ? 'invoices' : tabParam === 'calendar' ? 'calendar' : tabParam === 'travel' ? 'travel' : tabParam === 'activity' ? 'activity' : tabParam === 'comments' ? 'comments' : 'information'
+  const tab: Tab = tabParam === 'musicians' ? 'musicians' : tabParam === 'quotes' ? 'quotes' : tabParam === 'requests' ? 'requests' : tabParam === 'set-lists' ? 'set-lists' : tabParam === 'contract' ? 'contract' : tabParam === 'invoices' ? 'invoices' : tabParam === 'calendar' ? 'calendar' : tabParam === 'travel' ? 'travel' : tabParam === 'av' ? 'av' : tabParam === 'activity' ? 'activity' : tabParam === 'comments' ? 'comments' : 'information'
   const activityType = activityTypeParam ?? 'all'
 
   const supabase = createServiceClient()
@@ -274,6 +276,19 @@ export default async function EventDetailPage({
         }
       }
     }
+  }
+
+  // Fetch AV riders/setups lists when on the AV tab
+  let avRiders: AvRiderSummary[] = []
+  let avSetups: AvSetupSummary[] = []
+
+  if (tab === 'av') {
+    const [{ data: ridersData }, { data: setupsData }] = await Promise.all([
+      supabase.from('av_riders').select('id, name, file_path, file_name, link_url').order('name'),
+      supabase.from('av_setups').select('id, name').order('name'),
+    ])
+    avRiders = (ridersData ?? []) as AvRiderSummary[]
+    avSetups = (setupsData ?? []) as AvSetupSummary[]
   }
 
   // Fetch requests data when on the requests tab
@@ -464,6 +479,7 @@ export default async function EventDetailPage({
         </a>
         <a href={`/admin/events/${id}?tab=calendar`} style={tabStyle(tab === 'calendar')}>Calendar</a>
         <a href={`/admin/events/${id}?tab=travel`} style={tabStyle(tab === 'travel')}>Travel expenses</a>
+        <a href={`/admin/events/${id}?tab=av`} style={tabStyle(tab === 'av')}>AV</a>
         <a href={`/admin/events/${id}?tab=activity`} style={tabStyle(tab === 'activity')}>Activity</a>
         <a href={`/admin/events/${id}?tab=comments`} style={tabStyle(tab === 'comments')}>Comments</a>
       </div>
@@ -650,6 +666,13 @@ export default async function EventDetailPage({
           requests={eventRequests}
           allSongs={allSongs}
         />
+      )}
+
+      {/* ── AV tab ── */}
+      {tab === 'av' && (
+        <div style={{ maxWidth: 480, paddingTop: 8 }}>
+          <AvSection event={event} avRiders={avRiders} avSetups={avSetups} />
+        </div>
       )}
 
       {/* ── Invoices tab ── */}
