@@ -62,8 +62,24 @@ export default async function AdminDashboardPage() {
 
   return (
     <div style={{ padding: '32px 32px', fontFamily: 'var(--font)' }}>
-      <div style={{ marginBottom: 28 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 28 }}>
         <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0, color: 'var(--text)' }}>Dashboard</h1>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <a href="/admin/email-to-quote" style={{
+            display: 'inline-block', padding: '8px 16px', fontSize: 13, fontWeight: 500,
+            background: 'var(--bg-secondary)', color: 'var(--text)', borderRadius: 'var(--radius-sm)',
+            textDecoration: 'none', border: '0.5px solid var(--border)',
+          }}>
+            New from email
+          </a>
+          <a href="/quote/new" style={{
+            display: 'inline-block', padding: '8px 16px', fontSize: 13, fontWeight: 500,
+            background: 'var(--accent)', color: 'var(--accent-text-on)', borderRadius: 'var(--radius-sm)',
+            textDecoration: 'none',
+          }}>
+            New quote
+          </a>
+        </div>
       </div>
 
       {/* Stat cards */}
