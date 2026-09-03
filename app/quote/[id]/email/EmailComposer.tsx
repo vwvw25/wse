@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react'
 import type { EmailTemplate, EventRecord } from '@/types/quote'
+import { gmailBodyStyle } from '@/lib/email-style'
 
 interface Props {
   templates: EmailTemplate[]
@@ -209,8 +210,8 @@ export default function EmailComposer({ templates, event, quoteHtml, bookingDeta
                   style={{
                     background: '#fff', border: '0.5px solid var(--border)',
                     borderRadius: 'var(--radius-lg)', padding: '32px 40px',
-                    fontSize: 14, lineHeight: 1.7, color: '#111',
-                    fontFamily: 'Georgia, serif',
+                    color: '#111',
+                    ...gmailBodyStyle,
                     boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
                   }}
                   dangerouslySetInnerHTML={{ __html: filledHtml }}

@@ -53,7 +53,9 @@ export function generateBookingDetailsHtml(quote: QuoteRecord, event?: BookingDe
     ? new Date(inputs.event_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
     : null
 
-  let html = `<div style="font-family:Arial,sans-serif;font-size:14px;color:#111;line-height:1.6;">`
+  // No font-family / font-size here: these blocks are injected into email
+  // templates via {{booking_details}} and must inherit the template's own font.
+  let html = `<div style="color:#111;line-height:1.6;">`
 
   // Header
   html += `<p style="margin:0 0 8px;"><strong>Ward Smith Entertainment</strong></p>`
@@ -152,7 +154,9 @@ export function generateQuoteHtml(quote: QuoteRecord): string {
     return t
   }
 
-  let html = `<div style="font-family:Arial,sans-serif;font-size:14px;color:#111;line-height:1.6;">`
+  // No font-family / font-size here: this block is injected into email
+  // templates via {{quote}} and must inherit the template's own font.
+  let html = `<div style="color:#111;line-height:1.6;">`
 
   for (let index = 0; index < bookingTypes.length; index++) {
     const bt = bookingTypes[index]
@@ -168,7 +172,7 @@ export function generateQuoteHtml(quote: QuoteRecord): string {
 
     if (hasMultipleTypes && index > 0) html += HR
     if (hasMultipleTypes && bt !== 'background') {
-      html += `<p style="margin:0 0 16px;font-weight:bold;font-size:16px;">${BOOKING_TYPE_LABELS[bt] ?? bt}</p>`
+      html += `<p style="margin:0 0 16px;font-weight:bold;">${BOOKING_TYPE_LABELS[bt] ?? bt}</p>`
     }
 
     // Price table(s)

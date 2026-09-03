@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react'
 import { createBrowserClient } from '@/lib/supabase'
 import type { EmailTemplate } from '@/types/quote'
+import { gmailBodyStyle } from '@/lib/email-style'
 
 const KNOWN_AUTO_FIELDS = new Set([
   'agent_name', 'agent_first_name', 'agency_name', 'event_date', 'venue_name',
@@ -32,7 +33,9 @@ function highlightFieldsHtml(html: string) {
     const isAuto = KNOWN_AUTO_FIELDS.has(field.trim())
     const bg = isAuto ? 'rgba(59,130,246,0.15)' : 'rgba(245,158,11,0.15)'
     const color = isAuto ? '#3b82f6' : '#b45309'
-    return `<span style="background:${bg};color:${color};border-radius:3px;padding:0 2px;font-family:monospace;font-size:12px;">${match}</span>`
+    // Only a background tint — no font-family / font-size override, so the token
+    // sits inline at the same font and size as the surrounding template text.
+    return `<span style="background:${bg};color:${color};border-radius:3px;padding:0 2px;">${match}</span>`
   })
 }
 
@@ -83,7 +86,7 @@ const BodyEditor = memo(function BodyEditor({
         dangerouslySetInnerHTML={{ __html: initialBody }}
         style={{
           width:'100%',minHeight:180,padding:'12px 14px',
-          fontSize:13,fontFamily:'var(--font)',lineHeight:1.7,
+          ...gmailBodyStyle,
           background:'var(--bg-secondary)',color:'var(--text)',
           border:'0.5px solid var(--border)',
           borderRadius:'0 0 var(--radius-md) var(--radius-md)',
@@ -503,7 +506,7 @@ export default function TemplatesPage() {
                 style={{
                   background: 'var(--bg-secondary)', border: '0.5px solid var(--border)',
                   borderRadius: 'var(--radius-lg)', padding: '16px 20px',
-                  fontSize: 13, lineHeight: 1.8, color: 'var(--text)', whiteSpace: 'pre-wrap',
+                  ...gmailBodyStyle, color: 'var(--text)', whiteSpace: 'pre-wrap',
                 }}
                 dangerouslySetInnerHTML={{ __html: highlightFieldsHtml(buildFilledHtml()) }}
               />
@@ -542,7 +545,7 @@ export default function TemplatesPage() {
               style={{
                 background: 'var(--bg-secondary)', border: '0.5px solid var(--border)',
                 borderRadius: 'var(--radius-lg)', padding: '16px 20px',
-                fontSize: 13, lineHeight: 1.8, color: 'var(--text)', whiteSpace: 'pre-wrap',
+                ...gmailBodyStyle, color: 'var(--text)', whiteSpace: 'pre-wrap',
               }}
               dangerouslySetInnerHTML={{ __html: highlightFieldsHtml(selected.body) }}
             />

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, Suspense } from 'react'
 import { useParams } from 'next/navigation'
 import { createBrowserClient } from '@/lib/supabase'
 import type { EventRecord, EmailTemplate } from '@/types/quote'
+import { gmailBodyStyle } from '@/lib/email-style'
 
 // Fields auto-filled from the event record
 const AUTO_FILL: Record<string, (e: EventRecord) => string | null> = {
@@ -229,7 +230,7 @@ function GenerateEmailContent() {
               <div style={{
                 background: 'var(--bg-secondary)', border: '0.5px solid var(--border)',
                 borderRadius: 'var(--radius-lg)', padding: '16px 20px',
-                fontSize: 13, lineHeight: 1.8, color: 'var(--text)', whiteSpace: 'pre-wrap',
+                ...gmailBodyStyle, color: 'var(--text)', whiteSpace: 'pre-wrap',
               }}>
                 {filled}
               </div>
