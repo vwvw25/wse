@@ -30,6 +30,8 @@ Per-booking-type state (a quote can carry multiple `booking_types` at once, e.g.
 
 **Solo option:** `BandSize` includes `'solo'`, with `solo` line-ups in `LINE_UP_LABELS`/`MUSICIAN_FEE_KEYS` for the band types that offer it (electric, acoustic, jazz). Solo pricing does **not** sum the per-instrument fee fields — `getSumFees()` in [lib/calculations.ts](../../lib/calculations.ts) special-cases `size === 'solo'` to use the dedicated `inputs.solo_fee` field (shown as "Solo fee" in the Musician fees card), falling back to `singer_fee` for quotes saved before `solo_fee` existed. The per-option performance fee for solo is that figure **flat** — no set multiplier and no business margin applied (`perf_fee = solo_fee`). `settings.solo_rate_multiple` is now unused (kept as a schema column only). Travel, waiting time, PA etc. still add on top as normal.
 
+**Pricing overrides:** two tickboxes on the Musician fees card header set `inputs.override_set_multiplier` / `inputs.override_business_margin`. When on, `calculate()` forces that factor to `1` for every price option (and for the top-level `base_performance_fee`) — so `perf_fee = sum_musician_fees × set_multiplier × margin` with either/both replaced by `1`. Solo is already a flat fee so overrides don't change it.
+
 On submit, DetailsForm assembles a `QuoteInputs` object and either:
 - `POST /api/quotes` ([route.ts](../../app/api/quotes/route.ts)) — creates `quotes` row (`version: 1`, `status: 'sent'`), and if `event_id` is set, flips the event to `status: 'quoted'` and logs event activity
 - `PATCH /api/quotes/[id]` ([route.ts](../../app/api/quotes/[id]/route.ts)) — recalculates and overwrites `inputs`/`calculated` in place, logs "Quote edited" activity

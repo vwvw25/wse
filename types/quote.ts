@@ -96,6 +96,8 @@ export interface QuoteInputs {
   trumpet_fee: number
   singer_2_fee: number
   solo_fee: number  // fee used for the Solo option (falls back to singer_fee when unset)
+  override_set_multiplier: boolean  // when true, price options skip the set multiplier (treat as 1.0)
+  override_business_margin: boolean  // when true, price options skip the business margin (treat as 1.0)
 
   // Travel
   travel_hours_from_london: number          // one-way hours; drives travel time fee when > 2h

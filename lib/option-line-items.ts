@@ -14,12 +14,14 @@ export function optionLineItems(opt: PriceOption, inp: QuoteInputs, s: Settings,
   const items: OptionLineItem[] = []
 
   // Performance fee
-  const setMultiplier = (s as unknown as Record<string, number>)['set_multiplier_' + (SET_MULTIPLIER_KEY[opt.set_config] ?? opt.set_config)] ?? '?'
+  const rawSetMultiplier = (s as unknown as Record<string, number>)['set_multiplier_' + (SET_MULTIPLIER_KEY[opt.set_config] ?? opt.set_config)] ?? '?'
+  const setMultiplier = inp.override_set_multiplier ? '1 (override)' : rawSetMultiplier
+  const margin = inp.override_business_margin ? '1 (override)' : s.business_margin
   items.push({
     label: 'Performance fee',
     formula: opt.band_size === 'solo'
       ? `£${Math.round(opt.sum_musician_fees)} flat (Solo fee)`
-      : `£${Math.round(opt.sum_musician_fees)} × ${setMultiplier} × ${s.business_margin}`,
+      : `£${Math.round(opt.sum_musician_fees)} × ${setMultiplier} × ${margin}`,
     value: opt.performance_fee,
   })
 

@@ -320,8 +320,10 @@ export default async function AdminAuditPage({ params }: { params: Promise<{ id:
           formula="from primary set config — see per-option multipliers in table above" />
         <Row label="Package hours" value={`${c.package_hours}h`} diff={diffs.has('package_hours')} />
         <Row label="Business margin" value={fmtD(settings.business_margin)} formula="from settings_snapshot" />
+        {inp.override_set_multiplier && <Row label="Override: set multiplier" value="on — set multiplier forced to 1" />}
+        {inp.override_business_margin && <Row label="Override: business margin" value="on — margin forced to 1" />}
         <Row label="Base performance fee" value={c.base_performance_fee} diff={diffs.has('base_performance_fee')}
-          formula="musician_fees × set_multiplier × margin" />
+          formula="musician_fees × set_multiplier × margin (each forced to 1 when overridden)" />
       </Section>
 
       {/* Times */}

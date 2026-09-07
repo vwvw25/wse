@@ -102,7 +102,9 @@ export function calculate(inputs: QuoteInputs, settings: Settings): QuoteCalcula
   }
 
   // --- Base performance fee ---
-  const base_performance_fee = sum_musician_fees * set_multiplier * settings.business_margin
+  const effective_set_multiplier = inputs.override_set_multiplier ? 1 : set_multiplier
+  const effective_business_margin = inputs.override_business_margin ? 1 : settings.business_margin
+  const base_performance_fee = sum_musician_fees * effective_set_multiplier * effective_business_margin
 
   // --- PA costs (top-level audit summary) ---
   const primaryBandSize = inputs.band_sizes?.[0] ?? inputs.band_size ?? null
@@ -299,9 +301,10 @@ export function calculate(inputs: QuoteInputs, settings: Settings): QuoteCalcula
       const SET_CONFIG_ORDER: SetConfig[] = ['1x60', '2x45', '3x45', '4x45', '5x45']
       const orderedConfigs = SET_CONFIG_ORDER.filter(cfg => rawConfigs.includes(cfg))
       for (const cfg of orderedConfigs) {
-        const mult = SET_MULTIPLIER_MAP[cfg]
+        const mult = inputs.override_set_multiplier ? 1 : SET_MULTIPLIER_MAP[cfg]
+        const margin = inputs.override_business_margin ? 1 : settings.business_margin
         // Solo is priced as a flat fee (the "Solo fee" input) — no set multiplier or margin applied
-        const perf_fee = size === 'solo' ? sumFees : sumFees * mult * settings.business_margin
+        const perf_fee = size === 'solo' ? sumFees : sumFees * mult * margin
 
         // Per-option waiting time:
         // total_package_hours = this option's package hours + pre_start_time

@@ -63,6 +63,7 @@ function DetailsFormInner({ eventPrefill }: Props) {
     singer_fee: 400, guitarist_fee: 300, drummer_fee: 300, bass_fee: 300,
     keys_fee: 300, sax_fee: 300, trombone_fee: 300, trumpet_fee: 300, singer_2_fee: 300,
     solo_fee: 400,
+    override_set_multiplier: false, override_business_margin: false,
     travel_hours_from_london: 0,
     petrol_train_cost: 0, accommodation_cost: 0, accommodation_nights: 1,
     per_diem_rate: 0, performance_days: 1, travel_day_rate: 0, travel_days: 0,
@@ -686,7 +687,23 @@ function DetailsFormInner({ eventPrefill }: Props) {
         })}
 
         {/* Musician fees */}
-        <Card label="Musician fees">
+        <Card
+          label="Musician fees"
+          titleRight={
+            <div style={{ display: 'flex', gap: 16 }}>
+              <InlineCheck
+                label="Override set multiplier"
+                active={!!form.override_set_multiplier}
+                onClick={() => toggleBool('override_set_multiplier')}
+              />
+              <InlineCheck
+                label="Override business margin"
+                active={!!form.override_business_margin}
+                onClick={() => toggleBool('override_business_margin')}
+              />
+            </div>
+          }
+        >
           <Grid cols={4}>
             {[
               ['singer_fee', 'Singer'], ['guitarist_fee', 'Guitarist'], ['drummer_fee', 'Drummer'],
@@ -950,19 +967,50 @@ export default function DetailsForm({ eventPrefill }: Props) {
 
 // --- UI components ---
 
-function Card({ label, children }: { label: string; children: React.ReactNode }) {
+function Card({ label, titleRight, children }: { label: string; titleRight?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div style={{
       background: 'var(--bg)', border: '0.5px solid var(--border)',
       borderRadius: 'var(--radius-lg)', padding: '1.5rem', marginBottom: '1rem',
     }}>
       <div style={{
-        fontSize: 11, fontWeight: 500, color: 'var(--text-secondary)',
-        textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        gap: 16, marginBottom: 14, minHeight: 20,
       }}>
-        {label}
+        <div style={{
+          fontSize: 11, fontWeight: 500, color: 'var(--text-secondary)',
+          textTransform: 'uppercase', letterSpacing: '0.08em',
+        }}>
+          {label}
+        </div>
+        {titleRight}
       </div>
       {children}
+    </div>
+  )
+}
+
+function InlineCheck({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
+        userSelect: 'none', fontSize: 12, color: 'var(--text-secondary)',
+      }}
+    >
+      <div style={{
+        width: 14, height: 14, border: `1.5px solid ${active ? 'var(--text-info)' : 'var(--border-hover)'}`,
+        borderRadius: 3, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: active ? 'var(--text-info)' : 'transparent',
+      }}>
+        {active && (
+          <svg width="8" height="6" viewBox="0 0 8 6" fill="none">
+            <path d="M1 3L3 5L7 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+      </div>
+      <span>{label}</span>
     </div>
   )
 }
