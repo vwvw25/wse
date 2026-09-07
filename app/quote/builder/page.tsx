@@ -63,6 +63,7 @@ const BLANK_INPUTS: QuoteInputs = {
   selected_add_ons: [], is_prestige: false,
   singer_fee: 400, guitarist_fee: 300, drummer_fee: 300, bass_fee: 300,
   keys_fee: 300, sax_fee: 300, trombone_fee: 300, trumpet_fee: 300, singer_2_fee: 300,
+  solo_fee: 400,
   travel_hours_from_london: 0,
   petrol_train_cost: 0, accommodation_cost: 0, accommodation_nights: 1,
   per_diem_rate: 0, performance_days: 1, travel_day_rate: 0, travel_days: 0,

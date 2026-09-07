@@ -21,6 +21,10 @@ function minutesToHours(mins: number): number {
 }
 
 function getSumFees(inputs: QuoteInputs, bandType: BandType, bandSize: BandSize): number {
+  // Solo uses its own dedicated fee; fall back to singer_fee for quotes saved before solo_fee existed
+  if (bandSize === 'solo') {
+    return (inputs.solo_fee ?? 0) || (inputs.singer_fee ?? 0)
+  }
   const keys = MUSICIAN_FEE_KEYS[bandType]?.[bandSize] ?? []
   return keys.reduce((sum, k) => sum + ((inputs[k] as number) ?? 0), 0)
 }

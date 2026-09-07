@@ -437,6 +437,7 @@ export default async function AdminAuditPage({ params }: { params: Promise<{ id:
             ['Singer', inp.singer_fee], ['Guitarist', inp.guitarist_fee], ['Drummer', inp.drummer_fee],
             ['Bass', inp.bass_fee], ['Keys', inp.keys_fee], ['Sax', inp.sax_fee],
             ['Trombone', inp.trombone_fee], ['Trumpet', inp.trumpet_fee], ['Singer 2', inp.singer_2_fee],
+            ['Solo', inp.solo_fee],
           ] as [string, number][]).filter(([, v]) => v > 0).map(([k, v]) => (
             <div key={k} style={{ display: 'flex', gap: 8 }}>
               <span style={{ color: 'var(--text-secondary)' }}>{k}</span>

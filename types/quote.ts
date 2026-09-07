@@ -95,6 +95,7 @@ export interface QuoteInputs {
   trombone_fee: number
   trumpet_fee: number
   singer_2_fee: number
+  solo_fee: number  // fee used for the Solo option (falls back to singer_fee when unset)
 
   // Travel
   travel_hours_from_london: number          // one-way hours; drives travel time fee when > 2h

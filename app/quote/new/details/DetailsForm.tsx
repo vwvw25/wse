@@ -62,6 +62,7 @@ function DetailsFormInner({ eventPrefill }: Props) {
     pa_hours_before_midnight: 0, pa_hours_after_midnight: 0,
     singer_fee: 400, guitarist_fee: 300, drummer_fee: 300, bass_fee: 300,
     keys_fee: 300, sax_fee: 300, trombone_fee: 300, trumpet_fee: 300, singer_2_fee: 300,
+    solo_fee: 400,
     travel_hours_from_london: 0,
     petrol_train_cost: 0, accommodation_cost: 0, accommodation_nights: 1,
     per_diem_rate: 0, performance_days: 1, travel_day_rate: 0, travel_days: 0,
@@ -691,6 +692,7 @@ function DetailsFormInner({ eventPrefill }: Props) {
               ['singer_fee', 'Singer'], ['guitarist_fee', 'Guitarist'], ['drummer_fee', 'Drummer'],
               ['bass_fee', 'Bass'], ['keys_fee', 'Keys'], ['sax_fee', 'Sax'],
               ['trombone_fee', 'Trombone'], ['trumpet_fee', 'Trumpet'], ['singer_2_fee', 'Second singer'],
+              ['solo_fee', 'Solo fee'],
             ].map(([key, label]) => (
               <Field key={key} label={label as string}>
                 <NumberInput
