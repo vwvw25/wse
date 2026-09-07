@@ -300,8 +300,8 @@ export function calculate(inputs: QuoteInputs, settings: Settings): QuoteCalcula
       const orderedConfigs = SET_CONFIG_ORDER.filter(cfg => rawConfigs.includes(cfg))
       for (const cfg of orderedConfigs) {
         const mult = SET_MULTIPLIER_MAP[cfg]
-        const soloMultiplier = size === 'solo' ? settings.solo_rate_multiple : 1
-        const perf_fee = sumFees * mult * settings.business_margin * soloMultiplier
+        // Solo is priced as a flat fee (the "Solo fee" input) — no set multiplier or margin applied
+        const perf_fee = size === 'solo' ? sumFees : sumFees * mult * settings.business_margin
 
         // Per-option waiting time:
         // total_package_hours = this option's package hours + pre_start_time

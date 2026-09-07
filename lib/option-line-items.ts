@@ -18,7 +18,7 @@ export function optionLineItems(opt: PriceOption, inp: QuoteInputs, s: Settings,
   items.push({
     label: 'Performance fee',
     formula: opt.band_size === 'solo'
-      ? `£${Math.round(opt.sum_musician_fees)} × ${setMultiplier} × ${s.business_margin} × ${s.solo_rate_multiple}`
+      ? `£${Math.round(opt.sum_musician_fees)} flat (Solo fee)`
       : `£${Math.round(opt.sum_musician_fees)} × ${setMultiplier} × ${s.business_margin}`,
     value: opt.performance_fee,
   })

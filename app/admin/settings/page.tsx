@@ -680,7 +680,6 @@ export default function SettingsPage() {
 
               <div style={sectionHeaderStyle}>Pricing</div>
               <FieldRow label="Business margin" fieldKey="business_margin" value={settings.business_margin} onChange={handleChange} isPercent hint="(markup above 100%)" />
-              <FieldRow label="Solo rate multiple" fieldKey="solo_rate_multiple" value={settings.solo_rate_multiple} onChange={handleChange} />
 
               <div style={sectionHeaderStyle}>Set multipliers</div>
               <FieldRow label="2×45 multiplier" fieldKey="set_multiplier_2x45" value={settings.set_multiplier_2x45} onChange={handleChange} />
