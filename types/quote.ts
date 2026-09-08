@@ -320,6 +320,16 @@ export interface EmailTemplate {
   body: string
 }
 
+// "Why we're suited to this booking" — named reusable blurbs, managed in Settings,
+// inserted into email templates via the {{why_suited:<name>}} placeholder.
+export interface WhySuitedTemplate {
+  id: string
+  name: string
+  body: string
+  created_at: string
+  updated_at: string
+}
+
 export interface QuoteRecord {
   id: string
   created_at: string

@@ -25,12 +25,20 @@ const FIELD_PICKER_OPTIONS: { field: string; label: string; auto: boolean }[] = 
   { field: 'event_type', label: 'Event type', auto: true },
   { field: 'booking_details', label: 'Booking details block', auto: true },
   { field: 'quote', label: 'Quote block', auto: true },
+  { field: 'why_suited:name', label: 'Why we’re suited', auto: true },
 ]
+
+// {{why_suited:<name>}} is resolved on the quote email page from the named
+// Settings → Why we're suited template — treated as auto-filled, never prompted.
+function isAutoField(field: string): boolean {
+  const f = field.trim()
+  return KNOWN_AUTO_FIELDS.has(f) || f.startsWith('why_suited:')
+}
 
 function highlightFieldsHtml(html: string) {
   // Replace {{field}} in HTML string with highlighted spans
   return html.replace(/\{\{([^}]+)\}\}/g, (match, field) => {
-    const isAuto = KNOWN_AUTO_FIELDS.has(field.trim())
+    const isAuto = isAutoField(field)
     const bg = isAuto ? 'rgba(59,130,246,0.15)' : 'rgba(245,158,11,0.15)'
     const color = isAuto ? '#3b82f6' : '#b45309'
     // Only a background tint — no font-family / font-size override, so the token
@@ -227,7 +235,7 @@ export default function TemplatesPage() {
     setSelected(t)
     setEditing(false)
     setUseMode(true)
-    const fields = extractPlaceholders(t.body)
+    const fields = extractPlaceholders(t.body).filter(f => !f.trim().startsWith('why_suited:'))
     const initial: Record<string, string> = {}
     fields.forEach(f => { initial[f] = '' })
     setFieldValues(initial)

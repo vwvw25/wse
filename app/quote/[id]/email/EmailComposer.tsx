@@ -1,18 +1,42 @@
 'use client'
 
 import React, { useState, useMemo } from 'react'
-import type { EmailTemplate, EventRecord } from '@/types/quote'
+import type { EmailTemplate, EventRecord, WhySuitedTemplate } from '@/types/quote'
 import { gmailBodyStyle } from '@/lib/email-style'
 
 interface Props {
   templates: EmailTemplate[]
+  whySuitedTemplates: WhySuitedTemplate[]
+  whySuitedPrompt: string
+  enquiryEmail: string
   event: EventRecord | null
   quoteHtml: string
   bookingDetailsHtml: string
   quoteId: string
 }
 
-function fillTemplate(body: string, event: EventRecord | null, quoteHtml: string, bookingDetailsHtml: string): string {
+// {{why_suited:<name>}} — a named blurb from Settings → Why we're suited.
+const WHY_SUITED_RE = /\{\{\s*why_suited\s*:\s*([^}]+?)\s*\}\}/i
+const WHY_SUITED_RE_G = /\{\{\s*why_suited\s*:\s*([^}]+?)\s*\}\}/gi
+
+function findWhySuited(templates: WhySuitedTemplate[], name: string): WhySuitedTemplate | undefined {
+  const target = name.trim().toLowerCase()
+  return templates.find(t => t.name.trim().toLowerCase() === target)
+}
+
+function fillTemplate(
+  body: string,
+  event: EventRecord | null,
+  quoteHtml: string,
+  bookingDetailsHtml: string,
+  whySuitedTemplates: WhySuitedTemplate[] = [],
+): string {
+  // Resolve {{why_suited:<name>}} first — its body is plain text, so newlines → <br>.
+  body = body.replace(WHY_SUITED_RE_G, (match, name: string) => {
+    const tpl = findWhySuited(whySuitedTemplates, name)
+    return tpl ? toDisplayHtml(tpl.body) : match
+  })
+
   const agentFirst = event?.agent_first_name ?? event?.agent_name?.split(' ')[0] ?? ''
   const eventDate = event?.event_date
     ? new Date(event.event_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -80,22 +104,47 @@ function CopyIconButton({ onClick, copied, style }: { onClick: () => void; copie
   )
 }
 
-export default function EmailComposer({ templates, event, quoteHtml, bookingDetailsHtml, quoteId }: Props) {
+export default function EmailComposer({ templates, whySuitedTemplates, whySuitedPrompt, enquiryEmail, event, quoteHtml, bookingDetailsHtml, quoteId }: Props) {
   const [selected, setSelected] = useState<EmailTemplate | null>(templates[0] ?? null)
   const [search, setSearch] = useState('')
   const [copied, setCopied] = useState(false)
+  const [promptOpen, setPromptOpen] = useState(false)
+  const [promptCopied, setPromptCopied] = useState(false)
 
   const filtered = templates.filter(t => t.name.toLowerCase().includes(search.toLowerCase()))
 
   const filledHtml = useMemo(() => {
     if (!selected) return ''
-    return fillTemplate(toDisplayHtml(selected.body), event, quoteHtml, bookingDetailsHtml)
-  }, [selected, event, quoteHtml, bookingDetailsHtml])
+    return fillTemplate(toDisplayHtml(selected.body), event, quoteHtml, bookingDetailsHtml, whySuitedTemplates)
+  }, [selected, event, quoteHtml, bookingDetailsHtml, whySuitedTemplates])
 
   const filledSubject = useMemo(() => {
     if (!selected?.subject) return ''
-    return fillTemplate(selected.subject, event, quoteHtml, bookingDetailsHtml)
-  }, [selected, event, quoteHtml, bookingDetailsHtml])
+    return fillTemplate(selected.subject, event, quoteHtml, bookingDetailsHtml, whySuitedTemplates)
+  }, [selected, event, quoteHtml, bookingDetailsHtml, whySuitedTemplates])
+
+  // The {{why_suited:<name>}} in the selected template, if any.
+  const whySuited = useMemo(() => {
+    const m = selected?.body.match(WHY_SUITED_RE)
+    if (!m) return null
+    const name = m[1].trim()
+    return { name, tpl: findWhySuited(whySuitedTemplates, name) }
+  }, [selected, whySuitedTemplates])
+
+  const generatedPrompt = useMemo(() => {
+    if (!whySuited?.tpl) return ''
+    return whySuitedPrompt
+      .replace(/\{\{\s*why_suited\s*\}\}/gi, whySuited.tpl.body)
+      .replace(/\{\{\s*enquiry_email\s*\}\}/gi, enquiryEmail || '(no enquiry email on file)')
+  }, [whySuited, whySuitedPrompt, enquiryEmail])
+
+  async function copyPrompt() {
+    try {
+      await navigator.clipboard.writeText(generatedPrompt)
+    } catch { /* ignore */ }
+    setPromptCopied(true)
+    setTimeout(() => setPromptCopied(false), 2000)
+  }
 
   async function handleCopy() {
     try {
@@ -175,6 +224,19 @@ export default function EmailComposer({ templates, event, quoteHtml, bookingDeta
                 )}
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
+                {whySuited && (
+                  <button
+                    onClick={() => setPromptOpen(true)}
+                    style={{
+                      padding: '7px 14px', fontSize: 12, fontWeight: 500,
+                      background: 'var(--bg)', color: 'var(--text)',
+                      border: '0.5px solid var(--border-hover)', borderRadius: 'var(--radius-sm)',
+                      cursor: 'pointer', fontFamily: 'var(--font)',
+                    }}
+                  >
+                    Generate custom why we’re suited
+                  </button>
+                )}
                 <a
                   href={`/quote/${quoteId}`}
                   style={{
@@ -224,6 +286,76 @@ export default function EmailComposer({ templates, event, quoteHtml, bookingDeta
           </>
         )}
       </div>
+
+      {promptOpen && (
+        <div
+          onClick={() => setPromptOpen(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 50,
+            background: 'rgba(0,0,0,0.4)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'var(--bg)', border: '0.5px solid var(--border)',
+              borderRadius: 'var(--radius-lg)', width: 'min(720px, 100%)',
+              maxHeight: '85vh', display: 'flex', flexDirection: 'column',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+            }}
+          >
+            <div style={{ padding: '16px 20px', borderBottom: '0.5px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Generate custom why we’re suited</div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
+                  {whySuited?.tpl
+                    ? <>Based on <strong>{whySuited.name}</strong>. Copy this into ChatGPT, then paste the result into the email.</>
+                    : <>Placeholder <code>{`{{why_suited:${whySuited?.name ?? ''}}}`}</code> — no matching template.</>}
+                </div>
+              </div>
+              <button onClick={() => setPromptOpen(false)} style={{ background: 'none', border: 'none', fontSize: 20, lineHeight: 1, color: 'var(--text-tertiary)', cursor: 'pointer', padding: 0 }}>×</button>
+            </div>
+
+            <div style={{ padding: '16px 20px', overflowY: 'auto' }}>
+              {!whySuited?.tpl ? (
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
+                  No “Why we’re suited” template named <strong>{whySuited?.name}</strong> exists. Create one in{' '}
+                  <a href="/admin/settings" style={{ color: 'var(--text-info)' }}>Settings → Why we’re suited</a>, or fix the placeholder in this email template.
+                </p>
+              ) : !whySuitedPrompt.trim() ? (
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
+                  No prompt wording set yet. Add it in{' '}
+                  <a href="/admin/settings" style={{ color: 'var(--text-info)' }}>Settings → Why we’re suited</a> (the “ChatGPT prompt” box).
+                </p>
+              ) : (
+                <textarea
+                  readOnly
+                  value={generatedPrompt}
+                  onFocus={e => e.currentTarget.select()}
+                  style={{
+                    width: '100%', minHeight: 320, boxSizing: 'border-box',
+                    padding: '12px 14px', fontSize: 13, lineHeight: 1.6,
+                    fontFamily: 'var(--font)', resize: 'vertical',
+                    background: 'var(--bg-secondary)', color: 'var(--text)',
+                    border: '0.5px solid var(--border)', borderRadius: 'var(--radius-md)',
+                    outline: 'none',
+                  }}
+                />
+              )}
+            </div>
+
+            {whySuited?.tpl && whySuitedPrompt.trim() && (
+              <div style={{ padding: '12px 20px', borderTop: '0.5px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                <button onClick={() => setPromptOpen(false)} style={{ padding: '8px 16px', fontSize: 12, fontWeight: 500, background: 'transparent', color: 'var(--text-secondary)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'var(--font)' }}>Close</button>
+                <button onClick={copyPrompt} style={{ padding: '8px 18px', fontSize: 12, fontWeight: 500, background: promptCopied ? '#276749' : 'var(--accent)', color: 'var(--accent-text-on)', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'var(--font)' }}>
+                  {promptCopied ? 'Copied!' : 'Copy prompt'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import type { Settings } from '@/types/quote'
+import type { Settings, WhySuitedTemplate } from '@/types/quote'
 import type { InvoiceSettings } from '@/types/invoice'
 import { createDressCodeTemplate, updateDressCodeTemplate, deleteDressCodeTemplate } from '../dress-codes/actions'
 import type { DressCodeTemplate } from '../dress-codes/actions'
@@ -85,7 +85,7 @@ function FieldRow({
   )
 }
 
-type Section = 'pricing' | 'invoicing' | 'email' | 'pages' | 'general' | 'dress-codes' | 'av' | 'tools' | 'style'
+type Section = 'pricing' | 'invoicing' | 'email' | 'why-suited' | 'pages' | 'general' | 'dress-codes' | 'av' | 'tools' | 'style'
 
 const NAV_GROUPS: { heading: string; items: { key: Section; label: string }[] }[] = [
   {
@@ -94,6 +94,7 @@ const NAV_GROUPS: { heading: string; items: { key: Section; label: string }[] }[
       { key: 'pricing',      label: 'Pricing' },
       { key: 'invoicing',    label: 'Invoicing' },
       { key: 'email',        label: 'Email' },
+      { key: 'why-suited',   label: 'Why we’re suited' },
       { key: 'pages',        label: 'Pages' },
       { key: 'general',      label: 'General' },
       { key: 'dress-codes',  label: 'Dress codes' },
@@ -280,6 +281,15 @@ export default function SettingsPage() {
   const [dressCodeEditing, setDressCodeEditing] = useState<string | null>(null)
   const [dressCodeCreating, setDressCodeCreating] = useState(false)
 
+  // Why we're suited state
+  const [wsTemplates, setWsTemplates] = useState<WhySuitedTemplate[]>([])
+  const [wsPrompt, setWsPrompt] = useState('')
+  const [wsLoading, setWsLoading] = useState(false)
+  const [wsEditing, setWsEditing] = useState<string | null>(null)
+  const [wsCreating, setWsCreating] = useState(false)
+  const [wsPromptSaving, setWsPromptSaving] = useState(false)
+  const [wsMessage, setWsMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
   // Booking sources state
   const [bookingSources, setBookingSources] = useState<string[]>([])
   const [newSource, setNewSource] = useState('')
@@ -337,6 +347,65 @@ export default function SettingsPage() {
       .then(data => setDressCodeTemplates(Array.isArray(data) ? data : []))
       .catch(() => {})
       .finally(() => setDressCodesLoading(false))
+  }
+
+  function loadWhySuited() {
+    setWsLoading(true)
+    fetch('/api/admin/why-suited')
+      .then(r => r.json())
+      .then(data => {
+        setWsTemplates(Array.isArray(data?.templates) ? data.templates : [])
+        setWsPrompt(typeof data?.prompt === 'string' ? data.prompt : '')
+      })
+      .catch(() => {})
+      .finally(() => setWsLoading(false))
+  }
+
+  async function saveWhySuitedPrompt() {
+    setWsPromptSaving(true)
+    setWsMessage(null)
+    try {
+      const res = await fetch('/api/admin/why-suited', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: wsPrompt }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        setWsMessage({ type: 'error', text: err.error ?? 'Failed to save' })
+      } else {
+        setWsMessage({ type: 'success', text: 'Prompt saved.' })
+      }
+    } catch {
+      setWsMessage({ type: 'error', text: 'Network error.' })
+    } finally {
+      setWsPromptSaving(false)
+    }
+  }
+
+  async function createWhySuited(fd: FormData) {
+    await fetch('/api/admin/why-suited', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: fd.get('name'), body: fd.get('body') }),
+    })
+    setWsCreating(false)
+    loadWhySuited()
+  }
+
+  async function updateWhySuited(id: string, fd: FormData) {
+    await fetch(`/api/admin/why-suited/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: fd.get('name'), body: fd.get('body') }),
+    })
+    setWsEditing(null)
+    loadWhySuited()
+  }
+
+  async function deleteWhySuited(id: string) {
+    await fetch(`/api/admin/why-suited/${id}`, { method: 'DELETE' })
+    loadWhySuited()
   }
 
   function loadGifs() {
@@ -652,7 +721,7 @@ export default function SettingsPage() {
                 {group.items.map(({ key, label }) => (
                   <button
                     key={key}
-                    onClick={() => { setSection(key); if (key === 'general') loadUsers(); if (key === 'dress-codes') loadDressCodes() }}
+                    onClick={() => { setSection(key); if (key === 'general') loadUsers(); if (key === 'dress-codes') loadDressCodes(); if (key === 'why-suited') loadWhySuited() }}
                     style={navItemStyle(section === key)}
                   >
                     {label}
@@ -1167,6 +1236,98 @@ export default function SettingsPage() {
                             <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                               <button onClick={() => setDressCodeEditing(t.id)} style={{ fontSize: 12, color: 'var(--text-secondary)', background: 'none', border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '3px 10px', cursor: 'pointer', fontFamily: 'var(--font)' }}>Edit</button>
                               <button onClick={async () => { if (confirm(`Delete "${t.name}"?`)) { await deleteDressCodeTemplate(t.id); loadDressCodes() } }} style={{ fontSize: 12, color: 'var(--text-danger)', background: 'none', border: '0.5px solid var(--border-danger)', borderRadius: 'var(--radius-sm)', padding: '3px 10px', cursor: 'pointer', fontFamily: 'var(--font)' }}>Delete</button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )
+          })()}
+
+          {/* ── Why we're suited ── */}
+          {section === 'why-suited' && (() => {
+            const wsInput: React.CSSProperties = { ...inputStyle, width: '100%', boxSizing: 'border-box' }
+            const fieldLabel: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }
+
+            function WsForm({ initial, onSubmit, onCancel, submitLabel }: { initial?: WhySuitedTemplate; onSubmit: (fd: FormData) => void; onCancel?: () => void; submitLabel: string }) {
+              return (
+                <form action={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div>
+                    <div style={fieldLabel}>Name</div>
+                    <input name="name" defaultValue={initial?.name ?? ''} required placeholder="e.g. wardsmith" style={wsInput} />
+                  </div>
+                  <div>
+                    <div style={fieldLabel}>Why we’re suited text</div>
+                    <textarea name="body" defaultValue={initial?.body ?? ''} rows={6} style={{ ...wsInput, resize: 'vertical', lineHeight: 1.5 }} placeholder="The paragraph that goes into the email…" />
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button type="submit" style={{ padding: '7px 16px', fontSize: 13, fontWeight: 500, background: 'var(--text)', color: 'var(--bg)', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'var(--font)' }}>{submitLabel}</button>
+                    {onCancel && <button type="button" onClick={onCancel} style={{ padding: '7px 16px', fontSize: 13, fontWeight: 500, background: 'transparent', color: 'var(--text-secondary)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'var(--font)' }}>Cancel</button>}
+                  </div>
+                </form>
+              )
+            }
+
+            return (
+              <>
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 20px', lineHeight: 1.6 }}>
+                  Named blurbs you drop into an email template with <code style={{ fontSize: 12 }}>{'{{why_suited:<name>}}'}</code> — e.g. <code style={{ fontSize: 12 }}>{'{{why_suited:wardsmith}}'}</code>. On the quote email page the placeholder is filled with the text below, and <strong>Generate custom why we’re suited</strong> builds a ChatGPT prompt from it plus the original enquiry email.
+                </p>
+
+                <div style={sectionHeaderStyle}>ChatGPT prompt</div>
+                <p style={{ fontSize: 12, color: 'var(--text-tertiary)', margin: '0 0 8px', lineHeight: 1.5 }}>
+                  Tokens: <code>{'{{why_suited}}'}</code> (the blurb above) and <code>{'{{enquiry_email}}'}</code> (the agency’s original email). Both are substituted when you click Generate.
+                </p>
+                <textarea
+                  value={wsPrompt}
+                  onChange={e => { setWsPrompt(e.target.value); setWsMessage(null) }}
+                  rows={8}
+                  placeholder={'This is our usual "why we\'re suited to this booking":\n\n{{why_suited}}\n\nCustomise it for this specific booking, using the enquiry below:\n\n{{enquiry_email}}'}
+                  style={{ ...inputStyle, width: '100%', boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.5 }}
+                />
+                <div style={{ margin: '12px 0 32px', display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <button onClick={saveWhySuitedPrompt} disabled={wsPromptSaving} style={{ padding: '9px 20px', background: 'var(--accent)', color: 'var(--accent-text-on)', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: 14, fontWeight: 500, fontFamily: 'var(--font)', cursor: wsPromptSaving ? 'not-allowed' : 'pointer', opacity: wsPromptSaving ? 0.7 : 1 }}>
+                    {wsPromptSaving ? 'Saving…' : 'Save prompt'}
+                  </button>
+                  {wsMessage && <span style={{ fontSize: 13, color: wsMessage.type === 'success' ? '#166534' : '#b91c1c' }}>{wsMessage.text}</span>}
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <div style={sectionHeaderStyle}>Templates</div>
+                  {!wsCreating && (
+                    <button onClick={() => setWsCreating(true)} style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, background: 'var(--text)', color: 'var(--bg)', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'var(--font)' }}>New template</button>
+                  )}
+                </div>
+                {wsCreating && (
+                  <div style={{ background: 'var(--bg)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius-md)', padding: 16, marginBottom: 12 }}>
+                    <WsForm onSubmit={createWhySuited} onCancel={() => setWsCreating(false)} submitLabel="Create template" />
+                  </div>
+                )}
+                {wsLoading ? (
+                  <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Loading…</p>
+                ) : wsTemplates.length === 0 && !wsCreating ? (
+                  <p style={{ fontSize: 13, color: 'var(--text-tertiary)', fontStyle: 'italic' }}>No templates yet.</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {wsTemplates.map(t => (
+                      <div key={t.id} style={{ border: '0.5px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '12px 14px', background: 'var(--bg)' }}>
+                        {wsEditing === t.id ? (
+                          <WsForm initial={t} onSubmit={fd => updateWhySuited(t.id, fd)} onCancel={() => setWsEditing(null)} submitLabel="Save" />
+                        ) : (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: t.body ? 4 : 0 }}>
+                                {t.name}
+                                <code style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-tertiary)', marginLeft: 8 }}>{`{{why_suited:${t.name}}}`}</code>
+                              </div>
+                              {t.body && <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{t.body}</div>}
+                            </div>
+                            <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                              <button onClick={() => setWsEditing(t.id)} style={{ fontSize: 12, color: 'var(--text-secondary)', background: 'none', border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '3px 10px', cursor: 'pointer', fontFamily: 'var(--font)' }}>Edit</button>
+                              <button onClick={() => { if (confirm(`Delete "${t.name}"?`)) deleteWhySuited(t.id) }} style={{ fontSize: 12, color: 'var(--text-danger)', background: 'none', border: '0.5px solid var(--border-danger)', borderRadius: 'var(--radius-sm)', padding: '3px 10px', cursor: 'pointer', fontFamily: 'var(--font)' }}>Delete</button>
                             </div>
                           </div>
                         )}
