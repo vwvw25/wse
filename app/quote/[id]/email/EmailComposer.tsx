@@ -123,20 +123,29 @@ export default function EmailComposer({ templates, whySuitedTemplates, whySuited
     return fillTemplate(selected.subject, event, quoteHtml, bookingDetailsHtml, whySuitedTemplates)
   }, [selected, event, quoteHtml, bookingDetailsHtml, whySuitedTemplates])
 
-  // The {{why_suited:<name>}} in the selected template, if any.
-  const whySuited = useMemo(() => {
+  // Which blurb the Generate modal is currently using.
+  const [promptWsId, setPromptWsId] = useState('')
+
+  // If the selected template names one via {{why_suited:<name>}}, prefer that.
+  const placeholderWsName = useMemo(() => {
     const m = selected?.body.match(WHY_SUITED_RE)
-    if (!m) return null
-    const name = m[1].trim()
-    return { name, tpl: findWhySuited(whySuitedTemplates, name) }
-  }, [selected, whySuitedTemplates])
+    return m ? m[1].trim() : null
+  }, [selected])
+
+  function openPrompt() {
+    const match = placeholderWsName ? findWhySuited(whySuitedTemplates, placeholderWsName) : undefined
+    setPromptWsId(match?.id ?? whySuitedTemplates[0]?.id ?? '')
+    setPromptOpen(true)
+  }
+
+  const promptWsTpl = whySuitedTemplates.find(t => t.id === promptWsId) ?? null
 
   const generatedPrompt = useMemo(() => {
-    if (!whySuited?.tpl) return ''
+    if (!promptWsTpl) return ''
     return whySuitedPrompt
-      .replace(/\{\{\s*why_suited\s*\}\}/gi, whySuited.tpl.body)
+      .replace(/\{\{\s*why_suited\s*\}\}/gi, promptWsTpl.body)
       .replace(/\{\{\s*enquiry_email\s*\}\}/gi, enquiryEmail || '(no enquiry email on file)')
-  }, [whySuited, whySuitedPrompt, enquiryEmail])
+  }, [promptWsTpl, whySuitedPrompt, enquiryEmail])
 
   async function copyPrompt() {
     try {
@@ -224,19 +233,17 @@ export default function EmailComposer({ templates, whySuitedTemplates, whySuited
                 )}
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                {whySuited && (
-                  <button
-                    onClick={() => setPromptOpen(true)}
-                    style={{
-                      padding: '7px 14px', fontSize: 12, fontWeight: 500,
-                      background: 'var(--bg)', color: 'var(--text)',
-                      border: '0.5px solid var(--border-hover)', borderRadius: 'var(--radius-sm)',
-                      cursor: 'pointer', fontFamily: 'var(--font)',
-                    }}
-                  >
-                    Generate custom why we’re suited
-                  </button>
-                )}
+                <button
+                  onClick={openPrompt}
+                  style={{
+                    padding: '7px 14px', fontSize: 12, fontWeight: 500,
+                    background: 'var(--bg)', color: 'var(--text)',
+                    border: '0.5px solid var(--border-hover)', borderRadius: 'var(--radius-sm)',
+                    cursor: 'pointer', fontFamily: 'var(--font)',
+                  }}
+                >
+                  Generate custom why we’re suited
+                </button>
                 <a
                   href={`/quote/${quoteId}`}
                   style={{
@@ -309,19 +316,17 @@ export default function EmailComposer({ templates, whySuitedTemplates, whySuited
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Generate custom why we’re suited</div>
                 <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
-                  {whySuited?.tpl
-                    ? <>Based on <strong>{whySuited.name}</strong>. Copy this into ChatGPT, then paste the result into the email.</>
-                    : <>Placeholder <code>{`{{why_suited:${whySuited?.name ?? ''}}}`}</code> — no matching template.</>}
+                  Copy this prompt into ChatGPT, then paste its answer into the email.
                 </div>
               </div>
               <button onClick={() => setPromptOpen(false)} style={{ background: 'none', border: 'none', fontSize: 20, lineHeight: 1, color: 'var(--text-tertiary)', cursor: 'pointer', padding: 0 }}>×</button>
             </div>
 
             <div style={{ padding: '16px 20px', overflowY: 'auto' }}>
-              {!whySuited?.tpl ? (
+              {whySuitedTemplates.length === 0 ? (
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
-                  No “Why we’re suited” template named <strong>{whySuited?.name}</strong> exists. Create one in{' '}
-                  <a href="/admin/settings" style={{ color: 'var(--text-info)' }}>Settings → Why we’re suited</a>, or fix the placeholder in this email template.
+                  No “Why we’re suited” blurbs exist yet. Create one in{' '}
+                  <a href="/admin/settings" style={{ color: 'var(--text-info)' }}>Settings → Why we’re suited</a>.
                 </p>
               ) : !whySuitedPrompt.trim() ? (
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
@@ -329,23 +334,42 @@ export default function EmailComposer({ templates, whySuitedTemplates, whySuited
                   <a href="/admin/settings" style={{ color: 'var(--text-info)' }}>Settings → Why we’re suited</a> (the “ChatGPT prompt” box).
                 </p>
               ) : (
-                <textarea
-                  readOnly
-                  value={generatedPrompt}
-                  onFocus={e => e.currentTarget.select()}
-                  style={{
-                    width: '100%', minHeight: 320, boxSizing: 'border-box',
-                    padding: '12px 14px', fontSize: 13, lineHeight: 1.6,
-                    fontFamily: 'var(--font)', resize: 'vertical',
-                    background: 'var(--bg-secondary)', color: 'var(--text)',
-                    border: '0.5px solid var(--border)', borderRadius: 'var(--radius-md)',
-                    outline: 'none',
-                  }}
-                />
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)' }}>Blurb</span>
+                    <select
+                      value={promptWsId}
+                      onChange={e => setPromptWsId(e.target.value)}
+                      style={{
+                        flex: 1, height: 32, padding: '0 8px', fontSize: 13,
+                        background: 'var(--bg-secondary)', color: 'var(--text)',
+                        border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)',
+                        outline: 'none', fontFamily: 'var(--font)',
+                      }}
+                    >
+                      {whySuitedTemplates.map(t => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <textarea
+                    readOnly
+                    value={generatedPrompt}
+                    onFocus={e => e.currentTarget.select()}
+                    style={{
+                      width: '100%', minHeight: 320, boxSizing: 'border-box',
+                      padding: '12px 14px', fontSize: 13, lineHeight: 1.6,
+                      fontFamily: 'var(--font)', resize: 'vertical',
+                      background: 'var(--bg-secondary)', color: 'var(--text)',
+                      border: '0.5px solid var(--border)', borderRadius: 'var(--radius-md)',
+                      outline: 'none',
+                    }}
+                  />
+                </>
               )}
             </div>
 
-            {whySuited?.tpl && whySuitedPrompt.trim() && (
+            {promptWsTpl && whySuitedPrompt.trim() && (
               <div style={{ padding: '12px 20px', borderTop: '0.5px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
                 <button onClick={() => setPromptOpen(false)} style={{ padding: '8px 16px', fontSize: 12, fontWeight: 500, background: 'transparent', color: 'var(--text-secondary)', border: '0.5px solid var(--border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'var(--font)' }}>Close</button>
                 <button onClick={copyPrompt} style={{ padding: '8px 18px', fontSize: 12, fontWeight: 500, background: promptCopied ? '#276749' : 'var(--accent)', color: 'var(--accent-text-on)', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'var(--font)' }}>
