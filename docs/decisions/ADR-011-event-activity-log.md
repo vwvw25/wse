@@ -20,11 +20,18 @@ In practice, coverage has been inconsistent: when the `/admin/invoices` list pag
 - Any future per-event feature (quotes, contracts, set lists, calendar, travel, requests) follows the same rule
 
 **What a log entry needs:**
-- `type` — one of the `EventActivityType` values in `lib/event-activity.ts` (`field_change`, `status_change`, `musician_change`, `quote_change`, `invoice_change`, `request_change`, `set_list_change`, `contract_change`, `ai_agent_action`, `comment`). Add a new type rather than overloading an existing one if nothing fits.
+- `type` — one of the `EventActivityType` values in `lib/event-activity.ts` (`field_change`, `status_change`, `musician_change`, `quote_change`, `invoice_change`, `request_change`, `set_list_change`, `contract_change`, `ai_agent_action`, `comment`, `note`). Add a new type rather than overloading an existing one if nothing fits — and when you do, it's **four** places, not one: the `EventActivityType` union, the `event_activity_log_type_check` DB CHECK constraint (a write with an unlisted type fails silently through `logEventActivity`, which swallows the error), and `ACTIVITY_TYPE_META` + `ACTIVITY_FILTERS` in `app/admin/events/[id]/page.tsx`.
 - `summary` — a short, human-readable sentence naming the specific thing that changed and its new value (e.g. `Invoice WSE-2026-071 marked paid on 15 Jul 2026`), not just `Invoice updated`.
 - Enough identifying context in the summary (invoice number, musician name, etc.) that the entry makes sense on its own — actions that only have a row ID (like a Supabase table PK) must look up the human-readable label before logging, not log the ID.
 
 **When it's optional:** Pure reads, revalidation-only calls, and UI-only state (e.g. which filter tab is selected) don't need a log entry — only writes to persisted, event-scoped data.
+
+## Standing question for every feature change
+
+Whenever a feature is added or changed, explicitly ask — and raise with Victoria if the answer is yes or maybe:
+
+1. **Should this be recorded in the activity feed?** (Any write to event-scoped data almost certainly should.)
+2. **How might this change impact the activity feed?** New type → also update the DB CHECK constraint + page meta/filters. Renamed field → `field_change` rows read differently. High-frequency write → risk of flooding the feed. New "communication"-style event → should the Communication filter include it?
 
 ## Consequences
 

@@ -15,6 +15,7 @@ import EventQuotesClient from './EventQuotesClient'
 import RequestsSection from './RequestsSection'
 import AvSection from './AvSection'
 import CommentsSection from './CommentsSection'
+import EventNotesSection from './EventNotesSection'
 import CalendarNotesSection from './CalendarNotesSection'
 import TravelDetailsForm from './TravelDetailsForm'
 import JourneyDetailsCard from './JourneyDetailsCard'
@@ -105,6 +106,7 @@ const ACTIVITY_FILTERS: { value: string; label: string }[] = [
   { value: 'request_change', label: 'Requests' },
   { value: 'set_list_change', label: 'Set lists' },
   { value: 'contract_change', label: 'Contract' },
+  { value: 'note', label: 'Notes' },
   { value: 'comment', label: 'Comments' },
 ]
 
@@ -119,6 +121,7 @@ const ACTIVITY_TYPE_META: Record<string, { label: string; bg: string; color: str
   contract_change: { label: 'Contract', bg: 'var(--pill-contract-received-bg)', color: 'var(--pill-contract-received-text)' },
   ai_agent_action: { label: 'Agent', bg: 'var(--pill-cancelled-bg)', color: 'var(--pill-cancelled-text)' },
   comment: { label: 'Comment', bg: 'var(--pill-enquiry-bg)', color: 'var(--pill-enquiry-text)' },
+  note: { label: 'Note', bg: 'var(--pill-enquiry-bg)', color: 'var(--pill-enquiry-text)' },
 }
 
 export default async function EventDetailPage({
@@ -135,13 +138,14 @@ export default async function EventDetailPage({
 
   const supabase = createServiceClient()
 
-  const [{ data: eventData }, { data: quotesData }, { data: invoicesData }, { data: invoiceSettingsData }, { data: allClientsData }, { data: monitoringData }] = await Promise.all([
+  const [{ data: eventData }, { data: quotesData }, { data: invoicesData }, { data: invoiceSettingsData }, { data: allClientsData }, { data: monitoringData }, { data: notesData }] = await Promise.all([
     supabase.from('events').select('*, booked_template:band_templates!booked_band_template_id(name), dress_code_template:dress_code_templates!dress_code_template_id(name, description)').eq('id', id).single(),
     supabase.from('quotes').select('id, created_at, inputs, calculated, version, status, accepted_option').eq('event_id', id).order('version', { ascending: false }),
     supabase.from('invoices').select('*, line_items:invoice_line_items(*)').eq('event_id', id).order('created_at'),
     supabase.from('invoice_settings').select('*').single(),
     supabase.from('clients').select('*').order('name'),
     supabase.from('monitoring_settings').select('reply_to_email').eq('id', 1).single(),
+    supabase.from('event_notes').select('id, body, note_date').eq('event_id', id).order('note_date', { ascending: true }).order('created_at', { ascending: true }),
   ])
 
   if (!eventData) notFound()
@@ -152,6 +156,7 @@ export default async function EventDetailPage({
   const invoiceSettings = (invoiceSettingsData ?? null) as InvoiceSettings | null
   const allClients = (allClientsData ?? []) as Client[]
   const linkedClient = allClients.find(c => c.id === event.client_id) ?? null
+  const eventNotes = (notesData ?? []) as { id: string; body: string; note_date: string }[]
   const adminEmail = (monitoringData as { reply_to_email?: string | null } | null)?.reply_to_email ?? null
   const dressCode = resolveDressCode(
     (event as unknown as { dress_code?: string | null }).dress_code,
@@ -487,6 +492,12 @@ export default async function EventDetailPage({
       {/* ── Information tab ── */}
       {tab === 'information' && (
         <>
+          <Section label="Notes">
+            <div style={{ padding: '12px 0' }}>
+              <EventNotesSection eventId={id} notes={eventNotes} />
+            </div>
+          </Section>
+
           <Section label="Event details">
             <PairGrid>
               {event.is_agency ? (

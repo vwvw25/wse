@@ -95,6 +95,15 @@ Before making a non-trivial change to the quote, event, invoicing, musician-book
 
 **After** making a change that alters a flow's core logic — a new status, a new table or column a flow writes to, a new entry point, a step added/removed/reordered — update the relevant `docs/flows/*.md` file as part of that same change, not as a follow-up. Treat an out-of-date flow doc as an incomplete change, the same way you'd treat a missing `logEventActivity` call.
 
+## Activity feed — always ask
+
+The event **Activity** tab (`event_activity_log`, `lib/event-activity.ts`, [ADR-011](docs/decisions/ADR-011-event-activity-log.md)) is meant to be the complete audit trail for a booking. Whenever you add or change a feature, stop and ask yourself:
+
+1. **Should this be recorded in the activity feed?** Any create/update/delete on event-scoped data (`events`, `quotes`, `invoices`, `event_musicians`, contracts, set lists, requests, notes, AV, travel, …) almost always should — via `logEventActivity(eventId, …)` right after the write.
+2. **How might this change impact the activity feed?** e.g. a new `EventActivityType` value also needs adding to the `event_activity_log_type_check` DB constraint, to `ACTIVITY_TYPE_META` / `ACTIVITY_FILTERS` in the event page, and considering whether it belongs in the "Communication" filter. A renamed field changes how `field_change` rows read. A new high-frequency write could flood the feed.
+
+If the answer to (1) is "yes" or "maybe", **ask Victoria** before finalising — confirm it should be logged, and what the summary line should say — rather than silently deciding either way.
+
 ## Key conventions
 
 - Inline styles only (no Tailwind, no CSS modules)

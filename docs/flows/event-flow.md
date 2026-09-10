@@ -90,6 +90,12 @@ Each field saves immediately on change via `updateEventAv` in [actions.ts](../..
 
 Both admin pages are linked from Settings' "AV" nav item as link-outs (same pattern as "Add-ons"), not embedded inline in `settings/page.tsx`.
 
+## Notes
+
+The **first block of the Information tab** is a running Notes log ([EventNotesSection.tsx](../../app/admin/events/[id]/EventNotesSection.tsx)) — a `Date | Note` table ordered **oldest first**, so it reads top-to-bottom like a chronological log / email chain. Each row shows only the note's first line, clipped with an ellipsis; clicking a row expands it to the full (multi-line) text. It exists so that when updated info arrives by email (e.g. "agent confirmed the client is providing PA"), there's a dated paper trail rather than one overwritten free-text field (`request_details.notes`, still shown lower down as the original enquiry text).
+
+Notes live in their own `event_notes` table (`id`, `event_id`, `body`, `note_date`, `actor`, `created_at`). `note_date` is the date the note is *about* — the add form defaults it to today but it's editable, and the log is ordered by `note_date` ascending (oldest first). Added via `addEventNote` in [actions.ts](../../app/admin/events/actions.ts), which inserts the row **and** calls `logEventActivity(type: 'note')` per [ADR-011](../decisions/ADR-011-event-activity-log.md), so notes also appear (and filter) on the Activity tab.
+
 ## Activity log
 
 Every event has an audit trail in `event_activity_log`, written via `logEventActivity` in [lib/event-activity.ts](../../lib/event-activity.ts). **[ADR-011](../decisions/ADR-011-event-activity-log.md) is required reading before adding any new mutation on an event-scoped table**: the rule is that any write to `events`, `quotes`, `invoices`, `event_musicians`, contracts, set lists, or requests must call `logEventActivity` in the same function, right after the write succeeds — plain top-level column changes on `events` are logged automatically by a DB trigger, but anything inside a JSONB blob (`request_details`, `contract`) or on a different table needs an explicit call. ADR-011 exists because this was silently skipped for invoices and musician invoices for a while — that's the failure mode to avoid when adding new mutations.
@@ -106,6 +112,7 @@ Every event has an audit trail in `event_activity_log`, written via `logEventAct
 |---|---|
 | `events` | create/edit/status/contract/booking-details/AV actions in [actions.ts](../../app/admin/events/actions.ts) |
 | `quote_requests` | insert only from email-to-quote (see [quote-flow.md](quote-flow.md)) |
+| `event_notes` | `addEventNote` (Notes log at the top of the Information tab) |
 | `event_activity_log` | `logEventActivity`, from every event-scoped mutation across the app |
 | `dress_code_templates` | read-only here, powers the dress code picker |
 | `av_riders` | read-only here (AV tab); CRUD lives in [app/admin/av-riders](../../app/admin/av-riders/actions.ts) |

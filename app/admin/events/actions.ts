@@ -28,6 +28,17 @@ export async function addEventComment(eventId: string, text: string, category: s
   revalidatePath(`/admin/events/${eventId}`)
 }
 
+export async function addEventNote(eventId: string, body: string, noteDate?: string) {
+  const trimmed = body.trim()
+  if (!trimmed) return
+  const date = noteDate && /^\d{4}-\d{2}-\d{2}$/.test(noteDate) ? noteDate : undefined
+  const supabase = createServiceClient()
+  const { error } = await supabase.from('event_notes').insert({ event_id: eventId, body: trimmed, ...(date ? { note_date: date } : {}) })
+  if (error) throw new Error(`Failed to add note: ${error.message}`)
+  await logEventActivity(eventId, { type: 'note', summary: trimmed })
+  revalidatePath(`/admin/events/${eventId}`)
+}
+
 export async function updateEventStatus(eventId: string, status: EventStatus) {
   const supabase = createServiceClient()
   await supabase.from('events').update({ status }).eq('id', eventId)

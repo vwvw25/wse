@@ -40,6 +40,9 @@ export default function DateInput({ value, onChange, name, required, disabled, c
       style={{
         ...style,
         cursor: 'pointer',
+        // Follow the page theme for the native segments + calendar popup, so the
+        // picker is dark in dark mode instead of a white box.
+        colorScheme: 'light dark',
         // The dd/mm/yyyy placeholder renders using this input's own `color` —
         // dim it until a real value is set, then use the caller's colour.
         color: value ? (style?.color ?? 'var(--text)') : 'var(--text-tertiary)',

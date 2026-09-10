@@ -11,6 +11,7 @@ export type EventActivityType =
   | 'contract_change'
   | 'ai_agent_action'
   | 'comment'
+  | 'note'
 
 export const COMMENT_CATEGORIES = [
   { value: 'av', label: 'AV' },
