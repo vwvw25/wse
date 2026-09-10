@@ -101,6 +101,13 @@ const InboxIcon = () => <Ico>
   <rect x="1.5" y="2.5" width="13" height="11" rx=".5" stroke="currentColor" strokeWidth="1.3"/>
 </Ico>
 
+const AssetsIcon = () => <Ico>
+  <rect x="2" y="2.5" width="12" height="11" rx=".5" stroke="currentColor" strokeWidth="1.3"/>
+  <path d="M2 6h12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+  <circle cx="5.5" cy="10" r="1.3" stroke="currentColor" strokeWidth="1.3"/>
+  <path d="M8 11.5l2-2 2 2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+</Ico>
+
 // ── Nav links config ──────────────────────────────────────────────────────────
 
 type NavItem =
@@ -120,6 +127,7 @@ const navLinks: NavItem[] = [
   { href: '/admin/quotes',            label: 'Quotes',            icon: <QuoteIcon /> },
   { href: '/admin/set-lists',         label: 'Set lists',         icon: <ListMusicIcon /> },
   { href: '/admin/templates',         label: 'Templates',         icon: <TemplateIcon /> },
+  { href: '/admin/assets',            label: 'Assets',            icon: <AssetsIcon /> },
   { href: '/admin/clients',           label: 'Clients',           icon: <BriefcaseIcon /> },
   { href: '/admin/invoices',          label: 'Invoices',          icon: <InvoiceIcon /> },
   { type: 'section', label: 'Agents' },

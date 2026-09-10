@@ -142,7 +142,6 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
                   <NewVersionButton quoteId={id} />
                 )}
                 <a href={`/quote/new/details?prefill=${id}`} style={headerBtnStyle}>Duplicate →</a>
-                <a href={`/quote/${id}/text`} style={headerBtnStyle}>Email version →</a>
                 <a href={`/quote/${id}/email`} style={{ ...headerBtnStyle, background: 'var(--accent)', color: 'var(--accent-text-on)', borderColor: 'var(--accent)' }}>Send email →</a>
                 <AuditButton calculated={calculated} inputs={inputs} settings={quote.settings_snapshot} />
               </div>

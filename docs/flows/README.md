@@ -11,6 +11,7 @@ For *why* a piece of the data model looks the way it does, see [../decisions](..
 | [invoicing-flow.md](invoicing-flow.md) | Client invoices (WSE bills the client) and musician invoices (musician bills WSE) |
 | [musician-flow.md](musician-flow.md) | Slot assignment, availability invites, automatic cascade to backup musicians, onboarding |
 | [email-agent-flow.md](email-agent-flow.md) | Gmail ingestion → triage → issues, the CEO/accounts agents, email-to-quote |
+| [assets-flow.md](assets-flow.md) | Asset library → named bundles → email-ready copy block (agent promo/doc requests) |
 
 ## Keeping these current
 
